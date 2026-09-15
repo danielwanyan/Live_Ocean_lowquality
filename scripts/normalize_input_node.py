@@ -155,6 +155,24 @@ def _build_warnings(
     return warnings
 
 
+def _flatten_frame_urls(segments: List[Dict[str, Any]]) -> List[str]:
+    urls: List[str] = []
+    for segment in segments:
+        for url in segment.get("frame_urls", []):
+            if isinstance(url, str) and url.strip():
+                urls.append(url)
+    return urls
+
+
+def _flatten_product_image_urls(products: List[Dict[str, Any]]) -> List[str]:
+    urls: List[str] = []
+    for product in products:
+        for url in product.get("image_urls", []):
+            if isinstance(url, str) and url.strip():
+                urls.append(url)
+    return urls
+
+
 def _debug_input_shape(params: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "keys": sorted(params.keys()),
@@ -177,6 +195,8 @@ def build_normalized_output(params: Dict[str, Any]) -> Output:
         "product_catalog_json": json.dumps(products, ensure_ascii=False),
         "material_quality_warning": json.dumps(warnings, ensure_ascii=False),
         "debug_input_shape": json.dumps(_debug_input_shape(params), ensure_ascii=False),
+        "all_frame_urls": _flatten_frame_urls(segments),
+        "all_product_image_urls": _flatten_product_image_urls(products),
     }
 
 

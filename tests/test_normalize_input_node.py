@@ -88,6 +88,30 @@ class NormalizeInputNodeTest(unittest.TestCase):
         self.assertEqual(products[0]["image_urls"], ["https://example.com/p1-a.jpg", "https://example.com/p1-b.jpg"])
         self.assertEqual(products[1]["image_urls"], ["https://example.com/p2-a.jpg"])
 
+    def test_outputs_flat_visual_url_arrays_for_aicolate_vision_inputs(self):
+        result = build_normalized_output(
+            {
+                "room_id": "1",
+                "ocean_segment_ASR": "Segment #1 [00:00:00-00:05:00]:\nASR",
+                "ocean_segment_frame_urls": (
+                    "Segment #1 [00:00:00-00:05:00]: "
+                    "https://example.com/frame-1.jpg?sig=a; https://example.com/frame-2.jpg?sig=b"
+                ),
+                "pearl_product_ids": "p1",
+                "pearl_product_titles": "Product One",
+                "pearl_product_images": "https://example.com/product-1.jpg?sig=c; https://example.com/product-2.jpg?sig=d",
+            }
+        )
+
+        self.assertEqual(
+            result["all_frame_urls"],
+            ["https://example.com/frame-1.jpg?sig=a", "https://example.com/frame-2.jpg?sig=b"],
+        )
+        self.assertEqual(
+            result["all_product_image_urls"],
+            ["https://example.com/product-1.jpg?sig=c", "https://example.com/product-2.jpg?sig=d"],
+        )
+
     def test_warns_for_missing_materials_and_segment_mismatch(self):
         result = build_normalized_output(
             {
