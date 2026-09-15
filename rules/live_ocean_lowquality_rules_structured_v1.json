@@ -113,10 +113,10 @@
       "english_key": "non_native_language_violation",
       "allowed_materials": ["asr", "ocr"],
       "product_image_allowed": false,
-      "trigger_threshold": "Any Chinese in ASR or OCR, Chinglish, incomprehensible English, or highly abnormal English in the 5 ASR/OCR snippets.",
+      "trigger_threshold": "Hit only when ASR/OCR contains Chinese/CJK used in product promotion, Chinglish, incomprehensible English, or severely broken English that prevents normal product understanding.",
       "hit_definition_zh": "直播语音或画面文本中出现不符合要求的中文、中式英语、无法理解的英文内容。",
-      "judge_focus_en": "Minor understandable accent is not a hit. Coworker casual Chinese unrelated to product promotion is exempt.",
-      "exemptions": ["Coworker daily Chinese conversation unrelated to product promotion.", "Minor accent that is easy to understand."]
+      "judge_focus_en": "Normal English/local EU-language mixing is not a hit. German, French, Spanish, Italian, Dutch, Polish, and other EU language words mixed with English are normal. German \"Englisch\" is a local-language word, not misspelled English. Isolated OCR noise, stylized labels, usernames, product names, or minor spelling mistakes are not enough unless overall promotion text becomes incomprehensible. Minor understandable accent is not a hit. Coworker casual Chinese unrelated to product promotion is exempt.",
+      "exemptions": ["Coworker daily Chinese conversation unrelated to product promotion.", "Minor accent that is easy to understand.", "Normal English/local EU-language mixing, including German, French, Spanish, Italian, Dutch, Polish, or other EU language words mixed with English.", "German \"Englisch\" as a local-language word.", "Isolated OCR noise, stylized labels, usernames, product names, or minor spelling mistakes unless overall promotion text becomes incomprehensible."]
     },
     {
       "category_id": 9,
@@ -146,10 +146,10 @@
       "english_key": "replay_recorded_content",
       "allowed_materials": ["slice_image", "asr"],
       "product_image_allowed": false,
-      "trigger_threshold": "Any 1 image shows taskbar/cursor unless used for product pointing, black/green screen, abnormal jump, or nested replay-like screen; or ASR directly mentions replay/loop playback.",
+      "trigger_threshold": "Any 1 image/ASR evidence shows clear replay/loop/pre-recorded indicators such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, nested screen with clear replay/loop/pre-recorded feature, or ASR directly mentioning replay/loop playback. Browser, desktop, card-list, or spin UI alone in card-opening or lottery-like live rooms is not enough.",
       "hit_definition_zh": "直播间存在预录内容循环播放的相关特征。",
-      "judge_focus_en": "Only listed replay indicators count. A product-pointing cursor is exempt.",
-      "exemptions": ["Cursor used to point to or demonstrate product is exempt."]
+      "judge_focus_en": "Only clear replay indicators count. For card opening, TCG, trading-card, lottery/spin, or similar live rooms, browser/desktop/OBS-style interface, wheel/spin page, card-list page, or small host camera window is not replay by itself. Host face-cam used to prove real-time opening is exempt when host appears live or ASR aligns with mouth movement. A product-pointing cursor is exempt.",
+      "exemptions": ["Cursor used to point to or demonstrate product is exempt.", "Browser, desktop, or OBS-style interface when consistent with real-time opening.", "Wheel or spin page when consistent with real-time opening.", "Card-list page when consistent with real-time opening.", "Small host face-cam when consistent with real-time opening."]
     },
     {
       "category_id": 12,
@@ -223,10 +223,10 @@
       "english_key": "negative_guidance",
       "allowed_materials": ["slice_image", "asr"],
       "product_image_allowed": false,
-      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show complaining, negative emotional guidance, wealth flaunting, comparison, jealousy, resentment, irritability, or dissatisfaction triggers.",
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show persistent negative emotional guidance, wealth flaunting, hostile comparison, jealousy, resentment, irritability, dissatisfaction triggers, anxiety induction, or purchase-pressure emotion.",
       "hit_definition_zh": "直播中出现抱怨吐槽、炫富攀比、易引发观众负面情绪的内容。",
-      "judge_focus_en": "Neutral or positive content unrelated to negative emotion triggering is exempt.",
-      "exemptions": ["General neutral or positive content."]
+      "judge_focus_en": "Neutral or positive content unrelated to negative emotion triggering is exempt. In card opening, TCG, trading-card, lottery/spin, or similar live rooms, casual slang, short emotional reactions, disappointment about pull results, comments on card art/design, or hype words such as disgusting/crazy/insane used as slang are not a hit by themselves.",
+      "exemptions": ["General neutral or positive content.", "Ordinary product comparison without negative emotion triggering.", "Ordinary card-pull disappointment.", "Casual streamer banter.", "Slang or hype language without sustained negative guidance.", "Comments on card art/design or pull luck that do not induce anxiety, resentment, jealousy, or purchase pressure."]
     },
     {
       "category_id": 19,
