@@ -1,0 +1,139 @@
+## Room
+
+Room ID:
+{{room_id}}
+
+Material warnings:
+{{material_quality_warning}}
+
+Segment count:
+{{segment_count}}
+
+Product count:
+{{product_count}}
+
+## Rules
+
+Rules version:
+{{rules_version}}
+
+Focused rules context:
+{{rules_context}}
+
+Category catalog:
+{{category_catalog}}
+
+Product image permission matrix:
+{{product_image_permission_matrix}}
+
+Priority rules:
+{{priority_rules_context}}
+
+Threshold rules:
+{{threshold_rules_context}}
+
+Compact judge rules:
+{{judge_rules_compact}}
+
+## Evidence Materials
+
+All Ocean segments:
+{{segments_json}}
+
+Comment Interaction from ocean_summary only:
+{{comment_interaction}}
+
+Pearl product catalog:
+{{product_catalog_json}}
+
+## Vision Inputs
+
+You will also receive image arrays through the node Vision Inputs:
+
+all_frame_urls:
+{{all_frame_urls}}
+
+all_product_image_urls:
+{{all_product_image_urls}}
+
+Use the text JSON fields to understand which image URLs belong to which segment or product. Do not guess image roles by array position alone.
+
+## Task
+
+Check all 19 live-room low-quality categories independently.
+
+Use all Ocean segments, not a 5-segment sample.
+Use Comment Interaction only for the summary-derived interaction context.
+Use Pearl products only according to product-image permission rules.
+
+For every hit, provide evidence as an array of concise Chinese evidence objects. Each evidence object must include source, quote_or_visual_detail, and reason.
+
+For no_hit and unable_to_judge, evidence may be empty, but judge_reason must explain why the category did not hit or could not be judged from available materials.
+
+## Output Format
+
+Return the Chinese report first, then append FINAL_JSON: followed by valid JSON.
+
+Use this structure:
+
+识别到的低质问题：
+1. 识别到【类别名】
+相关佐证：
+证据1：中文说明，包含 Segment/Comment Interaction/Pearl source。
+裁判理由：中文说明为什么达到阈值。
+
+无低质问题：
+无【类别名】：简短说明未达到阈值或证据不足。
+
+无法判断：
+无法判断【类别名】：说明缺少哪些必要材料。
+
+FINAL_JSON:
+{
+  "rules_version": "",
+  "room_id": "",
+  "material_summary": {
+    "segment_count": 0,
+    "product_count": 0,
+    "comment_interaction_available": false,
+    "material_quality_warning": []
+  },
+  "final_results": [
+    {
+      "category_id": 1,
+      "category_name": "色情低俗低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到色情低俗低质问题阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    }
+  ],
+  "hit_category_ids": [],
+  "no_hit_category_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "unable_to_judge_category_ids": [],
+  "coverage_check": {
+    "expected_category_count": 19,
+    "actual_category_count": 19,
+    "missing_category_ids": [],
+    "extra_category_ids": [],
+    "hit_no_hit_overlap_category_ids": []
+  },
+  "policy_checks": {
+    "product_image_permission_violations": [],
+    "exclusive_priority_applied": [],
+    "threshold_recheck_warnings": []
+  }
+}
+
+Requirements:
+The FINAL_JSON final_results array must contain exactly 19 objects ordered by category_id from 1 to 19.
+hit_category_ids, no_hit_category_ids, and unable_to_judge_category_ids must cover all 19 categories with no overlap.
+Every final hit must have evidence_count greater than 0 and non-empty evidence.
+Every evidence source must name one of: Segment #n ASR, Segment #n frame, Comment Interaction, Pearl product #n title, Pearl product #n image.
+Do not include markdown code fences in the actual output.
+Do not add any text after the JSON.
