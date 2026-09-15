@@ -1,0 +1,97 @@
+Live Low Quality Juror Compact Rules v1
+
+Global
+Check all 19 categories independently and in order. Hit requires concrete evidence from allowed materials and the category threshold. If evidence is weak, missing, below threshold, or from forbidden material, return no_hit.
+Final evidence explanation should be Chinese. Direct quotes may remain in source language.
+Product images are allowed only for categories 3, 5, 6, 9, 10, 12, 15, 16, 17, 19.
+Priority: category 3 beats category 6 when there is no sustained product promotion intent and the live content is unrelated to bound products. Category 1 beats category 19 when there is sexual exposure or sexual implication.
+
+1 色情低俗低质问题
+Allowed: slice_image, ASR. Product image forbidden.
+Hit: any slice image or ASR shows listed sexualized exposure, sexual teasing, underwear/private-part outline, explicit chest/butt shaking, deliberate cleavage exposure, or clothing/product unsuitable for public display due to sexual exposure.
+Exempt: ordinary cleavage without deliberate sexual action; normal bikini in beach context.
+
+2 恶心恐怖低质问题
+Allowed: slice_image, ASR. Product image forbidden.
+Hit: any image/ASR shows indoor disgusting/horror content over 50% of frame or many insects, and no active cleaning.
+Exempt: active cleaning or cleaning product use.
+
+3 商品无关低质问题
+Allowed: slice_image, ASR, OCR, product_image.
+Hit: live core content unrelated to bound product and no valid sustained product promotion. Threshold: at least 3 unrelated ASR snippets, or at least 3 frame groups show no bound product with unrelated ASR, or image+ASR unrelated count >= 6.
+Use bound product category/function/use-case as reference.
+
+4 无互动低质问题
+Allowed: slice_image, ASR, OCR. Product image forbidden.
+Hit: at least 4 of 5 ASR snippets have both no product promotion and no host-audience interaction.
+
+5 无实物商品展示低质问题
+Allowed: slice_image, ASR, OCR, product_image.
+Hit: at least 4 of 5 frame groups show no real physical display of bound product, only sticker/cutout/photo/screenshot/static image, no product, or unrecognizable partial product.
+
+6 商品描述不详细低质问题
+Allowed: slice_image, ASR, OCR, product_image.
+Prerequisite: clear product promotion intent plus sustained product display/explanation/demonstration.
+Hit: cumulative at least 4 image/ASR evidence units where promotion gives no effective product info such as category/spec/function/use/price/discount, or product talk is mostly off-topic/very low information.
+Exempt: merely wearing/showing product with no promotion. If no promotion intent and unrelated content, use category 3 instead.
+
+7 静态帧遮挡低质问题
+Allowed: slice_image. Product image forbidden.
+Hit: any frame has an occlusion/interruption layer covering at least 80% of live screen and seriously blocks viewing.
+
+8 非母语违规低质问题
+Allowed: ASR, OCR. Product image forbidden.
+Hit only when ASR/OCR contains Chinese/CJK characters used in product promotion, Chinglish, incomprehensible English, or severely broken English that prevents normal product understanding.
+EU guard: normal English/local EU-language mixing is not a hit. German, French, Spanish, Italian, Dutch, Polish, and other EU language words mixed with English are normal. German "Englisch" is a local-language word, not misspelled English. Isolated OCR noise, stylized labels, usernames, product names, or minor spelling mistakes are not enough unless overall promotion text becomes incomprehensible.
+
+9 AIGC真实性低质问题
+Allowed: slice_image, ASR, OCR, product_image.
+Hit: any evidence shows AIGC-generated content used for product promotion and misleading authenticity or differing from bound physical product, such as fake AI voice/interview, fake before/after, AI size/style mismatch, digital human without real bound product.
+
+10 AIGC商品展示低质问题
+Allowed: slice_image, ASR, OCR, product_image.
+Hit: any evidence shows rendered/generated product or use scene with exaggerated size/style/effect compared with bound real product.
+
+11 录播回放低质问题
+Allowed: slice_image, ASR. Product image forbidden.
+Hit: any image shows taskbar/cursor not used for product pointing, black/green screen, abnormal jump, or nested screen with clear replay/loop/pre-recorded feature; or ASR directly mentions replay/loop playback.
+Card-opening guard: for card opening, TCG, trading-card, lottery/spin, or similar live rooms, browser/desktop/OBS-style interface, wheel/spin page, card-list page, or small host camera window is not replay by itself. Host face-cam used to prove real-time opening is exempt when host appears live or ASR aligns with mouth movement. Need additional replay indicators such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, or ASR saying replay/loop.
+
+12 功能效果虚假宣传低质问题
+Allowed: slice_image, ASR, product_image.
+Hit: any image/ASR exaggerates product function/effect beyond reliable capability and misleads consumers, such as dramatic before/after, instant effects, fast weight loss, instant whitening, overnight body change.
+Exempt: ordinary improvement, price, discount, or lottery mechanics without exaggerated product effect.
+
+13 危险行为低质问题
+Allowed: slice_image, ASR. Product image forbidden.
+Hit: cumulative at least 2 image/ASR evidence units showing life-threatening violent behavior, dangerous goods demonstration, or heavy-smoke products creating fire illusion.
+Exempt: normal safe product demonstration.
+
+14 站外引流交易低质问题
+Allowed: slice_image, ASR, OCR. Product image forbidden.
+Hit: same scene has both off-platform payment/account/site/app info and explicit transaction guidance.
+Exempt: platform-internal order guidance; social account jump without purchase intent; bio link only; only one of the two core conditions.
+
+15 违法违规商品低质问题
+Allowed: slice_image, ASR, product_image.
+Hit: cumulative at least 2 image/ASR evidence units showing legally prohibited goods, counterfeit/imitation/inferior product, product differs from bound product, or missing qualification claim tied to bound product.
+Exempt: normal legal goods and ordinary product demonstration.
+
+16 政治敏感低质问题
+Allowed: slice_image, ASR, product_image.
+Hit: cumulative at least 2 image/ASR evidence units showing political controversy, sensitive political symbols/movements, political hate symbols, racial discrimination, or polarized political narrative.
+
+17 争议话题低质问题
+Allowed: slice_image, ASR, product_image.
+Hit: cumulative at least 2 image/ASR evidence units showing sensitive religion, racial discrimination, moral boundary, LGBT, or similarly high-conflict socio-cultural themes. Do not extend beyond this scope.
+
+18 负面引导低质问题
+Allowed: slice_image, ASR. Product image forbidden.
+Hit: cumulative at least 2 image/ASR evidence units showing persistent negative emotional guidance, wealth flaunting, hostile comparison, jealousy, resentment, irritability, dissatisfaction triggers, anxiety induction, or purchase-pressure emotion.
+Card/lottery guard: in card opening, TCG, trading-card, lottery/spin, or similar live rooms, casual slang, short emotional reactions, disappointment about pull results, comments on card art/design, or hype words such as disgusting/crazy/insane used as slang are not a hit by themselves.
+Exempt: neutral/positive content; ordinary product comparison without negative emotion triggering; ordinary card-pull disappointment; casual streamer banter; slang or hype language without sustained negative guidance; comments on card art/design or pull luck that do not induce viewer anxiety, resentment, jealousy, or purchase pressure.
+
+19 隐私敏感商品低质问题
+Allowed: slice_image, ASR, product_image.
+Hit: cumulative at least 2 image/ASR evidence units showing intimate, gender-specific, private-use non-pornographic product tied to bound product, such as female underwear, sanitary products, nipple covers, private body-use products.
+Exempt: normal shaver display in non-private context. Sexual exposure/implication belongs to category 1, not category 19.

@@ -1,0 +1,266 @@
+{
+  "version": "2026-07-17-v1",
+  "project": "Live Low Quality",
+  "source_language": "zh-CN",
+  "juror_instruction_language": "en",
+  "final_report_language": "zh-CN",
+  "fixed_category_count": 19,
+  "global_rules": {
+    "full_coverage_required": "All 19 categories must be checked. Do not omit, merge, rename, skip, or reorder categories.",
+    "evidence_required_for_hit": "Every hit must have concrete evidence from allowed materials and must identify the source slice/material.",
+    "no_extra_policy": "Only the listed category definitions and thresholds may be used. Do not invent new policy categories.",
+    "foreign_language_handling": "Understand ASR/OCR in the original foreign language. Final evidence explanation must be Chinese; direct quotes may remain in original language.",
+    "product_image_permission": "Product images may only be used by categories listed in product_image_allowed_category_ids."
+  },
+  "product_image_allowed_category_ids": [3, 5, 6, 9, 10, 12, 15, 16, 17, 19],
+  "exclusive_priority_rules": [
+    {
+      "id": "priority_3_over_6",
+      "higher_priority_category_id": 3,
+      "lower_priority_category_id": 6,
+      "rule_zh": "若直播内容无明确、持续的商品推广、讲解、演示行为，核心内容与绑定商品无任何关联，一律优先判定为【商品无关低质问题】，不得判定为【商品描述不详细低质问题】。",
+      "rule_en": "If there is no clear sustained product promotion, explanation, or demonstration intent and the core live content is unrelated to bound products, classify as category 3 and do not classify as category 6."
+    },
+    {
+      "id": "priority_1_over_19",
+      "higher_priority_category_id": 1,
+      "lower_priority_category_id": 19,
+      "rule_zh": "色情暴露、性暗示类内容归为【色情低俗低质问题】，不得同时归为【隐私敏感商品低质问题】。",
+      "rule_en": "Sexual exposure or sexualized implication belongs to category 1, not category 19."
+    }
+  ],
+  "categories": [
+    {
+      "category_id": 1,
+      "category_name": "色情低俗低质问题",
+      "english_key": "sexual_vulgar",
+      "allowed_materials": ["slice_image", "asr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Any 1 of 5 slice images or 5 ASR snippets hits the listed visual or speech scenario.",
+      "hit_definition_zh": "直播画面或语音中出现明确列出的性暗示、性挑逗、低俗暴露类内容。",
+      "judge_focus_en": "Only flag listed sexualized exposure or sexualized behavior. Do not flag ordinary cleavage unless deliberately sexualized by action such as bending over.",
+      "exemptions": ["Non-deliberate cleavage exposure is not enough.", "Normal bikini in beach context is generally public-appropriate."]
+    },
+    {
+      "category_id": 2,
+      "category_name": "恶心恐怖低质问题",
+      "english_key": "disgusting_horror",
+      "allowed_materials": ["slice_image", "asr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Any 1 image or ASR snippet hits. Visual hit requires disgusting/horror content covering over 50% of indoor scene and no active cleaning. ASR hit requires mentioning such scene and no cleaning.",
+      "hit_definition_zh": "直播画面或语音中出现符合标准的令人不适、恐怖恶心内容，正在清洁相关场景一律豁免。",
+      "judge_focus_en": "Cleaning behavior or cleaning-product use exempts this category.",
+      "exemptions": ["Any active cleaning of the disgusting/horror environment is exempt."]
+    },
+    {
+      "category_id": 3,
+      "category_name": "商品无关低质问题",
+      "english_key": "product_unrelated",
+      "allowed_materials": ["slice_image", "asr", "ocr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Hit if at least 3 ASR snippets are fully unrelated to bound products, or at least 3 frame groups show no clear bound product and matching ASR is unrelated, or image+ASR unrelated counts total >= 6.",
+      "hit_definition_zh": "直播核心内容与直播间绑定商品的电商推广无任何关联，无有效、持续的商品推广行为。",
+      "judge_focus_en": "Use bound product image category/function/use-case as reference. This category has priority over category 6 when there is no clear product promotion intent.",
+      "exemptions": []
+    },
+    {
+      "category_id": 4,
+      "category_name": "无互动低质问题",
+      "english_key": "no_interaction",
+      "allowed_materials": ["slice_image", "asr", "ocr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "At least 4 of 5 ASR snippets meet both: no product promotion and no host-audience interaction.",
+      "hit_definition_zh": "直播内容既无商品推广行为，也无主播与观众的互动行为。",
+      "judge_focus_en": "A single snippet hit requires both no product promotion and no audience interaction.",
+      "exemptions": []
+    },
+    {
+      "category_id": 5,
+      "category_name": "无实物商品展示低质问题",
+      "english_key": "no_physical_product_display",
+      "allowed_materials": ["slice_image", "asr", "ocr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "At least 4 of 5 slice frame groups show no real physical display of bound product, only sticker/cutout/photo/screenshot/static image, no product, or only unrecognizable partial product.",
+      "hit_definition_zh": "直播画面中未以真实视频画面形式展示直播间绑定的实物商品。",
+      "judge_focus_en": "ASR/OCR are supporting evidence only when relevant. Main judgment is visual physical product display compared with bound product images.",
+      "exemptions": []
+    },
+    {
+      "category_id": 6,
+      "category_name": "商品描述不详细低质问题",
+      "english_key": "product_description_not_detailed",
+      "allowed_materials": ["slice_image", "asr", "ocr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Cumulative at least 4 image/ASR evidence units, but only if clear product promotion intent and sustained product display/explanation/demonstration exist.",
+      "hit_definition_zh": "主播有明确商品推广、讲解、演示意图和持续行为，但未提供有效商品信息或讲解内容跑题。",
+      "judge_focus_en": "Do not apply this category if there is no clear promotion intent; category 3 has priority in unrelated-content cases.",
+      "exemptions": ["Merely wearing or showing product with no promotion/explanation is exempt.", "Unrelated live content with no promotion intent belongs to category 3, not category 6."]
+    },
+    {
+      "category_id": 7,
+      "category_name": "静态帧遮挡低质问题",
+      "english_key": "static_frame_occlusion",
+      "allowed_materials": ["slice_image"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Any 1 of 5 slice image groups shows an occlusion/interruption layer covering at least 80% of the live screen and seriously blocking viewing.",
+      "hit_definition_zh": "直播画面中出现覆盖大面积区域的遮挡层，严重影响观众观看。",
+      "judge_focus_en": "Both 80%+ coverage and serious viewing interference are required.",
+      "exemptions": []
+    },
+    {
+      "category_id": 8,
+      "category_name": "非母语违规低质问题",
+      "english_key": "non_native_language_violation",
+      "allowed_materials": ["asr", "ocr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Any Chinese in ASR or OCR, Chinglish, incomprehensible English, or highly abnormal English in the 5 ASR/OCR snippets.",
+      "hit_definition_zh": "直播语音或画面文本中出现不符合要求的中文、中式英语、无法理解的英文内容。",
+      "judge_focus_en": "Minor understandable accent is not a hit. Coworker casual Chinese unrelated to product promotion is exempt.",
+      "exemptions": ["Coworker daily Chinese conversation unrelated to product promotion.", "Minor accent that is easy to understand."]
+    },
+    {
+      "category_id": 9,
+      "category_name": "AIGC真实性低质问题",
+      "english_key": "aigc_authenticity",
+      "allowed_materials": ["slice_image", "asr", "ocr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Any 1 image/ASR/OCR evidence shows AIGC-generated content used for product promotion that misleads authenticity or differs from bound physical product.",
+      "hit_definition_zh": "直播中使用 AIGC 生成内容进行商品推广，存在误导、虚假、与绑定实物商品不符的问题。",
+      "judge_focus_en": "Focus on misleading AI voice/interview, fake before/after effects, digital human without real bound product, or AI traces that mislead product authenticity.",
+      "exemptions": []
+    },
+    {
+      "category_id": 10,
+      "category_name": "AIGC商品展示低质问题",
+      "english_key": "aigc_product_display",
+      "allowed_materials": ["slice_image", "asr", "ocr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Any 1 image/ASR/OCR evidence shows rendered/generated product or use scene with exaggerated size/style/effect compared with bound real product.",
+      "hit_definition_zh": "直播中通过 AIGC 生成商品或使用场景，存在渲染内容、与绑定真实商品夸张不符的问题。",
+      "judge_focus_en": "Distinguish from category 9: this focuses on generated product/use-scene display quality and mismatch.",
+      "exemptions": []
+    },
+    {
+      "category_id": 11,
+      "category_name": "录播回放低质问题",
+      "english_key": "replay_recorded_content",
+      "allowed_materials": ["slice_image", "asr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Any 1 image shows taskbar/cursor unless used for product pointing, black/green screen, abnormal jump, or nested replay-like screen; or ASR directly mentions replay/loop playback.",
+      "hit_definition_zh": "直播间存在预录内容循环播放的相关特征。",
+      "judge_focus_en": "Only listed replay indicators count. A product-pointing cursor is exempt.",
+      "exemptions": ["Cursor used to point to or demonstrate product is exempt."]
+    },
+    {
+      "category_id": 12,
+      "category_name": "功能效果虚假宣传低质问题",
+      "english_key": "false_function_effect_claim",
+      "allowed_materials": ["slice_image", "asr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Any 1 image or ASR evidence shows exaggerated/unreliable product function or effect likely to mislead consumers.",
+      "hit_definition_zh": "直播中通过夸张拍摄手法、不真实或夸大的信息，使商品功能效果超出实际可靠范围并误导消费者。",
+      "judge_focus_en": "Use a skeptical reliability lens. Ordinary improvement, price, or discount claims without exaggerated effect are not hits.",
+      "exemptions": ["Ordinary product improvement, price, or discount information without exaggerated effect is exempt."]
+    },
+    {
+      "category_id": 13,
+      "category_name": "危险行为低质问题",
+      "english_key": "dangerous_behavior",
+      "allowed_materials": ["slice_image", "asr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show life-threatening violent behavior or dangerous goods demonstration, including heavy-smoke products creating fire illusion.",
+      "hit_definition_zh": "直播中出现危及生命安全的暴力行为、危险物品展示。",
+      "judge_focus_en": "Normal product demonstration and safe behavior are exempt.",
+      "exemptions": ["Normal product demonstration, explanation, and safe behavior."]
+    },
+    {
+      "category_id": 14,
+      "category_name": "站外引流交易低质问题",
+      "english_key": "off_platform_transaction",
+      "allowed_materials": ["slice_image", "asr", "ocr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Any scene that simultaneously has payment/off-platform account/site info and explicit transaction guidance, with no exemption.",
+      "hit_definition_zh": "直播中引导用户通过平台外渠道完成交易。",
+      "judge_focus_en": "Both payment/off-platform info and transaction guidance must be present in the same scene. Vague link mention alone is not enough.",
+      "exemptions": ["Platform-internal order guidance.", "Social account jump without purchase intent.", "Bio link only with no live/comment transaction guidance.", "Only one of the two core conditions present."]
+    },
+    {
+      "category_id": 15,
+      "category_name": "违法违规商品低质问题",
+      "english_key": "illegal_prohibited_goods",
+      "allowed_materials": ["slice_image", "asr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show legally prohibited goods, counterfeit, imitation, inferior product, or missing qualification claim tied to bound product.",
+      "hit_definition_zh": "直播中销售法律法规禁止的商品，或售卖假冒、仿冒、伪劣商品。",
+      "judge_focus_en": "Requires clear evidence tied to bound product. Normal legal products are exempt.",
+      "exemptions": ["Normal legal goods, regular brand goods, and ordinary product demonstrations."]
+    },
+    {
+      "category_id": 16,
+      "category_name": "政治敏感低质问题",
+      "english_key": "politically_sensitive",
+      "allowed_materials": ["slice_image", "asr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show political controversy, sensitive political symbols/movements, political hate symbols, racial discrimination, or polarized political narratives.",
+      "hit_definition_zh": "直播中出现可能引发政治争议、涉及敏感政治符号、仇恨言论、种族歧视、极化政治叙事的内容。",
+      "judge_focus_en": "General non-political content is exempt.",
+      "exemptions": ["General non-political content unrelated to controversy or sensitive symbols."]
+    },
+    {
+      "category_id": 17,
+      "category_name": "争议话题低质问题",
+      "english_key": "controversial_topic",
+      "allowed_materials": ["slice_image", "asr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show sensitive topics related to religion, racial discrimination, moral boundary, LGBT, or similarly high-conflict socio-cultural themes.",
+      "hit_definition_zh": "直播中出现与宗教信仰、种族歧视、道德边界、LGBT 相关的高度敏感争议内容。",
+      "judge_focus_en": "Only the specified sensitive topic scope counts. Do not extend to unrelated controversy.",
+      "exemptions": ["General non-sensitive content outside the specified topic scope."]
+    },
+    {
+      "category_id": 18,
+      "category_name": "负面引导低质问题",
+      "english_key": "negative_guidance",
+      "allowed_materials": ["slice_image", "asr"],
+      "product_image_allowed": false,
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show complaining, negative emotional guidance, wealth flaunting, comparison, jealousy, resentment, irritability, or dissatisfaction triggers.",
+      "hit_definition_zh": "直播中出现抱怨吐槽、炫富攀比、易引发观众负面情绪的内容。",
+      "judge_focus_en": "Neutral or positive content unrelated to negative emotion triggering is exempt.",
+      "exemptions": ["General neutral or positive content."]
+    },
+    {
+      "category_id": 19,
+      "category_name": "隐私敏感商品低质问题",
+      "english_key": "privacy_sensitive_product",
+      "allowed_materials": ["slice_image", "asr", "product_image"],
+      "product_image_allowed": true,
+      "trigger_threshold": "Cumulative at least 2 image/ASR evidence units show intimate, gender-specific, or private-use non-pornographic product tied to bound product.",
+      "hit_definition_zh": "直播中展示贴身、具有性别专属属性、隐私相关的非色情类商品。",
+      "judge_focus_en": "If sexual exposure or sexual implication exists, use category 1 instead. Normal shaver display is exempt unless used/displayed for private body parts.",
+      "exemptions": ["Normal shaver display in non-private context.", "Sexual exposure/implication belongs to category 1, not category 19."]
+    }
+  ],
+  "juror_output_requirements": {
+    "raw_json_only": true,
+    "category_results_count": 19,
+    "hit_requires_non_empty_evidence": true,
+    "required_fields_per_category": [
+      "category_id",
+      "category_name",
+      "decision",
+      "confidence",
+      "evidence",
+      "threshold_check",
+      "materials_used",
+      "product_image_used",
+      "product_image_used_allowed",
+      "needs_judge_attention"
+    ]
+  },
+  "chief_judge_output_requirements": {
+    "first_section": "识别到的低质问题：",
+    "second_section": "无低质问题：",
+    "append_final_json_anchor": "FINAL_JSON:",
+    "must_cover_all_19_categories": true
+  }
+}
