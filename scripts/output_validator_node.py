@@ -1,7 +1,7 @@
 import json
 
 
-ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17, 19}
+ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17}
 ALL_CATEGORY_IDS = set(range(1, 20))
 ALLOWED_DECISIONS = {"hit", "no_hit", "unable_to_judge"}
 
@@ -76,6 +76,8 @@ def _check_priority_conflicts(results, errors):
         text_19 = json.dumps(category_19.get("evidence", []), ensure_ascii=False).lower()
         if "sexual" in text_1 and "sexual" in text_19:
             errors.append("priority_conflict_category_1_and_19")
+    if category_19.get("decision") == "hit":
+        errors.append("disabled_category_19_hit")
 
 
 def _validate_payload(payload, params):

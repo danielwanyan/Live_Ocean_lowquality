@@ -13,12 +13,14 @@ If evidence is weak, unavailable, outside allowed material scope, or below the r
 Do not invent policy categories or apply general platform rules beyond the 19 provided categories.
 
 Product image permission
-Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, 17, and 19.
+Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17. Category 19 is disabled in this workflow version; return no_hit for category 19 even if privacy-sensitive product evidence is present.
 For all other categories, product images are forbidden evidence.
 If a forbidden category has only product-image evidence, return no_hit and explain that the evidence source is not allowed.
 
 Priority rules
 Category 3 has priority over category 6. If there is no clear sustained product promotion intent and live content is unrelated to bound products, classify category 3 and do not classify category 6 on the same evidence.
+Category 5 has priority over category 6 when product talk exists but most live frames do not show the real bound product.
+Category 15 has priority over category 8 when the core issue is live product versus bound product mismatch / IPP rather than language itself.
 Category 1 has priority over category 19. Sexual exposure or sexualized implication belongs to category 1, not category 19.
 
 Coverage rules

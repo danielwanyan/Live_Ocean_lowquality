@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-15-v1-segment-input",
+  "version": "2026-09-18-v2-human-review-boundaries",
   "project": "Live Ocean Low Quality",
   "source_language": "zh-CN",
   "judge_instruction_language": "en",
@@ -11,7 +11,8 @@
     "evidence_required_for_hit": "Every hit must have concrete evidence from allowed materials and must identify the source segment/material.",
     "no_extra_policy": "Only the listed category definitions and thresholds may be used. Do not invent new policy categories.",
     "foreign_language_handling": "Understand segment ASR and text visible in segment frames in the original language. Final evidence explanation must be Chinese; direct quotes may remain in original language.",
-    "product_image_permission": "Pearl product images may only be used by categories listed in product_image_allowed_category_ids."
+    "product_image_permission": "Pearl product images may only be used by categories listed in product_image_allowed_category_ids.",
+    "case_calibration_source": "Calibrated with 2026-09-18 human review JSON for 20 Ocean rooms and GB 07 final draft problem rows/screenshot samples. Use these boundaries to reduce over-triggering on auction mechanics, ordinary promotion urgency, basic product benefit claims, and disabled privacy-sensitive category."
   },
   "product_image_allowed_category_ids": [
     3,
@@ -22,16 +23,15 @@
     12,
     15,
     16,
-    17,
-    19
+    17
   ],
   "exclusive_priority_rules": [
     {
       "id": "priority_3_over_6",
       "higher_priority_category_id": 3,
       "lower_priority_category_id": 6,
-      "rule_zh": "若直播内容无明确、持续的商品推广、讲解、演示行为，核心内容与绑定商品无任何关联，一律优先判定为【商品无关低质问题】，不得判定为【商品描述不详细低质问题】。",
-      "rule_en": "If there is no clear sustained product promotion, explanation, or demonstration intent and the core live content is unrelated to bound products, classify as category 3 and do not classify as category 6."
+      "rule_zh": "若直播内容无明确、持续的商品推广、讲解、演示行为，核心内容与绑定商品无任何关联，或长时间不挂品/不讲品/只直播比赛、聊天、个人生活，一律优先判定为【商品无关低质问题】，不得改判为【商品描述不详细低质问题】。",
+      "rule_en": "If there is no clear sustained product promotion, explanation, or demonstration intent, including long periods with no pinned product, no product talk, sports/game/life-chat as the core content, classify as category 3 and do not classify as category 6."
     },
     {
       "id": "priority_1_over_19",
@@ -39,6 +39,20 @@
       "lower_priority_category_id": 19,
       "rule_zh": "色情暴露、性暗示类内容归为【色情低俗低质问题】，不得同时归为【隐私敏感商品低质问题】。",
       "rule_en": "Sexual exposure or sexualized implication belongs to category 1, not category 19."
+    },
+    {
+      "id": "priority_15_over_8_for_product_mismatch",
+      "higher_priority_category_id": 15,
+      "lower_priority_category_id": 8,
+      "rule_zh": "若问题本质是直播展示商品与挂车商品/商品图在实体、类目、用途上明显不一致，优先按【违法违规商品低质问题】中的货不对板/IPP 边界判断，不得因为商品图语言、异域服饰、OCR 文本或标题语言而判为【非母语违规低质问题】。",
+      "rule_en": "When the core issue is a clear entity/category/use-case mismatch between the live displayed item and bound Pearl product, route it to category 15 product-mismatch/IPP boundary, not category 8 language violation."
+    },
+    {
+      "id": "priority_5_over_6_for_no_physical_display",
+      "higher_priority_category_id": 5,
+      "lower_priority_category_id": 6,
+      "rule_zh": "若主播围绕商品说话但直播画面长期没有真实实物视频展示，只出现贴图、截图、商品卡、静态照片、产品角标或不可识别局部，优先判定【无实物商品展示低质问题】，不得仅因讲解信息少而判定【商品描述不详细低质问题】。",
+      "rule_en": "If product talk exists but most live frames lack real physical video display of the bound product and show only stickers, screenshots, product cards, static photos, overlays, or unrecognizable partials, classify category 5 before category 6."
     }
   ],
   "categories": [
@@ -88,10 +102,13 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Hit when a sustained pattern across available segments shows the live core content is unrelated to bound products and lacks valid sustained product promotion. An isolated unrelated segment is not enough.",
-      "hit_definition_zh": "直播核心内容与直播间绑定商品的电商推广无任何关联，无有效、持续的商品推广行为。",
-      "judge_focus_en": "Use bound product image category/function/use-case as reference. This category has priority over category 6 when there is no clear product promotion intent.",
-      "exemptions": []
+      "trigger_threshold": "Hit when a sustained pattern across available segments shows the live core content is unrelated to bound products or lacks valid sustained product promotion. Examples include long periods with no pinned products, no product talk, sports/game/event streaming, personal life chat, arguments, or fan interaction unrelated to shopping. An isolated unrelated segment is not enough.",
+      "hit_definition_zh": "直播核心内容与直播间绑定商品的电商推广无任何关联，或长时间不挂品、不讲品，只直播比赛/活动/聊天/个人生活等非商品内容。",
+      "judge_focus_en": "Use bound product image category/function/use-case as reference. Category 3 covers no-pinned-product/no-product-talk and non-commerce live cores. It has priority over category 6 when there is no clear product promotion intent. If there is active product talk but physical display is missing, check category 5 first. If live item and bound product are mismatched, check category 15 product-mismatch/IPP.",
+      "exemptions": [
+        "Auction, lottery, card-opening, or fast-selling rooms are not product-unrelated when the host is clearly selling or opening the bound product type.",
+        "A short off-topic chat segment is exempt when the live room mostly continues product promotion."
+      ]
     },
     {
       "category_id": 4,
@@ -121,10 +138,13 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Hit when most available segment frame groups show no real physical display of bound product, only sticker/cutout/photo/screenshot/static image, no product, or only unrecognizable partial product. Do not use a fixed ratio threshold from the old workflow.",
-      "hit_definition_zh": "直播画面中未以真实视频画面形式展示直播间绑定的实物商品。",
-      "judge_focus_en": "Segment ASR and visible text are supporting evidence only when relevant. Main judgment is visual physical product display compared with bound Pearl product materials.",
-      "exemptions": []
+      "trigger_threshold": "Hit when most available segment frame groups show no real physical video display of the bound product: only sticker/cutout/photo/screenshot/static image, product card, small product thumbnail/overlay, no product, or only unrecognizable partial product. Segment ASR may show the host talks about the product, but the visual display is still not a real live physical display.",
+      "hit_definition_zh": "主播虽可能围绕商品讲解，但直播画面长期没有以真实视频画面展示绑定实物商品，只出现贴图/截图/商品卡/静态照片/角标或不可识别局部。",
+      "judge_focus_en": "Main judgment is live visual physical display, not whether the host verbally mentions the product. Product cards, Pearl photos, overlays, and screenshots do not count as live physical product display. If there is no product talk at all, category 3 may be stronger; if live product differs from bound product, use category 15 product-mismatch/IPP.",
+      "exemptions": [
+        "A product is visible as a real physical object in most relevant live frames, even if the explanation is brief.",
+        "Temporary camera movement or a few frames without product are not enough."
+      ]
     },
     {
       "category_id": 6,
@@ -139,12 +159,15 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Hit when recurring evidence across available segment frames or segment ASR shows clear product promotion intent and sustained product display/explanation/demonstration, but the promotion gives little effective product information such as category, specs, function, use, price, discount, material, or ingredients.",
-      "hit_definition_zh": "主播有明确商品推广、讲解、演示意图和持续行为，但未提供有效商品信息或讲解内容跑题。",
-      "judge_focus_en": "Do not apply this category if there is no clear promotion intent; category 3 has priority in unrelated-content cases.",
+      "trigger_threshold": "Hit only when clear product promotion exists and most relevant promotion remains extremely low-information after considering all available segments. Low-information means the room repeatedly fails to provide even basic useful buying information. Do not hit merely because the explanation is not systematic or not deep.",
+      "hit_definition_zh": "主播有明确商品推广、讲解、演示意图和持续行为，但大多数相关时段几乎没有提供有效购买信息，或讲解长期跑题到无法帮助理解商品。",
+      "judge_focus_en": "This category is conservative after human review. If the host clearly shows the product and mentions at least one or more core buying facts such as product category, function, use, size, color, price, discount, brand, quantity, condition, ingredients, material, scent/flavor, compatibility, or delivery/return terms, do not hit category 6 solely because details are shallow. In auction, bidding, sudden-death, fast-selling, card, or lottery rooms, product IDs, brand/category, condition, size, price, quantity, bundle contents, or bid rules can be valid commerce information. Use category 3 for no promotion, category 5 for no physical display, and category 15 for product mismatch.",
       "exemptions": [
+        "Clear product display plus any core function/category/use/size/price/brand/condition/quantity/bundle information is enough to avoid this category, even if the explanation is brief.",
+        "Auction or bidding mechanics are exempt when the host shows products and provides basic identifying or purchasing information.",
         "Merely wearing or showing product with no promotion/explanation is exempt.",
-        "Unrelated live content with no promotion intent belongs to category 3, not category 6."
+        "Unrelated live content with no promotion intent belongs to category 3, not category 6.",
+        "Missing advanced specs, full ingredient analysis, or deep material explanation is not a hit by itself."
       ]
     },
     {
@@ -169,15 +192,16 @@
         "segment_frame_visible_text"
       ],
       "product_image_allowed": false,
-      "trigger_threshold": "Hit only when segment ASR or visible text in segment frames contains Chinese/CJK used in product promotion, Chinglish, incomprehensible English, or severely broken English that prevents normal product understanding.",
-      "hit_definition_zh": "直播语音或画面文本中出现不符合要求的中文、中式英语、无法理解的英文内容。",
-      "judge_focus_en": "Normal English/local EU-language mixing is not a hit. German, French, Spanish, Italian, Dutch, Polish, and other EU language words mixed with English are normal. German \"Englisch\" is a local-language word, not misspelled English. Isolated frame-text recognition noise, stylized labels, usernames, product names, or minor spelling mistakes are not enough unless overall promotion text becomes incomprehensible. Minor understandable accent is not a hit. Coworker casual Chinese unrelated to product promotion is exempt.",
+      "trigger_threshold": "Hit only when segment ASR or visible text in segment frames uses a language that is not acceptable for the target market, Chinese/CJK in product promotion, Chinglish, incomprehensible English, or severely broken English, and this prevents normal product understanding across the live. Product mismatch, ethnic clothing style, non-English product titles, or OCR noise alone is not a language hit.",
+      "hit_definition_zh": "直播语音或画面推广文字使用非目标市场可接受语言、中文/中日韩文字，或英语严重不可理解，导致无法正常理解商品。",
+      "judge_focus_en": "Judge language itself from segment ASR and visible frame text only. Do not use Pearl product images as evidence. Romanian or another non-target language can hit only if it is used in ASR or promotional on-screen text for product selling and blocks normal product understanding. If the real issue is live product vs bound product mismatch, use category 15 instead. If evidence is only OCR noise, product brand/title text, fashion design text, usernames, or non-English labels on product images, return no_hit.",
       "exemptions": [
         "Coworker daily Chinese conversation unrelated to product promotion.",
         "Minor accent that is easy to understand.",
         "Normal English/local EU-language mixing, including German, French, Spanish, Italian, Dutch, Polish, or other EU language words mixed with English.",
         "German \"Englisch\" as a local-language word.",
-        "Isolated frame-text recognition noise, stylized labels, usernames, product names, or minor spelling mistakes unless overall promotion text becomes incomprehensible."
+        "Isolated frame-text recognition noise, stylized labels, usernames, product names, or minor spelling mistakes unless overall promotion text becomes incomprehensible.",
+        "Product mismatch or item/category difference is not a language violation."
       ]
     },
     {
@@ -245,11 +269,13 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Any segment frame, segment ASR, or Pearl product evidence shows exaggerated/unreliable product function or effect likely to mislead consumers.",
-      "hit_definition_zh": "直播中通过夸张拍摄手法、不真实或夸大的信息，使商品功能效果超出实际可靠范围并误导消费者。",
-      "judge_focus_en": "Use a skeptical reliability lens. Ordinary improvement, price, or discount claims without exaggerated effect are not hits.",
+      "trigger_threshold": "Hit when at least half of the relevant effective promotion materials for the claimed product effect, or repeated strong evidence across ASR/frame/Pearl product materials, shows exaggerated or unreliable function/effect likely to mislead consumers. Strong signals include immediate or very short-term transformation, extreme quantified results, medical/clinical therapeutic claims, body-shaping/slimming, dramatic before-after, instant whitening, or unsupported superlatives.",
+      "hit_definition_zh": "直播或商品物料对商品功能效果作出强量化、即时见效、医疗/美容治疗、瘦身塑形、显著前后对比等不可靠或夸大宣传，足以误导消费者。",
+      "judge_focus_en": "Apply a calibrated threshold. Do not hit for ordinary product benefits or routine marketing unless they become strong, repeated, or extreme. Keep true positives such as 7-day/after-one-use whitening, 10/16/30 shade change, visible lift after one use, sculpted jawline, slimming/body shaping, collagen-boosting LED mask claims when repeated, clinical-looking quantified percentages, or abnormal jailbreak/device capability claims under category 15 when product legality is involved.",
       "exemptions": [
-        "Ordinary product improvement, price, or discount information without exaggerated effect is exempt."
+        "Ordinary improvement, comfort, hydration, shine, fragrance, coverage, hold, waterproof, tear-proof, brightening, glow, skin-friendly, dermatologist-tested, sensitive-skin-safe, price, discount, return policy, or delivery claim is exempt unless tied to strong quantified/immediate/medical transformation.",
+        "Single weak ASR summary wording about general improvement is not enough without repeated or strong evidence.",
+        "Routine auction or promotion urgency is not a function/effect claim."
       ]
     },
     {
@@ -300,11 +326,13 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show legally prohibited goods, counterfeit/imitation/inferior product, product differs from bound product, or missing qualification claim tied to bound product.",
-      "hit_definition_zh": "直播中销售法律法规禁止的商品，或售卖假冒、仿冒、伪劣商品。",
-      "judge_focus_en": "Requires clear evidence tied to bound product. Normal legal products are exempt.",
+      "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show legally prohibited goods, counterfeit/imitation/inferior product, clear product-mismatch/IPP where the live displayed item differs from the bound product entity/category/use-case, abnormal device modification/jailbreak, or missing qualification claim tied to bound product.",
+      "hit_definition_zh": "直播中销售法律法规禁止商品、假冒仿冒伪劣商品，或直播展示商品与绑定商品/商品图在实体、类目、用途上明显不一致，构成货不对板/IPP。",
+      "judge_focus_en": "For GB07-style IPP/product-mismatch, compare the actual live displayed item and sales talk with Pearl product title/image/category. Hit when the room sells or demonstrates a clearly different entity/category/use-case, such as perfume while bound products are supplements/jewelry, ordinary stones while bound product is a stone wolf, or live clothing/product materially different from bound catalog images. Do not route product mismatch to category 8 language. Normal legal products are exempt.",
       "exemptions": [
-        "Normal legal goods, regular brand goods, and ordinary product demonstrations."
+        "Normal legal goods, regular brand goods, and ordinary product demonstrations.",
+        "Minor color/style variation within the same product family without consumer-misleading mismatch.",
+        "A broad catalog where the currently shown product is plausibly one of the bound products."
       ]
     },
     {
@@ -353,16 +381,17 @@
         "comment_interaction"
       ],
       "product_image_allowed": false,
-      "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, or Comment Interaction evidence units show persistent negative emotional guidance, wealth flaunting, hostile comparison, jealousy, resentment, irritability, dissatisfaction triggers, anxiety induction, or purchase-pressure emotion.",
-      "hit_definition_zh": "直播中出现抱怨吐槽、炫富攀比、易引发观众负面情绪的内容。",
-      "judge_focus_en": "Neutral or positive content unrelated to negative emotion triggering is exempt. In card opening, TCG, trading-card, lottery/spin, or similar live rooms, casual slang, short emotional reactions, disappointment about pull results, comments on card art/design, or hype words such as disgusting/crazy/insane used as slang are not a hit by themselves.",
+      "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, or Comment Interaction evidence units show sustained negative emotional guidance such as hostile arguments with viewers, insults, resentment, jealousy, anxiety/fear induction beyond routine sales, wealth flaunting or comparison pressure, or content likely to trigger negative emotion. Routine commercial urgency alone does not hit.",
+      "hit_definition_zh": "直播中持续出现争吵、羞辱、抱怨、敌意、焦虑恐惧诱导、炫富攀比、怨恨嫉妒等明显负面情绪引导。",
+      "judge_focus_en": "Human review calibration: ordinary limited-time offers, countdowns, limited stock, bid countdowns, sudden-death auction, gifts, coupons, pay-within-minutes reminders, and standard conversion pressure are normal commerce/knowledge marketing and do not hit category 18 by themselves. Hit only when the evidence contains negative emotion beyond routine sales mechanics, such as arguing with fans for most of the room, hostile/shaming language, resentment/anxiety induction, or off-product personal conflict.",
       "exemptions": [
         "General neutral or positive content.",
         "Ordinary product comparison without negative emotion triggering.",
+        "Limited stock, countdown, coupon, gift, full-reduction, final minutes, pay deadline, bid countdown, or auction urgency without hostile/anxiety language.",
         "Ordinary card-pull disappointment.",
         "Casual streamer banter.",
         "Slang or hype language without sustained negative guidance.",
-        "Comments on card art/design or pull luck that do not induce anxiety, resentment, jealousy, or purchase pressure."
+        "Knowledge marketing that explains risks or product needs without shaming, hostility, resentment, jealousy, or fear pressure."
       ]
     },
     {
@@ -375,11 +404,12 @@
         "pearl_product_title",
         "pearl_product_image"
       ],
-      "product_image_allowed": true,
-      "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show intimate, gender-specific, or private-use non-pornographic product tied to bound product.",
-      "hit_definition_zh": "直播中展示贴身、具有性别专属属性、隐私相关的非色情类商品。",
-      "judge_focus_en": "If sexual exposure or sexual implication exists, use category 1 instead. Normal shaver display is exempt unless used/displayed for private body parts.",
+      "product_image_allowed": false,
+      "trigger_threshold": "Disabled for current Live Ocean Low Quality calibration. Always return no_hit for this category unless future policy explicitly re-enables it. Do not identify sanitary products, underwear, gender-specific care, or private-use non-pornographic products under category 19 in this workflow version.",
+      "hit_definition_zh": "当前工作流版本不识别隐私敏感商品低质问题；该类别保留用于 19 类覆盖，但默认不命中。",
+      "judge_focus_en": "Category disabled by 2026-09-18 human review calibration. Return no_hit even if Pearl product title/image or ASR mentions sanitary pads, underwear, nipple covers, intimate care, gender-specific care, or private body-use products. If sexual exposure/sexual implication appears, evaluate category 1 instead. If the issue is illegal/prohibited goods or product mismatch, evaluate category 15 instead.",
       "exemptions": [
+        "All non-pornographic privacy-sensitive products are exempt in this workflow version because the category is disabled.",
         "Normal shaver display in non-private context.",
         "Sexual exposure/implication belongs to category 1, not category 19."
       ]
