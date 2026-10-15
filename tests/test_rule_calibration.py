@@ -11,7 +11,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(PROJECT_DIR, "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
-from live_boundary_finalizer import EXPECTED_CATEGORY_NAMES, finalize_judge_output
+from live_boundary_finalizer import finalize_judge_output
 from live_boundary_gate_builder import (
     BOUNDARY_CONTRACT_VERSION,
     REQUIRED_FACTS,
@@ -86,7 +86,7 @@ EXPECTED_COMPACT_CATEGORY_11_HIT = (
     "Taskbar, cursor, browser, desktop, or OBS alone cannot hit."
 )
 
-EXPECTED_RULE_CATEGORY_NAMES = [
+EXPECTED_CATEGORY_NAMES = [
     "色情低俗低质问题",
     "恶心恐怖低质问题",
     "商品无关低质问题",
@@ -107,6 +107,32 @@ EXPECTED_RULE_CATEGORY_NAMES = [
     "负面引导低质问题",
     "隐私敏感商品低质问题",
 ]
+
+EXPECTED_SYSTEM_PRIORITY_LINES = [
+    "Category 3 has priority over category 5. When unrelated content dominates, classify category 3 and do not classify category 5 on the same evidence.",
+    "Category 3 has priority over category 6. If there is no clear sustained product promotion intent and live content is unrelated to bound products, classify category 3 and do not classify category 6 on the same evidence.",
+    "Category 5 has priority over category 6 when product talk exists but most live frames do not show the real bound product.",
+    "Category 15 has priority over category 8 when the core issue is live product versus bound product mismatch / IPP rather than language itself.",
+    "Category 1 has priority over category 19. Sexual exposure or sexualized implication belongs to category 1, not category 19.",
+]
+
+EXPECTED_BOUNDARY_INPUT_BLOCK = """Boundary contract version: {{boundary_contract_version}}
+Boundary gate panel: {{boundary_gate_panel}}
+Boundary output schema: {{boundary_output_schema_json}}
+
+The boundary output schema contains required_facts, fact_shape, and allowed_source_labels."""
+
+EXPECTED_VISION_INPUT_BLOCK = """## Vision Inputs
+
+You will also receive image arrays through the node Vision Inputs:
+
+all_frame_urls:
+{{all_frame_urls}}
+
+all_product_image_urls:
+{{all_product_image_urls}}
+
+Use the text JSON fields to understand which image URLs belong to which segment or product. Do not guess image roles by array position alone."""
 
 EXPECTED_ALLOWED_MATERIALS = {
     1: ["segment_frame", "segment_asr"],
@@ -298,7 +324,7 @@ def _valid_payload(hit_ids=(), evidence_by_id=None):
         final_results.append(
             {
                 "category_id": category_id,
-                "category_name": EXPECTED_CATEGORY_NAMES[category_id],
+                "category_name": EXPECTED_CATEGORY_NAMES[category_id - 1],
                 "decision": "hit" if category_id in hit_ids else "no_hit",
                 "confidence": "high" if category_id in hit_ids else "medium",
                 "evidence_count": len(evidence),
@@ -467,7 +493,7 @@ class RuleCalibrationTest(unittest.TestCase):
 
         self.assertEqual(rules["fixed_category_count"], 19)
         self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
-        self.assertEqual([item["category_name"] for item in categories], EXPECTED_RULE_CATEGORY_NAMES)
+        self.assertEqual([item["category_name"] for item in categories], EXPECTED_CATEGORY_NAMES)
         self.assertEqual(
             {item["category_id"]: item["allowed_materials"] for item in categories},
             EXPECTED_ALLOWED_MATERIALS,
@@ -536,7 +562,7 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("Boundary contract version: " + EXPECTED_V3_VERSION, compact_rules)
         headings = re.findall(r"(?m)^(\d+) (.+)$", compact_rules)
         self.assertEqual([int(category_id) for category_id, _ in headings], list(range(1, 20)))
-        self.assertEqual([name for _, name in headings], EXPECTED_RULE_CATEGORY_NAMES)
+        self.assertEqual([name for _, name in headings], EXPECTED_CATEGORY_NAMES)
 
     def test_compact_rules_map_v3_guards_and_keep_category_7_as_occlusion_only(self):
         with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
@@ -944,7 +970,7 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual(FALLBACK_RULES["boundary_contract_version"], EXPECTED_V3_VERSION)
         self.assertEqual(FALLBACK_RULES["fixed_category_count"], 19)
         self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
-        self.assertEqual([item["category_name"] for item in categories], EXPECTED_RULE_CATEGORY_NAMES)
+        self.assertEqual([item["category_name"] for item in categories], EXPECTED_CATEGORY_NAMES)
         self.assertEqual(
             {item["category_id"]: item["allowed_materials"] for item in categories},
             EXPECTED_ALLOWED_MATERIALS,
@@ -1083,34 +1109,53 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("a still frame alone is not a category 7 low-quality hit", lower_prompt)
         self.assertIn("v3", lower_prompt)
 
-    def test_user_prompt_uses_flat_boundary_inputs_and_preserves_vision_inputs(self):
+    def test_system_prompt_priority_section_has_exact_five_ordered_rules(self):
+        system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
+        priority_start = system_prompt.index("Priority rules\n") + len("Priority rules\n")
+        priority_end = system_prompt.index("\nCoverage rules", priority_start)
+        priority_lines = [
+            line.strip()
+            for line in system_prompt[priority_start:priority_end].splitlines()
+            if line.strip()
+        ]
+
+        self.assertEqual(priority_lines, EXPECTED_SYSTEM_PRIORITY_LINES)
+
+    def test_user_prompt_boundary_input_block_and_variables_are_exact(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
         rules_start = user_prompt.index("## Rules")
         evidence_start = user_prompt.index("## Evidence Materials")
         rules_section = user_prompt[rules_start:evidence_start]
-
-        expected_boundary_inputs = (
-            "Boundary contract version: {{boundary_contract_version}}",
-            "Boundary gate panel: {{boundary_gate_panel}}",
-            "Boundary output schema: {{boundary_output_schema_json}}",
-        )
-        self.assertIn("\n".join(expected_boundary_inputs), rules_section)
-        for exact_input in expected_boundary_inputs:
-            self.assertEqual(user_prompt.count(exact_input), 1)
-            self.assertIn(exact_input, rules_section)
-
-        self.assertIsNone(
-            re.search(
-                r"{{\s*(?:boundary_contract|boundary_gate|boundary_output)[^}]*\.",
-                user_prompt,
-            )
-        )
-        self.assertIn(
-            "The boundary output schema contains required_facts, fact_shape, and allowed_source_labels.",
+        boundary_start = rules_section.index("Boundary contract version:")
+        boundary_block = rules_section[boundary_start:]
+        boundary_variables = re.findall(
+            r"{{\s*(boundary_[^{}\s]+)\s*}}",
             user_prompt,
         )
-        self.assertIn("all_frame_urls:\n{{all_frame_urls}}", user_prompt)
-        self.assertIn("all_product_image_urls:\n{{all_product_image_urls}}", user_prompt)
+
+        self.assertEqual(boundary_block, EXPECTED_BOUNDARY_INPUT_BLOCK + "\n\n")
+        self.assertEqual(
+            set(boundary_variables),
+            {
+                "boundary_contract_version",
+                "boundary_gate_panel",
+                "boundary_output_schema_json",
+            },
+        )
+        self.assertEqual(len(boundary_variables), 3)
+
+    def test_user_prompt_vision_input_block_is_unchanged_and_exact(self):
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        vision_start = user_prompt.index("## Vision Inputs")
+        vision_end = user_prompt.index("\n## Task", vision_start)
+        vision_block = user_prompt[vision_start:vision_end]
+        vision_variables = re.findall(r"{{\s*([^{}\s]+)\s*}}", vision_block)
+
+        self.assertEqual(vision_block, EXPECTED_VISION_INPUT_BLOCK + "\n")
+        self.assertEqual(
+            vision_variables,
+            ["all_frame_urls", "all_product_image_urls"],
+        )
 
     def test_user_prompt_final_json_example_has_complete_boundary_fact_contract(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
@@ -1133,14 +1178,21 @@ class RuleCalibrationTest(unittest.TestCase):
             },
         )
         self.assertEqual(
-            set(payload["material_summary"]),
+            payload["material_summary"],
             {
-                "segment_count",
-                "product_count",
-                "comment_interaction_available",
-                "material_quality_warning",
+                "segment_count": 0,
+                "product_count": 0,
+                "comment_interaction_available": False,
+                "material_quality_warning": [],
             },
         )
+        self.assertIs(type(payload["material_summary"]["segment_count"]), int)
+        self.assertIs(type(payload["material_summary"]["product_count"]), int)
+        self.assertIs(
+            type(payload["material_summary"]["comment_interaction_available"]),
+            bool,
+        )
+        self.assertIsInstance(payload["material_summary"]["material_quality_warning"], list)
         self.assertEqual(
             set(payload["boundary_checks"]),
             {"contract_version", "facts"},
@@ -1161,19 +1213,72 @@ class RuleCalibrationTest(unittest.TestCase):
                     {"value": False, "evidence_sources": [], "evidence_detail": ""},
                 )
 
+        expected_final_result_keys = {
+            "category_id",
+            "category_name",
+            "decision",
+            "confidence",
+            "evidence_count",
+            "evidence",
+            "judge_reason",
+            "materials_used",
+            "product_image_used",
+            "product_image_permission_ok",
+            "priority_rule_applied",
+        }
         self.assertEqual(len(payload["final_results"]), 19)
         self.assertEqual(
             [item["category_id"] for item in payload["final_results"]],
             list(range(1, 20)),
         )
+        self.assertEqual(
+            [item["category_name"] for item in payload["final_results"]],
+            EXPECTED_CATEGORY_NAMES,
+        )
+        for expected_id, expected_name, result in zip(
+            range(1, 20),
+            EXPECTED_CATEGORY_NAMES,
+            payload["final_results"],
+        ):
+            with self.subTest(category_id=expected_id):
+                self.assertEqual(set(result), expected_final_result_keys)
+                self.assertIs(type(result["category_id"]), int)
+                self.assertEqual(result["category_id"], expected_id)
+                self.assertIsInstance(result["category_name"], str)
+                self.assertEqual(result["category_name"], expected_name)
+                self.assertEqual(result["decision"], "no_hit")
+                self.assertEqual(result["confidence"], "medium")
+                self.assertIs(type(result["evidence_count"]), int)
+                self.assertEqual(result["evidence_count"], 0)
+                self.assertEqual(result["evidence"], [])
+                self.assertIsInstance(result["judge_reason"], str)
+                self.assertTrue(result["judge_reason"].strip())
+                self.assertEqual(result["materials_used"], [])
+                self.assertIs(result["product_image_used"], False)
+                self.assertIs(result["product_image_permission_ok"], True)
+                self.assertEqual(result["priority_rule_applied"], [])
+
         self.assertEqual(payload["hit_category_ids"], [])
         self.assertEqual(payload["no_hit_category_ids"], list(range(1, 20)))
         self.assertEqual(payload["unable_to_judge_category_ids"], [])
-        self.assertEqual(payload["coverage_check"]["expected_category_count"], 19)
-        self.assertEqual(payload["coverage_check"]["actual_category_count"], 19)
-        self.assertIn("product_image_permission_violations", payload["policy_checks"])
-        self.assertIn("exclusive_priority_applied", payload["policy_checks"])
-        self.assertIn("threshold_recheck_warnings", payload["policy_checks"])
+        self.assertEqual(
+            payload["coverage_check"],
+            {
+                "expected_category_count": 19,
+                "actual_category_count": 19,
+                "missing_category_ids": [],
+                "extra_category_ids": [],
+                "hit_no_hit_overlap_category_ids": [],
+            },
+        )
+        self.assertEqual(
+            payload["policy_checks"],
+            {
+                "product_image_permission_violations": [],
+                "exclusive_priority_applied": [],
+                "threshold_recheck_warnings": [],
+            },
+        )
 
         lower_prompt = user_prompt.lower()
         self.assertIn(
