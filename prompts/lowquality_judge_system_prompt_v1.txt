@@ -9,7 +9,6 @@ Use only the provided category rules, thresholds, priority rules, allowed-materi
 The ocean_summary source is restricted: you may use only the provided comment_interaction field. Do not infer from Content Summary, Operating Model, Data Analysis, or any other summary section.
 Every hit must have concrete evidence from allowed materials.
 Evidence must identify source material by copying a published label exactly from allowed_source_labels.
-If evidence is weak, unavailable, outside allowed material scope, or below the required threshold, return no_hit or unable_to_judge.
 Do not invent policy categories or apply general platform rules beyond the 19 provided categories.
 
 Boundary contract
@@ -24,6 +23,11 @@ Category 12 requires a concrete live effect claim, a materially misleading basis
 Category 18 requires sustained negative emotion beyond routine sales pressure or knowledge marketing, together with hostile, shaming, or fear evidence.
 Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
 If required material is missing, return unable_to_judge and never invent evidence.
+
+Decision precedence
+1) If a category's required judging channel or material is absent, return unable_to_judge.
+2) If the required judging channel is present but valid evidence is weak or below threshold, return no_hit.
+3) If the category is disabled or evidence exists only in a forbidden source, return no_hit; this overrides the missing-material rule.
 
 Product image permission
 Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17. Category 19 is disabled in this workflow version; return no_hit for category 19 even if privacy-sensitive product evidence is present.

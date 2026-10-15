@@ -116,6 +116,12 @@ EXPECTED_SYSTEM_PRIORITY_LINES = [
     "Category 1 has priority over category 19. Sexual exposure or sexualized implication belongs to category 1, not category 19.",
 ]
 
+EXPECTED_DECISION_PRECEDENCE_LINES = [
+    "1) If a category's required judging channel or material is absent, return unable_to_judge.",
+    "2) If the required judging channel is present but valid evidence is weak or below threshold, return no_hit.",
+    "3) If the category is disabled or evidence exists only in a forbidden source, return no_hit; this overrides the missing-material rule.",
+]
+
 EXPECTED_BOUNDARY_INPUT_BLOCK = """Boundary contract version: {{boundary_contract_version}}
 Boundary gate panel: {{boundary_gate_panel}}
 Boundary output schema: {{boundary_output_schema_json}}
@@ -313,6 +319,12 @@ def _extract_final_json_example(user_prompt):
     json_start = marker_index + len(marker)
     payload, end_offset = json.JSONDecoder().raw_decode(user_prompt[json_start:])
     return payload, user_prompt[json_start + end_offset:]
+
+
+def _nonblank_section_lines(text, start_marker, end_marker):
+    start = text.index(start_marker) + len(start_marker)
+    end = text.index(end_marker, start)
+    return [line.strip() for line in text[start:end].splitlines() if line.strip()]
 
 
 def _valid_payload(hit_ids=(), evidence_by_id=None):
@@ -1069,7 +1081,9 @@ class RuleCalibrationTest(unittest.TestCase):
     def test_system_prompt_requires_evidence_backed_boundary_contract(self):
         system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
         lower_prompt = system_prompt.lower()
+        system_variables = re.findall(r"{{([^{}]*)}}", system_prompt)
 
+        self.assertEqual(system_variables, [])
         self.assertNotIn("{{", system_prompt)
         self.assertNotIn("```", system_prompt)
         self.assertNotIn("#", system_prompt)
@@ -1111,15 +1125,34 @@ class RuleCalibrationTest(unittest.TestCase):
 
     def test_system_prompt_priority_section_has_exact_five_ordered_rules(self):
         system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
-        priority_start = system_prompt.index("Priority rules\n") + len("Priority rules\n")
-        priority_end = system_prompt.index("\nCoverage rules", priority_start)
-        priority_lines = [
-            line.strip()
-            for line in system_prompt[priority_start:priority_end].splitlines()
-            if line.strip()
-        ]
+        priority_lines = _nonblank_section_lines(
+            system_prompt,
+            "Priority rules\n",
+            "\nCoverage rules",
+        )
 
         self.assertEqual(priority_lines, EXPECTED_SYSTEM_PRIORITY_LINES)
+
+    def test_prompts_define_exact_missing_material_decision_precedence(self):
+        system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        self.assertIn("Decision precedence\n", system_prompt)
+        self.assertIn("Decision precedence\n", user_prompt)
+        system_precedence = _nonblank_section_lines(
+            system_prompt,
+            "Decision precedence\n",
+            "\nProduct image permission",
+        )
+        user_precedence = _nonblank_section_lines(
+            user_prompt,
+            "Decision precedence\n",
+            "\nFor every hit",
+        )
+
+        self.assertEqual(system_precedence, EXPECTED_DECISION_PRECEDENCE_LINES)
+        self.assertEqual(user_precedence, EXPECTED_DECISION_PRECEDENCE_LINES)
+        self.assertNotIn("return no_hit or unable_to_judge", system_prompt.lower())
+        self.assertNotIn("return no_hit or unable_to_judge", user_prompt.lower())
 
     def test_user_prompt_boundary_input_block_and_variables_are_exact(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
@@ -1142,7 +1175,23 @@ class RuleCalibrationTest(unittest.TestCase):
                 "boundary_output_schema_json",
             },
         )
-        self.assertEqual(len(boundary_variables), 3)
+
+    def test_all_prompt_template_variables_are_simple_names(self):
+        system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        system_variables = re.findall(r"{{([^{}]*)}}", system_prompt)
+        user_variables = re.findall(r"{{([^{}]*)}}", user_prompt)
+
+        self.assertEqual(system_variables, [])
+        self.assertEqual(system_prompt.count("{{"), 0)
+        self.assertEqual(system_prompt.count("}}"), 0)
+        self.assertEqual(user_prompt.count("{{"), len(user_variables))
+        self.assertEqual(user_prompt.count("}}"), len(user_variables))
+        self.assertTrue(user_variables)
+        for variable in user_variables:
+            with self.subTest(variable=variable):
+                self.assertRegex(variable, r"\A[A-Za-z_][A-Za-z0-9_]*\Z")
+                self.assertNotIn(".", variable)
 
     def test_user_prompt_vision_input_block_is_unchanged_and_exact(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
@@ -1298,6 +1347,59 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("occlusion", lower_prompt)
         self.assertIn("a still frame alone is not a category 7 low-quality hit", lower_prompt)
         self.assertIn("no text after the json", lower_prompt)
+        self.assertIn(
+            "the all-false boundary facts and all-no_hit category decisions in the example illustrate the required shape only; never copy them as defaults, and derive every fact and decision from the supplied evidence.",
+            lower_prompt,
+        )
+
+    def test_user_prompt_json_example_uses_runtime_identity_placeholders(self):
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        payload, _ = _extract_final_json_example(user_prompt)
+
+        self.assertIsInstance(payload["rules_version"], str)
+        self.assertEqual(payload["rules_version"], "{{rules_version}}")
+        self.assertIsInstance(payload["room_id"], str)
+        self.assertEqual(payload["room_id"], "{{room_id}}")
+        self.assertIsInstance(payload["boundary_checks"]["contract_version"], str)
+        self.assertEqual(
+            payload["boundary_checks"]["contract_version"],
+            "{{boundary_contract_version}}",
+        )
+        self.assertIn(
+            "rules_version, room_id, and boundary_checks.contract_version must copy their exact runtime values and must not remain placeholders or blank.",
+            user_prompt,
+        )
+
+    def test_rendered_prompt_json_example_passes_real_finalizer(self):
+        room_id = "7380123456789012345"
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        rendered_prompt = user_prompt
+        for variable, value in (
+            ("rules_version", EXPECTED_V3_VERSION),
+            ("room_id", room_id),
+            ("boundary_contract_version", EXPECTED_V3_VERSION),
+        ):
+            rendered_prompt = rendered_prompt.replace("{{%s}}" % variable, value)
+
+        payload, _ = _extract_final_json_example(rendered_prompt)
+        result = finalize_judge_output(_finalizer_params(payload))
+
+        self.assertEqual(result["finalization_status"], "pass")
+        self.assertEqual(json.loads(result["finalizer_errors"]), [])
+        finalized_payload = json.loads(result["finalized_final_json"])
+        self.assertEqual(finalized_payload["room_id"], room_id)
+        self.assertEqual(finalized_payload["rules_version"], EXPECTED_V3_VERSION)
+        self.assertEqual(
+            finalized_payload["boundary_checks"]["contract_version"],
+            EXPECTED_V3_VERSION,
+        )
+        self.assertEqual(
+            [item["category_id"] for item in finalized_payload["final_results"]],
+            list(range(1, 20)),
+        )
+        self.assertEqual(finalized_payload["hit_category_ids"], [])
+        self.assertEqual(finalized_payload["no_hit_category_ids"], list(range(1, 20)))
+        self.assertEqual(finalized_payload["unable_to_judge_category_ids"], [])
 
     def test_validator_rejects_disabled_category_19_hit(self):
         evidence = [

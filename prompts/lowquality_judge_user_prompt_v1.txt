@@ -74,6 +74,11 @@ Use Pearl products only according to product-image permission rules.
 Apply the supplied v3 boundary contract before every category decision.
 Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
 
+Decision precedence
+1) If a category's required judging channel or material is absent, return unable_to_judge.
+2) If the required judging channel is present but valid evidence is weak or below threshold, return no_hit.
+3) If the category is disabled or evidence exists only in a forbidden source, return no_hit; this overrides the missing-material rule.
+
 For every hit, provide evidence as an array of concise Chinese evidence objects. Each evidence object must include source, quote_or_visual_detail, and reason, and all three fields must be nonblank.
 
 For no_hit and unable_to_judge, evidence may be empty, but judge_reason must explain why the category did not hit or could not be judged from available materials.
@@ -83,6 +88,8 @@ For no_hit and unable_to_judge, evidence may be empty, but judge_reason must exp
 Return the Chinese report first, then append FINAL_JSON: followed by valid JSON.
 
 Use this structure:
+
+The all-false boundary facts and all-no_hit category decisions in the example illustrate the required shape only; never copy them as defaults, and derive every fact and decision from the supplied evidence.
 
 识别到的低质问题：
 1. 识别到【类别名】
@@ -98,8 +105,8 @@ Use this structure:
 
 FINAL_JSON:
 {
-  "rules_version": "",
-  "room_id": "",
+  "rules_version": "{{rules_version}}",
+  "room_id": "{{room_id}}",
   "material_summary": {
     "segment_count": 0,
     "product_count": 0,
@@ -107,7 +114,7 @@ FINAL_JSON:
     "material_quality_warning": []
   },
   "boundary_checks": {
-    "contract_version": "",
+    "contract_version": "{{boundary_contract_version}}",
     "facts": {
       "sexualized_exposure_or_behavior_found": {
         "value": false,
@@ -534,6 +541,7 @@ FINAL_JSON:
 
 Requirements:
 The FINAL_JSON final_results array must contain exactly 19 objects ordered by category_id from 1 to 19.
+rules_version, room_id, and boundary_checks.contract_version must copy their exact runtime values and must not remain placeholders or blank.
 The FINAL_JSON boundary_checks object must contain contract_version and facts. contract_version must equal boundary_contract_version exactly for the supplied v3 contract.
 The facts object must include all 31 required fact names exactly. Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
 Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail. Copy that source label exactly; a false fact may use empty evidence_sources and empty evidence_detail.
