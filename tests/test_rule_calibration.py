@@ -406,6 +406,48 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("payload_rules_version_mismatch", errors)
         self.assertFalse(any(error.startswith("json_parse_failed:") for error in errors))
 
+    def test_blank_existing_hit_reason_fails_across_finalizer_and_validator(self):
+        payload = _valid_finalizer_payload()
+        category_1 = payload["final_results"][0]
+        category_1.update(
+            {
+                "decision": "hit",
+                "confidence": "high",
+                "evidence_count": 1,
+                "evidence": [
+                    {
+                        "source": "Segment #1 frame",
+                        "quote_or_visual_detail": "Visible gated category 1 evidence.",
+                        "reason": "   ",
+                    }
+                ],
+                "judge_reason": "Adversarial existing hit with a blank evidence reason.",
+                "materials_used": ["segment_frame"],
+            }
+        )
+        payload["hit_category_ids"] = [1]
+        payload["no_hit_category_ids"] = list(range(2, 20))
+        payload["boundary_checks"]["facts"]["sexualized_exposure_or_behavior_found"] = {
+            "value": True,
+            "evidence_sources": ["Segment #1 frame"],
+            "evidence_detail": "Visible gated category 1 evidence.",
+        }
+
+        finalized = finalize_judge_output(_finalizer_params(payload))
+        result = validate_judge_output(_validator_params_from_finalizer(finalized))
+
+        finalizer_errors = json.loads(finalized["finalizer_errors"])
+        validation_errors = json.loads(result["validation_errors"])
+        self.assertEqual(finalized["finalization_status"], "fail")
+        self.assertNotIn(finalized["finalization_status"], {"pass", "warning"})
+        self.assertIn("invalid_final_result_evidence_reason:1", finalizer_errors)
+        self.assertEqual(result["validation_status"], "fail")
+        self.assertIn("boundary_finalization_failed", validation_errors)
+        self.assertIn("invalid_final_result_evidence_reason:1", validation_errors)
+        self.assertFalse(
+            any(error.startswith("json_parse_failed:") for error in validation_errors)
+        )
+
     def test_validator_rejects_shared_evidence_priority_conflicts(self):
         shared_evidence = [
             {

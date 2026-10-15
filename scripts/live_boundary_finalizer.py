@@ -595,6 +595,10 @@ def _validate_final_results_structure(payload):
                             "final_result_evidence_%s_not_string:%d:index_%d"
                             % (field_name, category_id, evidence_index)
                         )
+                    elif field_name == "reason" and not entry[field_name].strip():
+                        errors.append(
+                            "invalid_final_result_evidence_reason:%d" % category_id
+                        )
 
         evidence_count = item.get("evidence_count")
         if type(evidence_count) is not int:

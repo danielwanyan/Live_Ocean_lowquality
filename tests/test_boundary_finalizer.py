@@ -630,6 +630,39 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             with self.subTest(expected_error=expected_error):
                 self.assert_payload_failure_no_raise(payload, expected_error)
 
+    def test_existing_hit_evidence_reason_must_be_nonblank_string(self):
+        cases = [
+            ("missing", "final_result_evidence_reason_not_string:1:index_0"),
+            (None, "final_result_evidence_reason_not_string:1:index_0"),
+            (7, "final_result_evidence_reason_not_string:1:index_0"),
+            ("", "invalid_final_result_evidence_reason:1"),
+            ("   \t\n", "invalid_final_result_evidence_reason:1"),
+        ]
+
+        for reason, expected_error in cases:
+            with self.subTest(reason=reason):
+                payload = valid_payload()
+                set_decision(payload, 1, "hit")
+                set_fact(payload, "sexualized_exposure_or_behavior_found")
+                evidence = payload["final_results"][0]["evidence"][0]
+                if reason == "missing":
+                    del evidence["reason"]
+                else:
+                    evidence["reason"] = reason
+
+                self.assert_payload_failure_no_raise(payload, expected_error)
+
+    def test_existing_hit_evidence_nonblank_reason_passes(self):
+        payload = valid_payload()
+        set_decision(payload, 1, "hit")
+        set_fact(payload, "sexualized_exposure_or_behavior_found")
+        payload["final_results"][0]["evidence"][0]["reason"] = "Usable reason."
+
+        result = finalize_judge_output(build_params(payload))
+
+        self.assertEqual(result["finalization_status"], "pass")
+        self.assertEqual(json.loads(result["finalizer_errors"]), [])
+
     def test_final_result_category_name_must_match_canonical_contract(self):
         for invalid_name in (None, 1, "Wrong category name"):
             with self.subTest(invalid_name=invalid_name):
