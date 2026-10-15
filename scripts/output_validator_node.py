@@ -151,6 +151,7 @@ def _check_finalization_status(params, errors, warnings):
     has_status = "finalization_status" in params
     has_errors = "finalizer_errors" in params
     if not has_status and not has_errors:
+        errors.append("incomplete_finalizer_metadata")
         return None
 
     status = params.get("finalization_status")

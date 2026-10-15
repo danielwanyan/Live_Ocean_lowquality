@@ -462,7 +462,9 @@ def _validator_params_from_finalizer(result):
 
 def _validator_params(payload=None, **extra):
     params = {
-        "judge_output": "report\nFINAL_JSON:\n" + json.dumps(payload or _valid_payload())
+        "judge_output": "report\nFINAL_JSON:\n" + json.dumps(payload or _valid_payload()),
+        "finalization_status": "pass",
+        "finalizer_errors": "[]",
     }
     params.update(extra)
     return params
@@ -1471,28 +1473,32 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual(errors, ["boundary_finalization_warning"])
 
     def test_validator_keeps_finalizer_pass(self):
-        result = validate_judge_output(
-            _validator_params(finalization_status="pass", finalizer_errors="[]")
-        )
-
-        self.assertEqual(result["validation_status"], "pass")
-        self.assertEqual(json.loads(result["validation_errors"]), [])
-
-    def test_validator_retains_legacy_pass_when_finalizer_status_missing(self):
         result = validate_judge_output(_validator_params())
 
         self.assertEqual(result["validation_status"], "pass")
         self.assertEqual(json.loads(result["validation_errors"]), [])
 
-    def test_validator_rejects_incomplete_finalizer_metadata(self):
-        cases = [
-            {"finalization_status": "pass"},
-            {"finalizer_errors": "[]"},
-        ]
+    def test_validator_rejects_both_finalizer_metadata_keys_missing(self):
+        params = _validator_params()
+        del params["finalization_status"]
+        del params["finalizer_errors"]
 
-        for metadata in cases:
-            with self.subTest(metadata=metadata):
-                result = validate_judge_output(_validator_params(**metadata))
+        result = validate_judge_output(params)
+
+        self.assertEqual(result["validation_status"], "fail")
+        self.assertIn(
+            "incomplete_finalizer_metadata",
+            json.loads(result["validation_errors"]),
+        )
+
+    def test_validator_rejects_incomplete_finalizer_metadata(self):
+        missing_keys = ["finalization_status", "finalizer_errors"]
+
+        for missing_key in missing_keys:
+            with self.subTest(missing_key=missing_key):
+                params = _validator_params()
+                del params[missing_key]
+                result = validate_judge_output(params)
 
                 self.assertEqual(result["validation_status"], "fail")
                 self.assertIn(
@@ -1888,8 +1894,10 @@ class RuleCalibrationTest(unittest.TestCase):
                 payload = _valid_payload()
                 payload["non_finite_fixture"] = constant
                 judge_output = "report\nFINAL_JSON:\n" + json.dumps(payload)
+                params = _validator_params()
+                params["judge_output"] = judge_output
 
-                result = validate_judge_output({"judge_output": judge_output})
+                result = validate_judge_output(params)
                 errors = json.loads(result["validation_errors"])
 
                 self.assertEqual(result["validation_status"], "fail")
