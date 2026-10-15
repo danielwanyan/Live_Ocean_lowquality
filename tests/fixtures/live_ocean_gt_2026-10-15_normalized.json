@@ -1,18 +1,15 @@
 {
-  "metadata": {
-    "schema_version": "1.0-normalized",
-    "source_file": "/Users/bytedance/Downloads/直播间低质人审结果_2026-10-15.json",
-    "reviewed_room_count": 13,
-    "expected_low_quality_room_count": 2,
-    "expected_clean_room_count": 11,
-    "human_overrides": [
-      {
-        "room_id": "7684940374084045590",
-        "is_low_quality": false,
-        "category_ids": [],
-        "reason": "普通营销和知识营销，没有实质功能效果虚假证据，也没有负面引导。"
-      }
-    ]
+  "schema_version": "1.0-normalized",
+  "source_file": "/Users/bytedance/Downloads/直播间低质人审结果_2026-10-15.json",
+  "reviewed_room_count": 13,
+  "expected_low_quality_room_count": 2,
+  "expected_clean_room_count": 11,
+  "human_overrides": {
+    "7684940374084045590": {
+      "is_low_quality": false,
+      "category_ids": [],
+      "reason": "普通营销和知识营销，没有实质功能效果虚假证据，也没有负面引导。"
+    }
   },
   "reviews": [
     {

@@ -77,28 +77,38 @@ class GroundTruthFixtureTest(unittest.TestCase):
             },
         )
 
-    def test_metadata_records_source_counts_and_human_override(self):
+    def test_root_fields_record_source_counts_and_keyed_human_override(self):
         fixture = self.load_fixture()
-        metadata = fixture["metadata"]
 
-        self.assertEqual(metadata["schema_version"], "1.0-normalized")
         self.assertEqual(
-            metadata["source_file"],
+            set(fixture),
+            {
+                "schema_version",
+                "source_file",
+                "reviewed_room_count",
+                "expected_low_quality_room_count",
+                "expected_clean_room_count",
+                "human_overrides",
+                "reviews",
+            },
+        )
+        self.assertEqual(fixture["schema_version"], "1.0-normalized")
+        self.assertEqual(
+            fixture["source_file"],
             "/Users/bytedance/Downloads/直播间低质人审结果_2026-10-15.json",
         )
-        self.assertEqual(metadata["reviewed_room_count"], 13)
-        self.assertEqual(metadata["expected_low_quality_room_count"], 2)
-        self.assertEqual(metadata["expected_clean_room_count"], 11)
+        self.assertEqual(fixture["reviewed_room_count"], 13)
+        self.assertEqual(fixture["expected_low_quality_room_count"], 2)
+        self.assertEqual(fixture["expected_clean_room_count"], 11)
         self.assertEqual(
-            metadata["human_overrides"],
-            [
-                {
-                    "room_id": "7684940374084045590",
+            fixture["human_overrides"],
+            {
+                "7684940374084045590": {
                     "is_low_quality": False,
                     "category_ids": [],
                     "reason": "普通营销和知识营销，没有实质功能效果虚假证据，也没有负面引导。",
                 }
-            ],
+            },
         )
 
 
