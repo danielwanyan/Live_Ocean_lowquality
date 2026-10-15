@@ -545,7 +545,7 @@ rules_version, room_id, and boundary_checks.contract_version must copy their exa
 The FINAL_JSON boundary_checks object must contain contract_version and facts. contract_version must equal boundary_contract_version exactly for the supplied v3 contract.
 The facts object must include all 31 required fact names exactly. Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
 Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail. Copy that source label exactly; a false fact may use empty evidence_sources and empty evidence_detail.
-Do not use authenticity_or_product_mismatch_found. Category 9 authenticity and Category 10 generated-product mismatch must remain separate facts.
+Category 9 and Category 10 facts must remain separate and must never be merged into a combined authenticity/product-mismatch fact.
 hit_category_ids, no_hit_category_ids, and unable_to_judge_category_ids must cover all 19 categories with no overlap.
 Every final hit must have evidence_count greater than 0 and non-empty evidence.
 Every evidence object must contain nonblank source, quote_or_visual_detail, and reason. Its source must be copied exactly from allowed_source_labels; do not invent or normalize a label.

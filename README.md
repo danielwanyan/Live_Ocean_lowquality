@@ -15,7 +15,7 @@ This repository contains the v3 Aicolate assets for live-room low-quality detect
 ```text
 Start
   -> Normalize_Input
-  -> Rules_JSON HTTP + Judge_Rules HTTP
+  -> Rules_JSON HTTP + Judge_Rules_Compact HTTP
   -> Rules_Brain
   -> Live_Boundary_Gate_Builder
   -> LowQuality_Judge (only LLM)
@@ -24,7 +24,7 @@ Start
   -> End
 ```
 
-`Rules_JSON` supplies structured rules to `Rules_Brain`; `Judge_Rules` supplies the compact text rules to `LowQuality_Judge`.
+`Rules_JSON` supplies structured rules to `Rules_Brain`; `Judge_Rules_Compact.body` supplies the compact text rules to `LowQuality_Judge.judge_rules_compact`.
 
 ## Start and Normalize contracts
 
@@ -103,7 +103,7 @@ product_image_permission_matrix
 priority_rules_context
 threshold_rules_context
 rules_version
-judge_rules_compact
+judge_rules_compact             Judge_Rules_Compact.body
 ```
 
 Add exactly these three flat `String` text inputs:

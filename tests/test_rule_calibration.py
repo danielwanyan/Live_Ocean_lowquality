@@ -1250,10 +1250,12 @@ class RuleCalibrationTest(unittest.TestCase):
             set(payload["boundary_checks"]["facts"]),
             EXPECTED_PROMPT_BOUNDARY_FACTS,
         )
+        retired_combined_fact = "authenticity_or_product_" + "mismatch_found"
         self.assertNotIn(
-            "authenticity_or_product_mismatch_found",
+            retired_combined_fact,
             payload["boundary_checks"]["facts"],
         )
+        self.assertNotIn(retired_combined_fact, user_prompt)
         for fact_name, fact in payload["boundary_checks"]["facts"].items():
             with self.subTest(fact_name=fact_name):
                 self.assertEqual(user_prompt.count('"%s": {' % fact_name), 1)
@@ -1341,7 +1343,11 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("nonblank evidence_detail", lower_prompt)
         self.assertIn("source, quote_or_visual_detail, and reason", lower_prompt)
         self.assertIn("all three fields must be nonblank", lower_prompt)
-        self.assertIn("do not use authenticity_or_product_mismatch_found", lower_prompt)
+        self.assertIn(
+            "category 9 and category 10 facts must remain separate and must never be "
+            "merged into a combined authenticity/product-mismatch fact",
+            lower_prompt,
+        )
         self.assertIn("v3", lower_prompt)
         self.assertIn("80%", user_prompt)
         self.assertIn("occlusion", lower_prompt)
