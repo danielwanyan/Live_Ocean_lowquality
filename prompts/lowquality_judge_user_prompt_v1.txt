@@ -35,6 +35,12 @@ Threshold rules:
 Compact judge rules:
 {{judge_rules_compact}}
 
+Boundary contract version: {{boundary_contract_version}}
+Boundary gate panel: {{boundary_gate_panel}}
+Boundary output schema: {{boundary_output_schema_json}}
+
+The boundary output schema contains required_facts, fact_shape, and allowed_source_labels.
+
 ## Evidence Materials
 
 All Ocean segments:
@@ -65,8 +71,10 @@ Check all 19 live-room low-quality categories independently.
 Use all Ocean segments, not a 5-segment sample.
 Use Comment Interaction only for the summary-derived interaction context.
 Use Pearl products only according to product-image permission rules.
+Apply the supplied v3 boundary contract before every category decision.
+Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
 
-For every hit, provide evidence as an array of concise Chinese evidence objects. Each evidence object must include source, quote_or_visual_detail, and reason.
+For every hit, provide evidence as an array of concise Chinese evidence objects. Each evidence object must include source, quote_or_visual_detail, and reason, and all three fields must be nonblank.
 
 For no_hit and unable_to_judge, evidence may be empty, but judge_reason must explain why the category did not hit or could not be judged from available materials.
 
@@ -98,6 +106,166 @@ FINAL_JSON:
     "comment_interaction_available": false,
     "material_quality_warning": []
   },
+  "boundary_checks": {
+    "contract_version": "",
+    "facts": {
+      "sexualized_exposure_or_behavior_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "ordinary_tryon_or_public_context_only": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "disturbing_visual_dominates": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "cleaning_demo_context": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "novelty_or_product_art_context": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "sustained_product_promotion_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "unrelated_content_dominates": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "real_physical_product_display_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "core_buying_information_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "identifiable_product_and_core_purpose_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "extremely_low_information_across_relevant_segments": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "explicit_generated_content_evidence_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "authenticity_misleading_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "generated_product_material_mismatch_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "concrete_replay_indicator_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "replay_weak_signal_only": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "concrete_live_effect_claim_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "materially_misleading_basis_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "effect_claim_prevalence_or_strength_threshold_met": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "marketing_or_product_image_only": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "off_platform_destination_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "explicit_transaction_guidance_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "same_scene_transaction_requirement_met": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "live_promoted_item_evidence_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "bound_product_evidence_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "core_product_contradiction_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "minor_variant_or_background_only": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "category_15_non_ipp_illegal_basis_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "sustained_negative_emotion_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "hostile_shaming_fear_evidence_found": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      },
+      "routine_sales_or_knowledge_marketing_only": {
+        "value": false,
+        "evidence_sources": [],
+        "evidence_detail": ""
+      }
+    }
+  },
   "final_results": [
     {
       "category_id": 1,
@@ -107,6 +275,240 @@ FINAL_JSON:
       "evidence_count": 0,
       "evidence": [],
       "judge_reason": "未发现达到色情低俗低质问题阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 2,
+      "category_name": "恶心恐怖低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 3,
+      "category_name": "商品无关低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 4,
+      "category_name": "无互动低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 5,
+      "category_name": "无实物商品展示低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 6,
+      "category_name": "商品描述不详细低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 7,
+      "category_name": "静态帧遮挡低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 8,
+      "category_name": "非母语违规低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 9,
+      "category_name": "AIGC真实性低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 10,
+      "category_name": "AIGC商品展示低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 11,
+      "category_name": "录播回放低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 12,
+      "category_name": "功能效果虚假宣传低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 13,
+      "category_name": "危险行为低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 14,
+      "category_name": "站外引流交易低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 15,
+      "category_name": "违法违规商品低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 16,
+      "category_name": "政治敏感低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 17,
+      "category_name": "争议话题低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 18,
+      "category_name": "负面引导低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "未发现达到该类别阈值的有效证据。",
+      "materials_used": [],
+      "product_image_used": false,
+      "product_image_permission_ok": true,
+      "priority_rule_applied": []
+    },
+    {
+      "category_id": 19,
+      "category_name": "隐私敏感商品低质问题",
+      "decision": "no_hit",
+      "confidence": "medium",
+      "evidence_count": 0,
+      "evidence": [],
+      "judge_reason": "本工作流已禁用类别19，返回no_hit。",
       "materials_used": [],
       "product_image_used": false,
       "product_image_permission_ok": true,
@@ -132,8 +534,12 @@ FINAL_JSON:
 
 Requirements:
 The FINAL_JSON final_results array must contain exactly 19 objects ordered by category_id from 1 to 19.
+The FINAL_JSON boundary_checks object must contain contract_version and facts. contract_version must equal boundary_contract_version exactly for the supplied v3 contract.
+The facts object must include all 31 required fact names exactly. Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
+Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail. Copy that source label exactly; a false fact may use empty evidence_sources and empty evidence_detail.
+Do not use authenticity_or_product_mismatch_found. Category 9 authenticity and Category 10 generated-product mismatch must remain separate facts.
 hit_category_ids, no_hit_category_ids, and unable_to_judge_category_ids must cover all 19 categories with no overlap.
 Every final hit must have evidence_count greater than 0 and non-empty evidence.
-Every evidence source must name one of: Segment #n ASR, Segment #n frame, Comment Interaction, Pearl product #n title, Pearl product #n image.
+Every evidence object must contain nonblank source, quote_or_visual_detail, and reason. Its source must be copied exactly from allowed_source_labels; do not invent or normalize a label.
 Do not include markdown code fences in the actual output.
-Do not add any text after the JSON.
+Do not add any text after the JSON. There must be no text after the JSON.

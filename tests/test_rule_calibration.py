@@ -26,7 +26,41 @@ from rules_brain_node import FALLBACK_RULES, PRODUCT_IMAGE_ALLOWED_IDS, build_ru
 RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_rules_structured_v1.json")
 COMPACT_RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_judge_rules_compact_v1.txt")
 SYSTEM_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_system_prompt_v1.txt")
+USER_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_user_prompt_v1.txt")
 EXPECTED_V3_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
+EXPECTED_PROMPT_BOUNDARY_FACTS = {
+    "sexualized_exposure_or_behavior_found",
+    "ordinary_tryon_or_public_context_only",
+    "disturbing_visual_dominates",
+    "cleaning_demo_context",
+    "novelty_or_product_art_context",
+    "sustained_product_promotion_found",
+    "unrelated_content_dominates",
+    "real_physical_product_display_found",
+    "core_buying_information_found",
+    "identifiable_product_and_core_purpose_found",
+    "extremely_low_information_across_relevant_segments",
+    "explicit_generated_content_evidence_found",
+    "authenticity_misleading_found",
+    "generated_product_material_mismatch_found",
+    "concrete_replay_indicator_found",
+    "replay_weak_signal_only",
+    "concrete_live_effect_claim_found",
+    "materially_misleading_basis_found",
+    "effect_claim_prevalence_or_strength_threshold_met",
+    "marketing_or_product_image_only",
+    "off_platform_destination_found",
+    "explicit_transaction_guidance_found",
+    "same_scene_transaction_requirement_met",
+    "live_promoted_item_evidence_found",
+    "bound_product_evidence_found",
+    "core_product_contradiction_found",
+    "minor_variant_or_background_only",
+    "category_15_non_ipp_illegal_basis_found",
+    "sustained_negative_emotion_found",
+    "hostile_shaming_fear_evidence_found",
+    "routine_sales_or_knowledge_marketing_only",
+}
 EXPECTED_PRIORITY_MAPPINGS = {
     "priority_3_over_5_for_unrelated_content": (3, 5),
     "priority_3_over_6": (3, 6),
@@ -240,6 +274,19 @@ def _priority_context(priority_rules):
         "%s: %s" % (item["id"], item["rule_en"])
         for item in priority_rules
     )
+
+
+def _load_prompt(path):
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def _extract_final_json_example(user_prompt):
+    marker = "FINAL_JSON:\n"
+    marker_index = user_prompt.index(marker)
+    json_start = marker_index + len(marker)
+    payload, end_offset = json.JSONDecoder().raw_decode(user_prompt[json_start:])
+    return payload, user_prompt[json_start + end_offset:]
 
 
 def _valid_payload(hit_ids=(), evidence_by_id=None):
@@ -992,6 +1039,160 @@ class RuleCalibrationTest(unittest.TestCase):
 
         self.assertIn("Category 19 is disabled", compact_rules)
         self.assertIn("Category 19 is disabled", system_prompt)
+
+    def test_system_prompt_requires_evidence_backed_boundary_contract(self):
+        system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
+        lower_prompt = system_prompt.lower()
+
+        self.assertNotIn("{{", system_prompt)
+        self.assertNotIn("```", system_prompt)
+        self.assertNotIn("#", system_prompt)
+        self.assertNotIn("{", system_prompt)
+        self.assertNotIn("}", system_prompt)
+        self.assertIsNone(re.search(r"(?m)^\s*#", system_prompt))
+        self.assertNotIn('"boundary_checks"', system_prompt)
+
+        for required_text in (
+            "single final judge",
+            "exactly 19 low-quality categories",
+            "all available Ocean segments",
+            "comment_interaction field",
+            "Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17",
+            "Category 19 is disabled",
+            "Apply the supplied boundary contract before making category decisions",
+            "Every required fact must be returned as an object with Boolean value, evidence_sources, and evidence_detail",
+            "Every true fact requires at least one concrete published source label from allowed_source_labels and nonblank evidence_detail",
+            "Copy each source label exactly from allowed_source_labels",
+            "A false fact may use an empty evidence_sources array and empty evidence_detail",
+            "Category 9 authenticity misleading",
+            "Category 10 generated-product mismatch",
+            "Category 12 requires a concrete live effect claim, a materially misleading basis, and the prevalence or strength threshold",
+            "Product copy, marketing language, and subjective praise alone are clean",
+            "Category 18 requires sustained negative emotion beyond routine sales pressure or knowledge marketing",
+            "If required material is missing, return unable_to_judge and never invent evidence",
+            "Category 3 has priority over category 5",
+            "Category 3 has priority over category 6",
+            "Category 5 has priority over category 6",
+            "Category 15 has priority over category 8",
+            "Category 1 has priority over category 19",
+        ):
+            self.assertIn(required_text.lower(), lower_prompt)
+
+        self.assertIn("80%", system_prompt)
+        self.assertIn("occlusion", lower_prompt)
+        self.assertIn("a still frame alone is not a category 7 low-quality hit", lower_prompt)
+        self.assertIn("v3", lower_prompt)
+
+    def test_user_prompt_uses_flat_boundary_inputs_and_preserves_vision_inputs(self):
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        rules_start = user_prompt.index("## Rules")
+        evidence_start = user_prompt.index("## Evidence Materials")
+        rules_section = user_prompt[rules_start:evidence_start]
+
+        expected_boundary_inputs = (
+            "Boundary contract version: {{boundary_contract_version}}",
+            "Boundary gate panel: {{boundary_gate_panel}}",
+            "Boundary output schema: {{boundary_output_schema_json}}",
+        )
+        self.assertIn("\n".join(expected_boundary_inputs), rules_section)
+        for exact_input in expected_boundary_inputs:
+            self.assertEqual(user_prompt.count(exact_input), 1)
+            self.assertIn(exact_input, rules_section)
+
+        self.assertIsNone(
+            re.search(
+                r"{{\s*(?:boundary_contract|boundary_gate|boundary_output)[^}]*\.",
+                user_prompt,
+            )
+        )
+        self.assertIn(
+            "The boundary output schema contains required_facts, fact_shape, and allowed_source_labels.",
+            user_prompt,
+        )
+        self.assertIn("all_frame_urls:\n{{all_frame_urls}}", user_prompt)
+        self.assertIn("all_product_image_urls:\n{{all_product_image_urls}}", user_prompt)
+
+    def test_user_prompt_final_json_example_has_complete_boundary_fact_contract(self):
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        payload, suffix = _extract_final_json_example(user_prompt)
+
+        self.assertIn("Requirements:", suffix)
+        self.assertEqual(
+            set(payload),
+            {
+                "rules_version",
+                "room_id",
+                "material_summary",
+                "boundary_checks",
+                "final_results",
+                "hit_category_ids",
+                "no_hit_category_ids",
+                "unable_to_judge_category_ids",
+                "coverage_check",
+                "policy_checks",
+            },
+        )
+        self.assertEqual(
+            set(payload["material_summary"]),
+            {
+                "segment_count",
+                "product_count",
+                "comment_interaction_available",
+                "material_quality_warning",
+            },
+        )
+        self.assertEqual(
+            set(payload["boundary_checks"]),
+            {"contract_version", "facts"},
+        )
+        self.assertEqual(
+            set(payload["boundary_checks"]["facts"]),
+            EXPECTED_PROMPT_BOUNDARY_FACTS,
+        )
+        self.assertNotIn(
+            "authenticity_or_product_mismatch_found",
+            payload["boundary_checks"]["facts"],
+        )
+        for fact_name, fact in payload["boundary_checks"]["facts"].items():
+            with self.subTest(fact_name=fact_name):
+                self.assertEqual(user_prompt.count('"%s": {' % fact_name), 1)
+                self.assertEqual(
+                    fact,
+                    {"value": False, "evidence_sources": [], "evidence_detail": ""},
+                )
+
+        self.assertEqual(len(payload["final_results"]), 19)
+        self.assertEqual(
+            [item["category_id"] for item in payload["final_results"]],
+            list(range(1, 20)),
+        )
+        self.assertEqual(payload["hit_category_ids"], [])
+        self.assertEqual(payload["no_hit_category_ids"], list(range(1, 20)))
+        self.assertEqual(payload["unable_to_judge_category_ids"], [])
+        self.assertEqual(payload["coverage_check"]["expected_category_count"], 19)
+        self.assertEqual(payload["coverage_check"]["actual_category_count"], 19)
+        self.assertIn("product_image_permission_violations", payload["policy_checks"])
+        self.assertIn("exclusive_priority_applied", payload["policy_checks"])
+        self.assertIn("threshold_recheck_warnings", payload["policy_checks"])
+
+        lower_prompt = user_prompt.lower()
+        self.assertIn(
+            "contract_version must equal boundary_contract_version exactly",
+            lower_prompt,
+        )
+        self.assertIn("all 31 required fact names", lower_prompt)
+        self.assertIn("exactly the keys value, evidence_sources, and evidence_detail", lower_prompt)
+        self.assertIn("every true fact", lower_prompt)
+        self.assertIn("exact allowed_source_labels", lower_prompt)
+        self.assertIn("nonblank evidence_detail", lower_prompt)
+        self.assertIn("source, quote_or_visual_detail, and reason", lower_prompt)
+        self.assertIn("all three fields must be nonblank", lower_prompt)
+        self.assertIn("do not use authenticity_or_product_mismatch_found", lower_prompt)
+        self.assertIn("v3", lower_prompt)
+        self.assertIn("80%", user_prompt)
+        self.assertIn("occlusion", lower_prompt)
+        self.assertIn("a still frame alone is not a category 7 low-quality hit", lower_prompt)
+        self.assertIn("no text after the json", lower_prompt)
 
     def test_validator_rejects_disabled_category_19_hit(self):
         evidence = [

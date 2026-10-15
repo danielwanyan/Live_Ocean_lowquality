@@ -300,6 +300,7 @@ def build_boundary_gate_output(params):
             "evidence_sources": "Array<String>",
             "evidence_detail": "String",
         },
+        "allowed_source_labels": allowed_source_labels,
     }
 
     return {

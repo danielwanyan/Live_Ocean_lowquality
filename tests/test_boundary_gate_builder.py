@@ -430,6 +430,12 @@ class BoundaryGateBuilderTest(unittest.TestCase):
         self.assertNotIn("still_frame", result["boundary_gate_panel"])
         self.assertEqual(schema["contract_version"], EXPECTED_CONTRACT_VERSION)
         self.assertEqual(schema["required_facts"], EXPECTED_REQUIRED_FACTS)
+        self.assertIn("allowed_source_labels", schema)
+        self.assertEqual(
+            schema["allowed_source_labels"],
+            gates["allowed_source_labels"],
+        )
+        self.assertEqual(schema["allowed_source_labels"], sorted(schema["allowed_source_labels"]))
         self.assertEqual(json.loads(result["boundary_builder_warnings"]), [])
         self.assertEqual(
             schema["fact_shape"],
@@ -734,9 +740,21 @@ class BoundaryGateBuilderTest(unittest.TestCase):
     def test_async_main_adapter_returns_exact_contract(self):
         class StubArgs:
             params = {
-                "segments_json": [],
-                "comment_interaction": "",
-                "product_catalog_json": [],
+                "segments_json": [
+                    {
+                        "segment_index": 2,
+                        "asr_summary": "Adapter ASR.",
+                        "frame_urls": ["https://example.com/frame.jpg"],
+                    }
+                ],
+                "comment_interaction": "Adapter comment.",
+                "product_catalog_json": [
+                    {
+                        "product_index": 1,
+                        "title": "Adapter product",
+                        "image_urls": ["https://example.com/product.jpg"],
+                    }
+                ],
                 "rules_version": EXPECTED_CONTRACT_VERSION,
             }
 
@@ -744,6 +762,21 @@ class BoundaryGateBuilderTest(unittest.TestCase):
 
         self.assertEqual(set(result), EXPECTED_RETURN_KEYS)
         self.assertEqual(result["boundary_contract_version"], EXPECTED_CONTRACT_VERSION)
+        gates = json.loads(result["boundary_gates_json"])
+        schema = json.loads(result["boundary_output_schema_json"])
+        self.assertIn("allowed_source_labels", schema)
+        self.assertEqual(schema["allowed_source_labels"], gates["allowed_source_labels"])
+        self.assertEqual(
+            schema["allowed_source_labels"],
+            [
+                "Comment Interaction",
+                "Pearl product #1 image",
+                "Pearl product #1 title",
+                "Segment #2 ASR",
+                "Segment #2 frame",
+                "Segment #2 visible text",
+            ],
+        )
 
 
 if __name__ == "__main__":

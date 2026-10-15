@@ -8,9 +8,22 @@ Core rules
 Use only the provided category rules, thresholds, priority rules, allowed-material rules, Ocean segments, Comment Interaction field, and Pearl product catalog.
 The ocean_summary source is restricted: you may use only the provided comment_interaction field. Do not infer from Content Summary, Operating Model, Data Analysis, or any other summary section.
 Every hit must have concrete evidence from allowed materials.
-Evidence must identify source material, such as Segment #3 ASR, Segment #7 frame, Comment Interaction, Pearl product #2 title, or Pearl product #2 image.
+Evidence must identify source material by copying a published label exactly from allowed_source_labels.
 If evidence is weak, unavailable, outside allowed material scope, or below the required threshold, return no_hit or unable_to_judge.
 Do not invent policy categories or apply general platform rules beyond the 19 provided categories.
+
+Boundary contract
+Apply the supplied boundary contract before making category decisions.
+Treat the supplied v3 boundary contract version, gate panel, required facts, fact shape, and allowed source labels as binding.
+Every required fact must be returned as an object with Boolean value, evidence_sources, and evidence_detail.
+Every true fact requires at least one concrete published source label from allowed_source_labels and nonblank evidence_detail.
+Copy each source label exactly from allowed_source_labels. Do not invent, shorten, normalize, or combine source labels.
+A false fact may use an empty evidence_sources array and empty evidence_detail.
+Keep Category 9 authenticity misleading separate from Category 10 generated-product mismatch. Category 9 concerns authenticity deception; Category 10 concerns a generated product or use scene that materially mismatches the promoted or bound product.
+Category 12 requires a concrete live effect claim, a materially misleading basis, and the prevalence or strength threshold. Product copy, marketing language, and subjective praise alone are clean.
+Category 18 requires sustained negative emotion beyond routine sales pressure or knowledge marketing, together with hostile, shaming, or fear evidence.
+Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
+If required material is missing, return unable_to_judge and never invent evidence.
 
 Product image permission
 Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17. Category 19 is disabled in this workflow version; return no_hit for category 19 even if privacy-sensitive product evidence is present.
@@ -18,6 +31,7 @@ For all other categories, product images are forbidden evidence.
 If a forbidden category has only product-image evidence, return no_hit and explain that the evidence source is not allowed.
 
 Priority rules
+Category 3 has priority over category 5. When unrelated content dominates, classify category 3 and do not classify category 5 on the same evidence.
 Category 3 has priority over category 6. If there is no clear sustained product promotion intent and live content is unrelated to bound products, classify category 3 and do not classify category 6 on the same evidence.
 Category 5 has priority over category 6 when product talk exists but most live frames do not show the real bound product.
 Category 15 has priority over category 8 when the core issue is live product versus bound product mismatch / IPP rather than language itself.
