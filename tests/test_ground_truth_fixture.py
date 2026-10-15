@@ -10,6 +10,73 @@ FIXTURE_PATH = os.path.join(
     "fixtures",
     "live_ocean_gt_2026-10-15_normalized.json",
 )
+EXPECTED_REVIEWS = [
+    {
+        "room_id": "7683777632135170819",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7683557938614536982",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7684604074263579394",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7682666560909003523",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7683442568729824023",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7683929339473283862",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7683556905641429782",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7684303184864529174",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7683403737167121174",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7684635473842604822",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7684940374084045590",
+        "is_low_quality": False,
+        "category_ids": [],
+    },
+    {
+        "room_id": "7684941369542052630",
+        "is_low_quality": True,
+        "category_ids": [12],
+    },
+    {
+        "room_id": "7684150291864488726",
+        "is_low_quality": True,
+        "category_ids": [12, 15],
+    },
+]
 
 
 class GroundTruthFixtureTest(unittest.TestCase):
@@ -20,6 +87,14 @@ class GroundTruthFixtureTest(unittest.TestCase):
     def test_reviews_lock_the_normalized_ground_truth(self):
         fixture = self.load_fixture()
         reviews = fixture["reviews"]
+
+        self.assertEqual(reviews, EXPECTED_REVIEWS)
+        for review in reviews:
+            self.assertEqual(
+                set(review),
+                {"room_id", "is_low_quality", "category_ids"},
+            )
+            self.assertIs(type(review["is_low_quality"]), bool)
 
         self.assertEqual(len(reviews), 13)
         self.assertEqual(len({review["room_id"] for review in reviews}), 13)
@@ -79,6 +154,13 @@ class GroundTruthFixtureTest(unittest.TestCase):
 
     def test_root_fields_record_source_counts_and_keyed_human_override(self):
         fixture = self.load_fixture()
+        reviews = fixture["reviews"]
+        low_quality_count = sum(
+            review["is_low_quality"] is True for review in reviews
+        )
+        clean_count = sum(
+            review["is_low_quality"] is False for review in reviews
+        )
 
         self.assertEqual(
             set(fixture),
@@ -100,6 +182,9 @@ class GroundTruthFixtureTest(unittest.TestCase):
         self.assertEqual(fixture["reviewed_room_count"], 13)
         self.assertEqual(fixture["expected_low_quality_room_count"], 2)
         self.assertEqual(fixture["expected_clean_room_count"], 11)
+        self.assertEqual(fixture["reviewed_room_count"], len(reviews))
+        self.assertEqual(fixture["expected_low_quality_room_count"], low_quality_count)
+        self.assertEqual(fixture["expected_clean_room_count"], clean_count)
         self.assertEqual(
             fixture["human_overrides"],
             {
