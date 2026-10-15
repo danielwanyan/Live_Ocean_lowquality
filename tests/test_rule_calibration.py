@@ -602,6 +602,22 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual([int(category_id) for category_id, _ in headings], list(range(1, 20)))
         self.assertEqual([name for _, name in headings], EXPECTED_CATEGORY_NAMES)
 
+    def test_compact_rules_define_exact_missing_material_precedence(self):
+        with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
+            compact_rules = f.read()
+
+        self.assertNotIn(
+            "If evidence is weak, missing, below threshold, or from forbidden material, return no_hit.",
+            compact_rules,
+        )
+        self.assertIn("Decision precedence:\n", compact_rules)
+        precedence_lines = _nonblank_section_lines(
+            compact_rules,
+            "Decision precedence:\n",
+            "\nFinal evidence explanation",
+        )
+        self.assertEqual(precedence_lines, EXPECTED_DECISION_PRECEDENCE_LINES)
+
     def test_compact_rules_map_v3_guards_and_keep_category_7_as_occlusion_only(self):
         with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
             compact_rules = f.read()
@@ -676,6 +692,69 @@ class RuleCalibrationTest(unittest.TestCase):
                 independently_computed_digest,
                 canonical_digest,
             )
+
+    def test_structured_judge_output_envelope_matches_report_contract(self):
+        rules = _load_structured_rules()
+        requirements = rules["judge_output_requirements"]
+
+        self.assertEqual(
+            requirements,
+            {
+                "raw_json_only": False,
+                "chinese_report_then_final_json": True,
+                "final_json_anchor": "FINAL_JSON:",
+                "final_results_count": 19,
+                "hit_requires_non_empty_evidence": True,
+                "allowed_decisions": ["hit", "no_hit", "unable_to_judge"],
+                "required_fields_per_category": [
+                    "category_id",
+                    "category_name",
+                    "decision",
+                    "confidence",
+                    "evidence_count",
+                    "evidence",
+                    "judge_reason",
+                    "materials_used",
+                    "product_image_used",
+                    "product_image_permission_ok",
+                    "priority_rule_applied",
+                ],
+            },
+        )
+        self.assertEqual(rules["final_report_language"], "zh-CN")
+        self.assertEqual(
+            requirements["final_json_anchor"],
+            rules["final_report_requirements"]["append_final_json_anchor"],
+        )
+        self.assertTrue(rules["final_report_requirements"]["must_cover_all_19_categories"])
+
+    def test_rules_brain_digest_rejects_output_envelope_field_drift(self):
+        rules = _load_structured_rules()
+        expected_envelope_fields = {
+            "raw_json_only": False,
+            "chinese_report_then_final_json": True,
+            "final_json_anchor": "FINAL_JSON:",
+        }
+        for field, canonical_value in expected_envelope_fields.items():
+            self.assertIn(field, rules["judge_output_requirements"])
+            self.assertEqual(
+                rules["judge_output_requirements"][field],
+                canonical_value,
+            )
+
+            altered = copy.deepcopy(rules)
+            altered["judge_output_requirements"][field] = (
+                not canonical_value
+                if isinstance(canonical_value, bool)
+                else "ALTERED_FINAL_JSON:"
+            )
+            with self.subTest(field=field, mutation="altered"):
+                self._assert_policy_drift_falls_back(altered)
+
+            deleted = copy.deepcopy(rules)
+            del deleted["judge_output_requirements"][field]
+            with self.subTest(field=field, mutation="deleted"):
+                self._assert_policy_drift_falls_back(deleted)
 
     def test_rules_brain_digest_rejects_top_level_policy_drift(self):
         canonical = _load_structured_rules()

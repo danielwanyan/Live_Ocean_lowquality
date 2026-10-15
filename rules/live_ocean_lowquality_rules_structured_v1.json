@@ -434,7 +434,9 @@
     }
   ],
   "judge_output_requirements": {
-    "raw_json_only": true,
+    "raw_json_only": false,
+    "chinese_report_then_final_json": true,
+    "final_json_anchor": "FINAL_JSON:",
     "final_results_count": 19,
     "hit_requires_non_empty_evidence": true,
     "allowed_decisions": [

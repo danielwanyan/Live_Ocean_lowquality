@@ -2,7 +2,11 @@ Live Ocean Low Quality Single-Judge Compact Rules v3
 
 Global
 Boundary contract version: 2026-10-15-v3-cross-project-boundary-gates
-Check all 19 categories independently and in order. Use all available Ocean segments, not a reduced sample. Hit requires concrete evidence from allowed materials and the category threshold. If evidence is weak, missing, below threshold, or from forbidden material, return no_hit.
+Check all 19 categories independently and in order. Use all available Ocean segments, not a reduced sample. Hit requires concrete evidence from allowed materials and the category threshold.
+Decision precedence:
+1) If a category's required judging channel or material is absent, return unable_to_judge.
+2) If the required judging channel is present but valid evidence is weak or below threshold, return no_hit.
+3) If the category is disabled or evidence exists only in a forbidden source, return no_hit; this overrides the missing-material rule.
 Final evidence explanation should be Chinese. Direct quotes may remain in source language.
 Product images are allowed only for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17.
 Priority: category 3 beats category 5 when the unrelated live core has no sustained promotion. Category 3 beats category 6 when there is no sustained product promotion intent and the live content is unrelated to bound products. Category 5 beats category 6 when product talk exists but most live frames do not show the real bound product. Category 15 product mismatch / IPP beats category 8 when the issue is live product vs bound product mismatch. Category 1 beats category 19 when there is sexual exposure or sexual implication. Category 19 is disabled in this workflow version and should return no_hit.
