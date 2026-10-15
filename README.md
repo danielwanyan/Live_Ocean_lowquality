@@ -7,7 +7,8 @@ This repository contains the v3 Aicolate assets for live-room low-quality detect
 - Rule version and boundary contract version: `2026-10-15-v3-cross-project-boundary-gates`.
 - `LowQuality_Judge` remains the only LLM call. Every other workflow stage is HTTP or deterministic code.
 - The v3 feature-branch assets are locally tested but have not been deployed to or persisted in Aicolate.
-- Deploy the nodes, prompts, and rules as one coordinated cutover. Do not leave the active canvas on a mixed v2/v3 contract.
+- Keep the active v2 path untouched while preparing an inactive/cloned v3 path. Duplicate the nodes/canvas branch when Aicolate supports it; otherwise create unconnected inactive v3 nodes that do not feed the active `End`.
+- Deploy the nodes, prompts, and rules as one coordinated cutover. The only activation change is a single `End` switch from the retained v2 Validator to the verified v3 Validator.
 - Do not claim precision, recall, F1, or runtime quality before a real Aicolate rerun on the reviewed rooms. Platform/runtime errors must be reported separately from model-quality results.
 
 ## v3 workflow
@@ -55,6 +56,37 @@ material_quality_warning: String
 debug_input_shape: String
 all_frame_urls: Array<String>
 all_product_image_urls: Array<String>
+```
+
+For manual Aicolate paste, use only this scaffold-free copy:
+
+```text
+/Users/bytedance/Desktop/EU-LLM_Wiki/wiki/projects/live-ocean-lowquality/code_nodes/normalize_input_node.py
+```
+
+The repository `scripts/normalize_input_node.py` is local/test source, not the manual paste source. The Wiki copy omits the forbidden custom `Args`/`Output` scaffold and typing-only imports.
+
+## Rules_Brain v3 update
+
+The inactive v3 path must receive the v3 `Rules_Brain` code update before Gate Builder configuration. Paste the complete code from:
+
+```text
+/Users/bytedance/Desktop/EU-LLM_Wiki/wiki/projects/live-ocean-lowquality/code_nodes/rules_brain_node.py
+```
+
+Its Output Panel remains unchanged:
+
+```text
+rules_context: String
+category_catalog: String
+product_image_permission_matrix: String
+priority_rules_context: String
+threshold_rules_context: String
+rules_version: String
+rules_warning: String
+category_count: Integer
+category_integrity_check: String
+permission_matrix_check: String
 ```
 
 ## Live_Boundary_Gate_Builder
@@ -170,21 +202,29 @@ unable_to_judge_category_ids
 
 `End` continues to consume the Validator outputs. Declare every returned Code Node key in its Output Panel and map downstream variables explicitly; do not add extra canvas edges merely to make variables visible.
 
-## Rule raw URLs
+## Commit-pinned rule URLs
+
+Publish commit `83948a8c0d50024ddb6a22b3ed82af65957de247`, then verify both immutable URLs return the expected v3 assets before entering either URL in the inactive canvas:
 
 ```text
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/main/rules/live_ocean_lowquality_rules_structured_v1.json
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/main/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/83948a8c0d50024ddb6a22b3ed82af65957de247/rules/live_ocean_lowquality_rules_structured_v1.json
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/83948a8c0d50024ddb6a22b3ed82af65957de247/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
 ```
 
-Verify the published raw URLs after every rules or prompt release.
+Do not use mutable `main` raw URLs for the v3 rollout.
+
+Keep the retained v2 rollback path pinned to commit `eac91fbdee39f3f38e6a84c4b7932aa42184cdeb`:
+
+```text
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/eac91fbdee39f3f38e6a84c4b7932aa42184cdeb/rules/live_ocean_lowquality_rules_structured_v1.json
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/eac91fbdee39f3f38e6a84c4b7932aa42184cdeb/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
+```
 
 ## Copy sources
 
 Use these files when configuring Aicolate manually:
 
 ```text
-scripts/normalize_input_node.py
 scripts/rules_brain_node.py
 scripts/live_boundary_gate_builder.py
 scripts/live_boundary_finalizer.py
@@ -200,6 +240,27 @@ Durable project documentation and paste-ready mirrors are maintained under:
 ```text
 /Users/bytedance/Desktop/EU-LLM_Wiki/wiki/projects/live-ocean-lowquality/
 ```
+
+## Safe preparation, cutover, and rollback
+
+Continue one node per manual message. v3 remains unreleased throughout preparation.
+
+0. Mandatory live-UI preflight: record the exact current `LowQuality_Judge` raw-text output field already wired to the v2 Validator, and record the actual Start Output-panel types of `ocean_segment_count` and `pearl_product_count`. Stop if any value is not confirmed; do not guess `output` versus `result` or either count type.
+1. Push and verify both commit-pinned v3 rule URLs at `83948a8c0d50024ddb6a22b3ed82af65957de247`.
+2. Retain or clone the complete active v2 path as rollback. Do not change `End`.
+3. Configure inactive v3 `Rules_JSON` and `Judge_Rules_Compact` HTTP nodes with the pinned v3 SHA URLs.
+4. Paste/update v3 `Rules_Brain` on the inactive path; keep its Output Panel unchanged.
+5. Add `Live_Boundary_Gate_Builder` on the inactive path.
+6. Update or create the v3 `LowQuality_Judge` prompts and inputs on the inactive path.
+7. Add `Live_Boundary_Finalizer` on the inactive path.
+8. Update or create the v3 `Output_Validator`; map `finalization_status`, `finalizer_errors`, and `judge_output` from `finalized_judge_output`.
+9. Run the boundary smoke entirely on the inactive path. Do not connect it to `End` if any node, contract, version, HTTP, Finalizer, or Validator check fails.
+10. Make one cutover change: switch `End` from the retained v2 Validator to the verified v3 Validator.
+11. Rerun the 13 reviewed rooms before any metric claim or human approval.
+
+Stop immediately before cutover if the live-UI preflight is incomplete, either pinned v3 URL is unavailable or has the wrong version, the retained v2 rollback path is incomplete, any required Code Node output is undeclared, versions disagree, or the inactive smoke has an unexplained warning/error or non-pass Validator result.
+
+Rollback is a single `End` switch back to the retained v2 Validator. The rollback path must continue using the v2 pinned URLs above, the prior v2 `Rules_Brain`, the prior Judge prompt, and the prior Validator mapping. Retain this complete v2 path until a human approves the 13-room v3 rerun.
 
 ## Tests
 
