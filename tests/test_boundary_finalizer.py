@@ -146,6 +146,7 @@ def build_params(payload=None, judge_output=None):
         "judge_output": judge_output,
         "boundary_gates_json": gate_output["boundary_gates_json"],
         "boundary_contract_version": gate_output["boundary_contract_version"],
+        "rules_version": BOUNDARY_CONTRACT_VERSION,
     }
 
 
@@ -240,13 +241,29 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         self.assert_failure(result, "boundary_contract_version_mismatch")
 
+    def test_missing_input_rules_version_fails_closed(self):
+        params = build_params()
+        del params["rules_version"]
+
+        result = finalize_judge_output(params)
+
+        self.assert_failure(result, "rules_version_mismatch")
+
+    def test_stale_input_rules_version_fails_closed(self):
+        params = build_params()
+        params["rules_version"] = "stale-input-rules-version"
+
+        result = finalize_judge_output(params)
+
+        self.assert_failure(result, "rules_version_mismatch")
+
     def test_payload_rules_version_mismatch_fails_closed(self):
         payload = valid_payload()
         payload["rules_version"] = "stale-rules-version"
 
         result = finalize_judge_output(build_params(payload))
 
-        self.assert_failure(result, "rules_version_mismatch")
+        self.assert_failure(result, "payload_rules_version_mismatch")
 
     def test_empty_expected_boundary_contract_version_fails_closed(self):
         params = build_params()
@@ -271,6 +288,19 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         result = finalize_judge_output(params)
 
         self.assert_failure(result, "boundary_gates_not_object")
+
+    def test_unhashable_required_fact_name_fails_closed(self):
+        params = build_params()
+        gates = json.loads(params["boundary_gates_json"])
+        gates["required_facts"] = [[]]
+        params["boundary_gates_json"] = gates
+
+        try:
+            result = finalize_judge_output(params)
+        except Exception as exc:
+            self.fail("finalizer raised instead of failing closed: " + str(exc))
+
+        self.assert_failure(result, "gate_required_fact_name_invalid")
 
     def test_fenced_valid_payload_passes(self):
         payload = valid_payload()

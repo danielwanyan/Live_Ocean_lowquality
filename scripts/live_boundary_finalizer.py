@@ -66,6 +66,9 @@ def _validate_contract(payload, gates, expected_version):
                 required_facts = []
 
             for fact_name in required_facts:
+                if type(fact_name) is not str or not fact_name.strip():
+                    errors.append("gate_required_fact_name_invalid")
+                    continue
                 fact = facts.get(fact_name)
                 if not isinstance(fact, dict):
                     errors.append("missing_boundary_fact:" + _text(fact_name))
@@ -86,7 +89,7 @@ def _validate_contract(payload, gates, expected_version):
                         errors.append("true_fact_without_evidence:" + _text(fact_name))
 
     if payload.get("rules_version") != expected_version:
-        errors.append("rules_version_mismatch")
+        errors.append("payload_rules_version_mismatch")
     return errors
 
 
@@ -119,6 +122,8 @@ def finalize_judge_output(params):
 
     expected_version = _text(params.get("boundary_contract_version"))
     errors = _validate_contract(payload, gates, expected_version)
+    if _text(params.get("rules_version")) != expected_version:
+        errors.append("rules_version_mismatch")
     if errors:
         return _failure(errors)
 
