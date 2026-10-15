@@ -62,7 +62,7 @@ Hit: an explicit generated product or use-scene has a material mismatch in size,
 
 11 录播回放低质问题
 Allowed: segment_frame, segment_asr. Pearl product image forbidden.
-Hit: any segment frame shows taskbar/cursor not used for product pointing, black/green screen, abnormal jump, or nested screen with clear replay/loop/pre-recorded feature; or segment ASR directly mentions replay/loop playback.
+Hit: a clear replay/loop/pre-recorded indicator is required, such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, nested screen with a clear replay feature, or ASR directly mentioning replay/loop playback. Taskbar, cursor, browser, desktop, or OBS alone cannot hit.
 Card-opening guard: browser, desktop, OBS, card-list, spin UI, and cursor presence are weak signals, not replay by themselves. For card opening, TCG, trading-card, lottery/spin, or similar live rooms, require additional replay indicators such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, or ASR saying replay/loop.
 
 12 功能效果虚假宣传低质问题

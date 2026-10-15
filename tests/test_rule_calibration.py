@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import re
@@ -25,6 +26,26 @@ RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_rules_str
 COMPACT_RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_judge_rules_compact_v1.txt")
 SYSTEM_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_system_prompt_v1.txt")
 EXPECTED_V3_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
+EXPECTED_PRIORITY_MAPPINGS = {
+    "priority_3_over_5_for_unrelated_content": (3, 5),
+    "priority_3_over_6": (3, 6),
+    "priority_5_over_6_for_no_physical_display": (5, 6),
+    "priority_15_over_8_for_product_mismatch": (15, 8),
+    "priority_1_over_19": (1, 19),
+}
+EXPECTED_CATEGORY_9_HIT_DEFINITION_ZH = (
+    "直播中使用有明确生成证据的 AIGC 内容进行商品推广，并对内容或展示主体的真实性造成误导。"
+)
+EXPECTED_CATEGORY_12_HIT_DEFINITION_ZH = (
+    "仅当直播画面或 ASR 中存在具体商品功能效果主张，且该主张有实质误导依据并达到现行覆盖度/强度阈值时命中；"
+    "商品物料仅可佐证，不能单独构成命中。"
+)
+EXPECTED_COMPACT_CATEGORY_11_HIT = (
+    "Hit: a clear replay/loop/pre-recorded indicator is required, such as replay/loop labels, "
+    "playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, "
+    "nested screen with a clear replay feature, or ASR directly mentioning replay/loop playback. "
+    "Taskbar, cursor, browser, desktop, or OBS alone cannot hit."
+)
 
 EXPECTED_RULE_CATEGORY_NAMES = [
     "色情低俗低质问题",
@@ -327,6 +348,23 @@ def _validator_params(payload=None, **extra):
 
 
 class RuleCalibrationTest(unittest.TestCase):
+    def _assert_rules_brain_fallback(self, candidate_rules):
+        result = build_rules_brain_output(
+            {"rules_json": json.dumps(candidate_rules, ensure_ascii=False)}
+        )
+        category_catalog = json.loads(result["category_catalog"])
+
+        self.assertEqual(result["rules_version"], EXPECTED_V3_VERSION)
+        self.assertIn("invalid v3 rules contract", result["rules_warning"])
+        self.assertIn("using fallback", result["rules_warning"])
+        self.assertEqual(result["category_count"], 19)
+        self.assertEqual(result["category_integrity_check"], "ok")
+        self.assertEqual(result["permission_matrix_check"], "ok")
+        self.assertEqual(
+            [item["category_id"] for item in category_catalog],
+            list(range(1, 20)),
+        )
+
     def test_structured_rules_use_exact_v3_contract_version(self):
         rules = _load_structured_rules()
 
@@ -369,13 +407,7 @@ class RuleCalibrationTest(unittest.TestCase):
 
         self.assertEqual(
             priorities,
-            {
-                "priority_3_over_5_for_unrelated_content": (3, 5),
-                "priority_3_over_6": (3, 6),
-                "priority_5_over_6_for_no_physical_display": (5, 6),
-                "priority_15_over_8_for_product_mismatch": (15, 8),
-                "priority_1_over_19": (1, 19),
-            },
+            EXPECTED_PRIORITY_MAPPINGS,
         )
         priority_3_over_5 = next(
             item
@@ -438,6 +470,158 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertNotIn("still-frame", category_7_section.lower())
         self.assertNotIn("LowqualityVideo", category_7_section)
 
+    def test_rules_brain_rejects_stale_or_invalid_top_level_contracts(self):
+        stale_version = copy.deepcopy(_load_structured_rules())
+        stale_version["version"] = "2026-09-18-v2-human-review-boundaries"
+        missing_boundary_version = copy.deepcopy(_load_structured_rules())
+        del missing_boundary_version["boundary_contract_version"]
+        wrong_boundary_version = copy.deepcopy(_load_structured_rules())
+        wrong_boundary_version["boundary_contract_version"] = "wrong-boundary"
+        wrong_fixed_count = copy.deepcopy(_load_structured_rules())
+        wrong_fixed_count["fixed_category_count"] = 18
+        wrong_allowed_ids = copy.deepcopy(_load_structured_rules())
+        wrong_allowed_ids["product_image_allowed_category_ids"] = PRODUCT_IMAGE_ALLOWED_IDS[:-1]
+
+        cases = {
+            "stale_version": stale_version,
+            "missing_boundary_version": missing_boundary_version,
+            "wrong_boundary_version": wrong_boundary_version,
+            "wrong_fixed_count": wrong_fixed_count,
+            "wrong_allowed_ids": wrong_allowed_ids,
+        }
+        for name, candidate_rules in cases.items():
+            with self.subTest(name=name):
+                self._assert_rules_brain_fallback(candidate_rules)
+
+    def test_rules_brain_rejects_invalid_category_contracts(self):
+        empty_categories = copy.deepcopy(_load_structured_rules())
+        empty_categories["categories"] = []
+        incomplete_categories = copy.deepcopy(_load_structured_rules())
+        incomplete_categories["categories"].pop()
+        duplicate_categories = copy.deepcopy(_load_structured_rules())
+        duplicate_categories["categories"][-1] = copy.deepcopy(
+            duplicate_categories["categories"][0]
+        )
+        out_of_order_categories = copy.deepcopy(_load_structured_rules())
+        out_of_order_categories["categories"][0:2] = reversed(
+            out_of_order_categories["categories"][0:2]
+        )
+        wrong_category_name = copy.deepcopy(_load_structured_rules())
+        wrong_category_name["categories"][0]["category_name"] = "wrong-name"
+        wrong_english_key = copy.deepcopy(_load_structured_rules())
+        wrong_english_key["categories"][0]["english_key"] = "wrong_key"
+        wrong_materials = copy.deepcopy(_load_structured_rules())
+        wrong_materials["categories"][0]["allowed_materials"].append(
+            "pearl_product_image"
+        )
+        wrong_product_permission = copy.deepcopy(_load_structured_rules())
+        wrong_product_permission["categories"][0]["product_image_allowed"] = True
+        wrong_threshold = copy.deepcopy(_load_structured_rules())
+        wrong_threshold["categories"][0]["trigger_threshold"] = "stale threshold"
+        missing_required_field = copy.deepcopy(_load_structured_rules())
+        del missing_required_field["categories"][0]["trigger_threshold"]
+
+        cases = {
+            "empty_categories": empty_categories,
+            "incomplete_categories": incomplete_categories,
+            "duplicate_categories": duplicate_categories,
+            "out_of_order_categories": out_of_order_categories,
+            "wrong_category_name": wrong_category_name,
+            "wrong_english_key": wrong_english_key,
+            "wrong_materials": wrong_materials,
+            "wrong_product_permission": wrong_product_permission,
+            "wrong_threshold": wrong_threshold,
+            "missing_required_field": missing_required_field,
+        }
+        for name, candidate_rules in cases.items():
+            with self.subTest(name=name):
+                self._assert_rules_brain_fallback(candidate_rules)
+
+    def test_rules_brain_rejects_invalid_priority_contracts(self):
+        wrong_priority_id = copy.deepcopy(_load_structured_rules())
+        wrong_priority_id["exclusive_priority_rules"][0]["id"] = "wrong-priority"
+        missing_priority = copy.deepcopy(_load_structured_rules())
+        missing_priority["exclusive_priority_rules"].pop()
+        wrong_priority_mapping = copy.deepcopy(_load_structured_rules())
+        wrong_priority_mapping["exclusive_priority_rules"][0][
+            "higher_priority_category_id"
+        ] = 5
+        wrong_lower_priority_mapping = copy.deepcopy(_load_structured_rules())
+        wrong_lower_priority_mapping["exclusive_priority_rules"][0][
+            "lower_priority_category_id"
+        ] = 6
+        duplicate_priority = copy.deepcopy(_load_structured_rules())
+        duplicate_priority["exclusive_priority_rules"][-1] = copy.deepcopy(
+            duplicate_priority["exclusive_priority_rules"][0]
+        )
+
+        cases = {
+            "wrong_priority_id": wrong_priority_id,
+            "missing_priority": missing_priority,
+            "wrong_priority_mapping": wrong_priority_mapping,
+            "wrong_lower_priority_mapping": wrong_lower_priority_mapping,
+            "duplicate_priority": duplicate_priority,
+        }
+        for name, candidate_rules in cases.items():
+            with self.subTest(name=name):
+                self._assert_rules_brain_fallback(candidate_rules)
+
+    def test_rules_brain_fallback_matches_structured_v3_category_contract_exactly(self):
+        structured_categories = _load_structured_rules()["categories"]
+        core_fields = (
+            "category_id",
+            "category_name",
+            "english_key",
+            "allowed_materials",
+            "product_image_allowed",
+            "trigger_threshold",
+        )
+
+        self.assertEqual(
+            [item["trigger_threshold"] for item in FALLBACK_RULES["categories"]],
+            [item["trigger_threshold"] for item in structured_categories],
+        )
+        self.assertEqual(
+            [
+                {field: item[field] for field in core_fields}
+                for item in FALLBACK_RULES["categories"]
+            ],
+            [
+                {field: item[field] for field in core_fields}
+                for item in structured_categories
+            ],
+        )
+
+    def test_category_11_compact_hit_rule_requires_replay_evidence(self):
+        with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
+            compact_rules = f.read()
+        category_11 = _compact_category_sections(compact_rules)[11]
+
+        self.assertIn(EXPECTED_COMPACT_CATEGORY_11_HIT.lower(), category_11)
+        self.assertNotIn("hit: any segment frame shows taskbar/cursor", category_11)
+
+    def test_structured_aigc_authenticity_definition_does_not_overlap_category_10(self):
+        by_id = {
+            item["category_id"]: item for item in _load_structured_rules()["categories"]
+        }
+
+        self.assertEqual(
+            by_id[9]["hit_definition_zh"],
+            EXPECTED_CATEGORY_9_HIT_DEFINITION_ZH,
+        )
+        self.assertNotIn("与绑定实物商品不符", by_id[9]["hit_definition_zh"])
+
+    def test_structured_category_12_definition_requires_live_claim(self):
+        by_id = {
+            item["category_id"]: item for item in _load_structured_rules()["categories"]
+        }
+
+        self.assertEqual(
+            by_id[12]["hit_definition_zh"],
+            EXPECTED_CATEGORY_12_HIT_DEFINITION_ZH,
+        )
+        self.assertNotIn("直播或商品物料对商品功能效果作出", by_id[12]["hit_definition_zh"])
+
     def test_rules_brain_invalid_rules_json_uses_exact_v3_fallback_with_warning(self):
         result = build_rules_brain_output({"rules_json": "{"})
 
@@ -473,21 +657,15 @@ class RuleCalibrationTest(unittest.TestCase):
             PRODUCT_IMAGE_ALLOWED_IDS,
         )
         self.assertEqual(
-            {item["id"] for item in FALLBACK_RULES["exclusive_priority_rules"]},
             {
-                "priority_3_over_5_for_unrelated_content",
-                "priority_3_over_6",
-                "priority_5_over_6_for_no_physical_display",
-                "priority_15_over_8_for_product_mismatch",
-                "priority_1_over_19",
+                item["id"]: (
+                    item["higher_priority_category_id"],
+                    item["lower_priority_category_id"],
+                )
+                for item in FALLBACK_RULES["exclusive_priority_rules"]
             },
+            EXPECTED_PRIORITY_MAPPINGS,
         )
-        by_id = {item["category_id"]: item for item in categories}
-        for category_id, terms in V3_CATEGORY_GUARD_TERMS.items():
-            category_text = _category_text(by_id[category_id])
-            for term in terms:
-                with self.subTest(category_id=category_id, term=term):
-                    self.assertIn(term, category_text)
 
     def test_rules_brain_dynamic_context_exposes_required_v3_guards(self):
         result = build_rules_brain_output({"rules_json": "not-json"})

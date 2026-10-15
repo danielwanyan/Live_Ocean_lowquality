@@ -229,7 +229,7 @@
       ],
       "product_image_allowed": true,
       "trigger_threshold": "Hit only when explicit generated-content evidence is present and its use in product promotion is authenticity misleading. AI-like style alone is insufficient.",
-      "hit_definition_zh": "直播中使用 AIGC 生成内容进行商品推广，存在误导、虚假、与绑定实物商品不符的问题。",
+      "hit_definition_zh": "直播中使用有明确生成证据的 AIGC 内容进行商品推广，并对内容或展示主体的真实性造成误导。",
       "judge_focus_en": "Require explicit generated-content evidence plus an authenticity misleading basis, such as a fake AI voice/interview, fake before/after, or digital human presented as authentic product evidence. AI-like style alone is insufficient.",
       "exemptions": [
         "AI-like visual or audio style alone is insufficient without explicit generated-content evidence and authenticity misleading use."
@@ -286,7 +286,7 @@
       ],
       "product_image_allowed": true,
       "trigger_threshold": "Hit only when a concrete LIVE frame or ASR claim has a materially misleading basis and meets the current prevalence/strength threshold: at least half of relevant effective live promotion or repeated strong evidence. A Pearl product image is corroborative only and cannot independently create a hit.",
-      "hit_definition_zh": "直播或商品物料对商品功能效果作出强量化、即时见效、医疗/美容治疗、瘦身塑形、显著前后对比等不可靠或夸大宣传，足以误导消费者。",
+      "hit_definition_zh": "仅当直播画面或 ASR 中存在具体商品功能效果主张，且该主张有实质误导依据并达到现行覆盖度/强度阈值时命中；商品物料仅可佐证，不能单独构成命中。",
       "judge_focus_en": "Require a concrete LIVE frame or ASR claim, a materially misleading basis, and the current prevalence/strength threshold. Product image is corroborative only. Product image copy, routine marketing, or subjective praise alone cannot hit. Strong live claims can include immediate transformation, extreme quantified results, medical/clinical therapeutic claims, body-shaping/slimming, dramatic before-after, or instant whitening.",
       "exemptions": [
         "Ordinary improvement, comfort, hydration, shine, fragrance, coverage, hold, waterproof, tear-proof, brightening, glow, skin-friendly, dermatologist-tested, sensitive-skin-safe, price, discount, return policy, or delivery claim is exempt unless tied to strong quantified/immediate/medical transformation in live evidence.",

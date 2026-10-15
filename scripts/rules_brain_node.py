@@ -6,25 +6,25 @@ BOUNDARY_CONTRACT_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
 PRODUCT_IMAGE_ALLOWED_IDS = [3, 5, 6, 9, 10, 12, 15, 16, 17]
 
 FALLBACK_CATEGORIES = [
-    {"category_id": 1, "category_name": "色情低俗低质问题", "english_key": "sexual_vulgar", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Require explicit sexual framing. Ordinary try-on, gym activity, swimwear, and shapewear without explicit sexual framing are clean."},
-    {"category_id": 2, "category_name": "恶心恐怖低质问题", "english_key": "disgusting_horror", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Hit only for dominant qualifying content that creates strong discomfort. Cleaning and novelty/product art, calendar imagery, or packaging contexts are hard-exempt."},
-    {"category_id": 3, "category_name": "商品无关低质问题", "english_key": "product_unrelated", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Require a sustained unrelated core with no sustained promotion. A short opening or off-topic passage followed by a later substantive product demonstration is clean."},
-    {"category_id": 4, "category_name": "无互动低质问题", "english_key": "no_interaction", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"], "product_image_allowed": False, "trigger_threshold": "Most available segment ASR evidence, supported by comment_interaction when available, shows both no product promotion and no host-audience interaction."},
-    {"category_id": 5, "category_name": "无实物商品展示低质问题", "english_key": "no_physical_product_display", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit when most frames lack physical display. A real package, wearing, installation, operation, or application/use counts as physical display. Unrelated dominance routes to category 3."},
-    {"category_id": 6, "category_name": "商品描述不详细低质问题", "english_key": "product_description_not_detailed", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "An identifiable product or package plus its core purpose, or any core buying fact, blocks category 6. Do not require deep ingredient analysis or mechanism explanation."},
-    {"category_id": 7, "category_name": "静态帧遮挡低质问题", "english_key": "static_frame_occlusion", "allowed_materials": ["segment_frame"], "product_image_allowed": False, "trigger_threshold": "Any segment frame has an occlusion or interruption layer covering at least 80% of the live screen."},
-    {"category_id": 8, "category_name": "非母语违规低质问题", "english_key": "non_native_language_violation", "allowed_materials": ["segment_asr", "segment_frame_visible_text"], "product_image_allowed": False, "trigger_threshold": "Hit only when segment ASR or visible frame text uses unacceptable language, Chinese/CJK in promotion, Chinglish, incomprehensible English, or severely broken English that blocks product understanding. Product mismatch is not a language hit."},
-    {"category_id": 9, "category_name": "AIGC真实性低质问题", "english_key": "aigc_authenticity", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Require explicit generated-content evidence plus authenticity misleading use in promotion. AI-like style alone is insufficient."},
-    {"category_id": 10, "category_name": "AIGC商品展示低质问题", "english_key": "aigc_product_display", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Require an explicit generated product or use-scene plus a material mismatch against the bound real product. AI-like style alone is insufficient."},
-    {"category_id": 11, "category_name": "录播回放低质问题", "english_key": "replay_recorded_content", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Clear replay, loop, or pre-recorded indicators are required. Browser, desktop, OBS, card-list, spin UI, and cursor presence are weak signals, not replay by themselves."},
-    {"category_id": 12, "category_name": "功能效果虚假宣传低质问题", "english_key": "false_function_effect_claim", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Require a concrete LIVE frame or ASR claim, a materially misleading basis, and the current prevalence/strength threshold. Product image is corroborative only; product image copy, routine marketing, and subjective praise alone cannot hit."},
-    {"category_id": 13, "category_name": "危险行为低质问题", "english_key": "dangerous_behavior", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "At least 2 segment frame or segment ASR evidence units show life-threatening violent behavior or dangerous goods demonstration."},
-    {"category_id": 14, "category_name": "站外引流交易低质问题", "english_key": "off_platform_transaction", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"], "product_image_allowed": False, "trigger_threshold": "The same scene must contain both an off-platform destination and explicit transaction guidance."},
-    {"category_id": 15, "category_name": "违法违规商品低质问题", "english_key": "illegal_prohibited_goods", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "IPP requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction; minor variant or background difference is blocked. Preserve the cumulative at least 2 threshold for independent prohibited, counterfeit, jailbreak/device-modification, qualification, and other non-IPP subtypes."},
-    {"category_id": 16, "category_name": "政治敏感低质问题", "english_key": "politically_sensitive", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "At least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show political controversy, political symbols, political hate symbols, racial discrimination, or polarized political narratives."},
-    {"category_id": 17, "category_name": "争议话题低质问题", "english_key": "controversial_topic", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "At least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show sensitive religion, racial discrimination, moral boundary, LGBT, or similarly high-conflict socio-cultural themes."},
-    {"category_id": 18, "category_name": "负面引导低质问题", "english_key": "negative_guidance", "allowed_materials": ["segment_frame", "segment_asr", "comment_interaction"], "product_image_allowed": False, "trigger_threshold": "Cumulative at least 2 evidence units must show sustained hostile, shaming, fear, resentment, jealousy, or similar negative guidance. Routine sales pressure, knowledge marketing, and normal risk explanation are clean."},
-    {"category_id": 19, "category_name": "隐私敏感商品低质问题", "english_key": "privacy_sensitive_product", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": False, "trigger_threshold": "Disabled in this workflow version. Always return no_hit unless future policy explicitly re-enables this category."},
+    {"category_id": 1, "category_name": "色情低俗低质问题", "english_key": "sexual_vulgar", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Any segment frame or segment ASR evidence hits the listed visual or speech scenario."},
+    {"category_id": 2, "category_name": "恶心恐怖低质问题", "english_key": "disgusting_horror", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Hit only when the dominant content creates strong discomfort through qualifying disgusting or horror material. Cleaning and novelty/product art, calendar, or packaging contexts are hard-exempt."},
+    {"category_id": 3, "category_name": "商品无关低质问题", "english_key": "product_unrelated", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit only when a sustained unrelated core dominates across available segments and there is no sustained promotion of bound products. A short opening or off-topic passage followed by a later substantive product demonstration is clean."},
+    {"category_id": 4, "category_name": "无互动低质问题", "english_key": "no_interaction", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"], "product_image_allowed": False, "trigger_threshold": "Hit when most available segment ASR evidence, supported by comment_interaction when available, shows both no product promotion and no host-audience interaction. Do not use a fixed ratio threshold from the old workflow."},
+    {"category_id": 5, "category_name": "无实物商品展示低质问题", "english_key": "no_physical_product_display", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit when most available segment frame groups show no real physical video display of the bound product: only sticker/cutout/photo/screenshot/static image, product card, small product thumbnail/overlay, no product, or only unrecognizable partial product. A real package, wearing, installation, operation, or application/use counts as physical display."},
+    {"category_id": 6, "category_name": "商品描述不详细低质问题", "english_key": "product_description_not_detailed", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit only when clear product promotion exists and most relevant promotion remains extremely low-information after considering all available segments. An identifiable product or package plus its core purpose, or any core buying fact, blocks category 6. Do not require deep ingredient detail or mechanism explanation."},
+    {"category_id": 7, "category_name": "静态帧遮挡低质问题", "english_key": "static_frame_occlusion", "allowed_materials": ["segment_frame"], "product_image_allowed": False, "trigger_threshold": "Any segment frame group shows an occlusion/interruption layer covering at least 80% of the live screen and seriously blocking viewing."},
+    {"category_id": 8, "category_name": "非母语违规低质问题", "english_key": "non_native_language_violation", "allowed_materials": ["segment_asr", "segment_frame_visible_text"], "product_image_allowed": False, "trigger_threshold": "Hit only when segment ASR or visible text in segment frames uses a language that is not acceptable for the target market, Chinese/CJK in product promotion, Chinglish, incomprehensible English, or severely broken English, and this prevents normal product understanding across the live. Product mismatch, ethnic clothing style, non-English product titles, or OCR noise alone is not a language hit."},
+    {"category_id": 9, "category_name": "AIGC真实性低质问题", "english_key": "aigc_authenticity", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit only when explicit generated-content evidence is present and its use in product promotion is authenticity misleading. AI-like style alone is insufficient."},
+    {"category_id": 10, "category_name": "AIGC商品展示低质问题", "english_key": "aigc_product_display", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit only with explicit generated product or use-scene evidence plus a material mismatch in product size, style, function, use, or effect against the bound real product. AI-like style alone is insufficient."},
+    {"category_id": 11, "category_name": "录播回放低质问题", "english_key": "replay_recorded_content", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Any segment frame or segment ASR evidence shows clear replay/loop/pre-recorded indicators such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, nested screen with clear replay/loop/pre-recorded feature, or segment ASR directly mentioning replay/loop playback. Browser, desktop, card-list, or spin UI alone in card-opening or lottery-like live rooms is not enough."},
+    {"category_id": 12, "category_name": "功能效果虚假宣传低质问题", "english_key": "false_function_effect_claim", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Hit only when a concrete LIVE frame or ASR claim has a materially misleading basis and meets the current prevalence/strength threshold: at least half of relevant effective live promotion or repeated strong evidence. A Pearl product image is corroborative only and cannot independently create a hit."},
+    {"category_id": 13, "category_name": "危险行为低质问题", "english_key": "dangerous_behavior", "allowed_materials": ["segment_frame", "segment_asr"], "product_image_allowed": False, "trigger_threshold": "Cumulative at least 2 segment frame or segment ASR evidence units show life-threatening violent behavior or dangerous goods demonstration, including heavy-smoke products creating fire illusion."},
+    {"category_id": 14, "category_name": "站外引流交易低质问题", "english_key": "off_platform_transaction", "allowed_materials": ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"], "product_image_allowed": False, "trigger_threshold": "Hit only when the same scene contains both an off-platform destination/payment/account/site/app and explicit transaction guidance, with no exemption."},
+    {"category_id": 15, "category_name": "违法违规商品低质问题", "english_key": "illegal_prohibited_goods", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other non-IPP subtypes retain their cumulative at least 2 evidence threshold. IPP specifically requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction."},
+    {"category_id": 16, "category_name": "政治敏感低质问题", "english_key": "politically_sensitive", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show political controversy, sensitive political symbols/movements, political hate symbols, racial discrimination, or polarized political narratives."},
+    {"category_id": 17, "category_name": "争议话题低质问题", "english_key": "controversial_topic", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": True, "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show sensitive topics related to religion, racial discrimination, moral boundary, LGBT, or similarly high-conflict socio-cultural themes."},
+    {"category_id": 18, "category_name": "负面引导低质问题", "english_key": "negative_guidance", "allowed_materials": ["segment_frame", "segment_asr", "comment_interaction"], "product_image_allowed": False, "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, or Comment Interaction evidence units show sustained negative emotional guidance such as hostile arguments with viewers, insults, resentment, jealousy, anxiety/fear induction beyond routine sales, wealth flaunting or comparison pressure, or content likely to trigger negative emotion. Routine commercial urgency alone does not hit."},
+    {"category_id": 19, "category_name": "隐私敏感商品低质问题", "english_key": "privacy_sensitive_product", "allowed_materials": ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"], "product_image_allowed": False, "trigger_threshold": "Disabled for current Live Ocean Low Quality calibration. Always return no_hit for this category unless future policy explicitly re-enables it. Do not identify sanitary products, underwear, gender-specific care, or private-use non-pornographic products under category 19 in this workflow version."},
 ]
 
 FALLBACK_RULES = {
@@ -35,26 +35,52 @@ FALLBACK_RULES = {
     "exclusive_priority_rules": [
         {
             "id": "priority_3_over_5_for_unrelated_content",
+            "higher_priority_category_id": 3,
+            "lower_priority_category_id": 5,
             "rule_en": "If the unrelated live core has no sustained promotion, category 3 has priority over category 5.",
         },
         {
             "id": "priority_3_over_6",
+            "higher_priority_category_id": 3,
+            "lower_priority_category_id": 6,
             "rule_en": "If live content is unrelated to bound products and lacks sustained promotion, category 3 has priority over category 6.",
         },
         {
             "id": "priority_1_over_19",
+            "higher_priority_category_id": 1,
+            "lower_priority_category_id": 19,
             "rule_en": "Sexual exposure or sexualized implication belongs to category 1, not category 19.",
         },
         {
             "id": "priority_15_over_8_for_product_mismatch",
+            "higher_priority_category_id": 15,
+            "lower_priority_category_id": 8,
             "rule_en": "Product mismatch / IPP belongs to category 15, not category 8 language violation.",
         },
         {
             "id": "priority_5_over_6_for_no_physical_display",
+            "higher_priority_category_id": 5,
+            "lower_priority_category_id": 6,
             "rule_en": "No real physical product display belongs to category 5 before category 6.",
         },
     ],
     "categories": FALLBACK_CATEGORIES,
+}
+
+CATEGORY_CONTRACT_FIELDS = (
+    "category_name",
+    "english_key",
+    "allowed_materials",
+    "product_image_allowed",
+    "trigger_threshold",
+)
+
+EXPECTED_PRIORITY_MAPPINGS = {
+    "priority_3_over_5_for_unrelated_content": (3, 5),
+    "priority_3_over_6": (3, 6),
+    "priority_5_over_6_for_no_physical_display": (5, 6),
+    "priority_15_over_8_for_product_mismatch": (15, 8),
+    "priority_1_over_19": (1, 19),
 }
 
 
@@ -103,13 +129,72 @@ def _parse_json_array(value):
     return parsed if isinstance(parsed, list) else []
 
 
+def _validate_rules_contract(rules):
+    if rules.get("version") != BOUNDARY_CONTRACT_VERSION:
+        return "version mismatch"
+    if rules.get("boundary_contract_version") != BOUNDARY_CONTRACT_VERSION:
+        return "boundary_contract_version mismatch"
+    if type(rules.get("fixed_category_count")) is not int or rules.get("fixed_category_count") != 19:
+        return "fixed_category_count must be 19"
+
+    allowed_ids = rules.get("product_image_allowed_category_ids")
+    if type(allowed_ids) is not list or allowed_ids != PRODUCT_IMAGE_ALLOWED_IDS:
+        return "product_image_allowed_category_ids mismatch"
+    if any(type(category_id) is not int for category_id in allowed_ids):
+        return "product_image_allowed_category_ids must contain integers"
+
+    categories = rules.get("categories")
+    if type(categories) is not list or len(categories) != 19:
+        return "categories must contain exactly 19 items"
+    for index, (category, canonical) in enumerate(
+        zip(categories, FALLBACK_CATEGORIES), start=1
+    ):
+        if type(category) is not dict:
+            return "category %d must be an object" % index
+        if type(category.get("category_id")) is not int or category.get("category_id") != index:
+            return "category IDs must be ordered 1..19"
+        for field in CATEGORY_CONTRACT_FIELDS:
+            if field not in category:
+                return "category %d missing %s" % (index, field)
+            if field == "product_image_allowed" and type(category.get(field)) is not bool:
+                return "category %d product_image_allowed must be boolean" % index
+            if field == "allowed_materials" and type(category.get(field)) is not list:
+                return "category %d allowed_materials must be a list" % index
+            if category.get(field) != canonical.get(field):
+                return "category %d %s mismatch" % (index, field)
+
+    priority_rules = rules.get("exclusive_priority_rules")
+    if type(priority_rules) is not list or len(priority_rules) != len(EXPECTED_PRIORITY_MAPPINGS):
+        return "exclusive priority rules must contain exactly five items"
+    actual_priority_mappings = {}
+    for priority in priority_rules:
+        if type(priority) is not dict:
+            return "exclusive priority rule must be an object"
+        rule_id = priority.get("id")
+        if type(rule_id) is not str or rule_id in actual_priority_mappings:
+            return "exclusive priority rule IDs must be unique strings"
+        higher = priority.get("higher_priority_category_id")
+        lower = priority.get("lower_priority_category_id")
+        if type(higher) is not int or type(lower) is not int:
+            return "exclusive priority mappings must use integer category IDs"
+        actual_priority_mappings[rule_id] = (higher, lower)
+    if actual_priority_mappings != EXPECTED_PRIORITY_MAPPINGS:
+        return "exclusive priority IDs or mappings mismatch"
+    return ""
+
+
+def _fallback_warning(reason):
+    return "invalid v3 rules contract: %s; using fallback" % reason
+
+
 def _load_rules(params):
     raw_rules = _unwrap_body(_find_param(params, ("rules_json", "Rules_JSON", "rules_body")))
     parsed = _parse_json(raw_rules, None)
     if not isinstance(parsed, dict):
-        return FALLBACK_RULES, "rules_json parse failed; using fallback"
-    if not isinstance(parsed.get("categories"), list):
-        return FALLBACK_RULES, "rules_json missing categories list; using fallback"
+        return FALLBACK_RULES, _fallback_warning("rules_json parse failed")
+    invalid_reason = _validate_rules_contract(parsed)
+    if invalid_reason:
+        return FALLBACK_RULES, _fallback_warning(invalid_reason)
     return parsed, ""
 
 
