@@ -46,6 +46,10 @@ def _strict_json_loads(value):
     return json.loads(value, parse_constant=_reject_json_constant)
 
 
+def _normalize_whitespace(value):
+    return " ".join(value.split())
+
+
 def _parse_id_list(value):
     if isinstance(value, list):
         return [_to_int(item) for item in value]
@@ -70,9 +74,12 @@ def _evidence_entries_are_valid(evidence):
             return False
         source = entry.get("source")
         detail = entry.get("quote_or_visual_detail")
+        reason = entry.get("reason")
         if type(source) is not str or not source.strip():
             return False
         if type(detail) is not str or not detail.strip():
+            return False
+        if type(reason) is not str or not reason.strip():
             return False
     return True
 
@@ -119,8 +126,8 @@ def _normalized_evidence_keys(item):
         detail = entry.get("quote_or_visual_detail")
         if type(source) is not str or type(detail) is not str:
             continue
-        source = source.strip()
-        detail = detail.strip()
+        source = _normalize_whitespace(source)
+        detail = _normalize_whitespace(detail)
         if source and detail:
             keys.add((source, detail))
     return keys
@@ -133,7 +140,9 @@ def _parse_finalizer_errors(value):
         parsed = _strict_json_loads(value)
     except Exception:
         return None
-    if type(parsed) is not list or any(type(item) is not str for item in parsed):
+    if type(parsed) is not list or any(
+        type(item) is not str or not item.strip() for item in parsed
+    ):
         return None
     return parsed
 
@@ -163,7 +172,9 @@ def _check_finalization_status(params, errors, warnings):
         return None
     if status == "fail":
         errors.append("boundary_finalization_failed")
-        if parsed_errors is not None:
+        if parsed_errors == []:
+            errors.append("invalid_finalizer_errors")
+        elif parsed_errors is not None:
             errors.extend(parsed_errors)
     elif parsed_errors:
         errors.append("unexpected_finalizer_errors")

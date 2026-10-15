@@ -190,7 +190,13 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("Category 19 is disabled", system_prompt)
 
     def test_validator_rejects_disabled_category_19_hit(self):
-        evidence = [{"source": "Segment #1 ASR", "quote_or_visual_detail": "sanitary pads"}]
+        evidence = [
+            {
+                "source": "Segment #1 ASR",
+                "quote_or_visual_detail": "sanitary pads",
+                "reason": "The evidence is included for the category 19 regression.",
+            }
+        ]
         payload = _valid_payload(hit_ids=[19], evidence_by_id={19: evidence})
         result = validate_judge_output(_validator_params(payload))
 
@@ -280,6 +286,8 @@ class RuleCalibrationTest(unittest.TestCase):
             "not json",
             "{}",
             '["valid", 1]',
+            '[""]',
+            '["   "]',
             "[NaN]",
         ]
 
@@ -298,15 +306,22 @@ class RuleCalibrationTest(unittest.TestCase):
                     json.loads(result["validation_errors"]),
                 )
 
-    def test_validator_keeps_fail_status_when_finalizer_errors_are_invalid(self):
-        result = validate_judge_output(
-            _validator_params(finalization_status="fail", finalizer_errors=None)
-        )
+    def test_validator_rejects_empty_or_invalid_errors_for_fail_status(self):
+        invalid_values = [None, "[]", '[""]', '["   "]']
 
-        errors = json.loads(result["validation_errors"])
-        self.assertEqual(result["validation_status"], "fail")
-        self.assertIn("boundary_finalization_failed", errors)
-        self.assertIn("invalid_finalizer_errors", errors)
+        for finalizer_errors in invalid_values:
+            with self.subTest(finalizer_errors=finalizer_errors):
+                result = validate_judge_output(
+                    _validator_params(
+                        finalization_status="fail",
+                        finalizer_errors=finalizer_errors,
+                    )
+                )
+
+                errors = json.loads(result["validation_errors"])
+                self.assertEqual(result["validation_status"], "fail")
+                self.assertIn("boundary_finalization_failed", errors)
+                self.assertIn("invalid_finalizer_errors", errors)
 
     def test_validator_rejects_unknown_finalizer_status(self):
         result = validate_judge_output(
@@ -336,10 +351,18 @@ class RuleCalibrationTest(unittest.TestCase):
     def test_finalizer_pass_output_is_accepted_end_to_end(self):
         finalized = finalize_judge_output(_finalizer_params(_valid_finalizer_payload()))
         result = validate_judge_output(_validator_params_from_finalizer(finalized))
+        finalized_payload = json.loads(finalized["finalized_final_json"])
 
         self.assertEqual(finalized["finalization_status"], "pass")
         self.assertEqual(result["validation_status"], "pass")
         self.assertEqual(json.loads(result["validation_errors"]), [])
+        self.assertEqual(json.loads(result["validated_final_json"]), finalized_payload)
+        for output_key in (
+            "hit_category_ids",
+            "no_hit_category_ids",
+            "unable_to_judge_category_ids",
+        ):
+            self.assertEqual(json.loads(result[output_key]), finalized_payload[output_key])
 
     def test_finalizer_warning_output_is_propagated_end_to_end(self):
         payload = _valid_finalizer_payload()
@@ -351,6 +374,7 @@ class RuleCalibrationTest(unittest.TestCase):
 
         finalized = finalize_judge_output(_finalizer_params(payload))
         result = validate_judge_output(_validator_params_from_finalizer(finalized))
+        finalized_payload = json.loads(finalized["finalized_final_json"])
 
         self.assertEqual(finalized["finalization_status"], "warning")
         self.assertEqual(json.loads(finalized["finalizer_errors"]), [])
@@ -359,6 +383,13 @@ class RuleCalibrationTest(unittest.TestCase):
             json.loads(result["validation_errors"]),
             ["boundary_finalization_warning"],
         )
+        self.assertEqual(json.loads(result["validated_final_json"]), finalized_payload)
+        for output_key in (
+            "hit_category_ids",
+            "no_hit_category_ids",
+            "unable_to_judge_category_ids",
+        ):
+            self.assertEqual(json.loads(result[output_key]), finalized_payload[output_key])
 
     def test_finalizer_failure_output_is_rejected_without_parse_noise(self):
         payload = _valid_finalizer_payload()
@@ -380,6 +411,7 @@ class RuleCalibrationTest(unittest.TestCase):
             {
                 "source": "Segment #1 ASR",
                 "quote_or_visual_detail": "the exact same evidence",
+                "reason": "Shared evidence belongs to only one priority category.",
             }
         ]
         cases = [
@@ -411,12 +443,14 @@ class RuleCalibrationTest(unittest.TestCase):
                         {
                             "source": "Segment #1 ASR",
                             "quote_or_visual_detail": "evidence for category %d" % pair[0],
+                            "reason": "Evidence supports category %d." % pair[0],
                         }
                     ],
                     pair[1]: [
                         {
                             "source": "Segment #2 ASR",
                             "quote_or_visual_detail": "evidence for category %d" % pair[1],
+                            "reason": "Evidence supports category %d." % pair[1],
                         }
                     ],
                 }
@@ -434,6 +468,7 @@ class RuleCalibrationTest(unittest.TestCase):
             {
                 "source": "Segment #1 ASR",
                 "quote_or_visual_detail": "shared sexual content evidence",
+                "reason": "Shared evidence exercises the disabled category rule.",
             }
         ]
         payload = _valid_payload(
@@ -465,7 +500,11 @@ class RuleCalibrationTest(unittest.TestCase):
 
     def test_validator_rejects_inexact_or_mismatched_evidence_count(self):
         valid_evidence = [
-            {"source": "Segment #1 ASR", "quote_or_visual_detail": "valid evidence"}
+            {
+                "source": "Segment #1 ASR",
+                "quote_or_visual_detail": "valid evidence",
+                "reason": "The evidence supports the decision.",
+            }
         ]
         cases = [
             (True, "invalid_evidence_count_category_3"),
@@ -487,6 +526,75 @@ class RuleCalibrationTest(unittest.TestCase):
                     expected_error,
                     json.loads(result["validation_errors"]),
                 )
+
+    def test_validator_requires_nonblank_string_reason_in_evidence(self):
+        cases = [
+            (False, None),
+            (True, None),
+            (True, 7),
+            (True, ""),
+            (True, "   \t\n"),
+        ]
+
+        for include_reason, reason in cases:
+            with self.subTest(include_reason=include_reason, reason=reason):
+                evidence = {
+                    "source": "Segment #1 ASR",
+                    "quote_or_visual_detail": "valid evidence detail",
+                }
+                if include_reason:
+                    evidence["reason"] = reason
+                payload = _valid_payload(hit_ids=[3], evidence_by_id={3: [evidence]})
+
+                result = validate_judge_output(_validator_params(payload))
+
+                self.assertEqual(result["validation_status"], "fail")
+                self.assertIn(
+                    "malformed_evidence_category_3",
+                    json.loads(result["validation_errors"]),
+                )
+
+    def test_validator_accepts_nonblank_string_reason_in_evidence(self):
+        evidence = [
+            {
+                "source": "Segment #1 ASR",
+                "quote_or_visual_detail": "valid evidence detail",
+                "reason": "This is a usable reason.",
+            }
+        ]
+        payload = _valid_payload(hit_ids=[3], evidence_by_id={3: evidence})
+
+        result = validate_judge_output(_validator_params(payload))
+
+        self.assertEqual(result["validation_status"], "pass")
+        self.assertEqual(json.loads(result["validation_errors"]), [])
+
+    def test_validator_collapses_internal_whitespace_in_priority_evidence_keys(self):
+        evidence_by_id = {
+            3: [
+                {
+                    "source": " Segment   #1\tASR ",
+                    "quote_or_visual_detail": "same\n\t evidence   detail",
+                    "reason": "Category 3 interpretation.",
+                }
+            ],
+            5: [
+                {
+                    "source": "Segment #1 ASR",
+                    "quote_or_visual_detail": " same evidence detail ",
+                    "reason": "Category 5 interpretation.",
+                }
+            ],
+        }
+        payload = _valid_payload(hit_ids=[3, 5], evidence_by_id=evidence_by_id)
+
+        result = validate_judge_output(_validator_params(payload))
+
+        self.assertEqual(result["validation_status"], "fail")
+        self.assertIn(
+            "priority_conflict_category_3_and_5",
+            json.loads(result["validation_errors"]),
+        )
 
     def test_validator_rejects_non_finite_json_constants(self):
         constants = [float("nan"), float("inf"), float("-inf")]
