@@ -74,6 +74,12 @@ Use Pearl products only according to product-image permission rules.
 Apply the supplied v3 boundary contract before every category decision.
 Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
 
+Category 10 evidence contract
+Category 10 explicit_generated_content_evidence_found must come from a live Segment frame, ASR, or visible-text source.
+Category 10 independently requires bound_product_evidence_found from a Pearl product title or image source.
+Category 10 generated_product_material_mismatch_found must compare the live generated content with the bound product; Pearl-only evidence cannot hit Category 10.
+Category 10 requires at least two distinct trusted sources across its required facts.
+
 Decision precedence
 1) If a category's required judging channel or material is absent, return unable_to_judge.
 2) If the required judging channel is present but valid evidence is weak or below threshold, return no_hit.
@@ -108,10 +114,10 @@ FINAL_JSON:
   "rules_version": "{{rules_version}}",
   "room_id": "{{room_id}}",
   "material_summary": {
-    "segment_count": 0,
-    "product_count": 0,
-    "comment_interaction_available": false,
-    "material_quality_warning": []
+    "segment_count": {{segment_count}},
+    "product_count": {{product_count}},
+    "comment_interaction_available": true,
+    "material_quality_warning": {{material_quality_warning}}
   },
   "boundary_checks": {
     "contract_version": "{{boundary_contract_version}}",
@@ -542,6 +548,9 @@ FINAL_JSON:
 Requirements:
 The FINAL_JSON final_results array must contain exactly 19 objects ordered by category_id from 1 to 19.
 rules_version, room_id, and boundary_checks.contract_version must copy their exact runtime values and must not remain placeholders or blank.
+Finalizer deterministically rebuilds material_summary from trusted Normalize inputs.
+The model must copy segment_count, product_count, and material_quality_warning from their runtime values and must not use shape defaults.
+The model must set comment_interaction_available to true when comment_interaction is nonempty and false when it is empty.
 The FINAL_JSON boundary_checks object must contain contract_version and facts. contract_version must equal boundary_contract_version exactly for the supplied v3 contract.
 The facts object must include all 31 required fact names exactly. Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
 Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail. Copy that source label exactly; a false fact may use empty evidence_sources and empty evidence_detail.

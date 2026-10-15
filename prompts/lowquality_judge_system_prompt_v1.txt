@@ -19,6 +19,11 @@ Every true fact requires at least one concrete published source label from allow
 Copy each source label exactly from allowed_source_labels. Do not invent, shorten, normalize, or combine source labels.
 A false fact may use an empty evidence_sources array and empty evidence_detail.
 Keep Category 9 authenticity misleading separate from Category 10 generated-product mismatch. Category 9 concerns authenticity deception; Category 10 concerns a generated product or use scene that materially mismatches the promoted or bound product.
+Category 10 evidence contract
+Category 10 explicit_generated_content_evidence_found must come from a live Segment frame, ASR, or visible-text source.
+Category 10 independently requires bound_product_evidence_found from a Pearl product title or image source.
+Category 10 generated_product_material_mismatch_found must compare the live generated content with the bound product; Pearl-only evidence cannot hit Category 10.
+Category 10 requires at least two distinct trusted sources across its required facts.
 Category 12 requires a concrete live effect claim, a materially misleading basis, and the prevalence or strength threshold. Product copy, marketing language, and subjective praise alone are clean.
 Category 18 requires sustained negative emotion beyond routine sales pressure or knowledge marketing, together with hostile, shaming, or fear evidence.
 Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.

@@ -122,6 +122,57 @@ EXPECTED_DECISION_PRECEDENCE_LINES = [
     "3) If the category is disabled or evidence exists only in a forbidden source, return no_hit; this overrides the missing-material rule.",
 ]
 
+EXPECTED_CATEGORY_10_PROMPT_LINES = [
+    "Category 10 explicit_generated_content_evidence_found must come from a live Segment frame, ASR, or visible-text source.",
+    "Category 10 independently requires bound_product_evidence_found from a Pearl product title or image source.",
+    "Category 10 generated_product_material_mismatch_found must compare the live generated content with the bound product; Pearl-only evidence cannot hit Category 10.",
+    "Category 10 requires at least two distinct trusted sources across its required facts.",
+]
+
+EXPECTED_USER_PROMPT_VARIABLE_NAMES = {
+    "room_id",
+    "material_quality_warning",
+    "segment_count",
+    "product_count",
+    "rules_version",
+    "rules_context",
+    "category_catalog",
+    "product_image_permission_matrix",
+    "priority_rules_context",
+    "threshold_rules_context",
+    "judge_rules_compact",
+    "boundary_contract_version",
+    "boundary_gate_panel",
+    "boundary_output_schema_json",
+    "segments_json",
+    "comment_interaction",
+    "product_catalog_json",
+    "all_frame_urls",
+    "all_product_image_urls",
+}
+
+PROMPT_RUNTIME_VALUES = {
+    "room_id": "7380123456789012345",
+    "material_quality_warning": '["trusted_warning"]',
+    "segment_count": "2",
+    "product_count": "1",
+    "rules_version": EXPECTED_V3_VERSION,
+    "rules_context": "Focused rules",
+    "category_catalog": "[]",
+    "product_image_permission_matrix": "{}",
+    "priority_rules_context": "Priority rules",
+    "threshold_rules_context": "Threshold rules",
+    "judge_rules_compact": "Compact rules",
+    "boundary_contract_version": EXPECTED_V3_VERSION,
+    "boundary_gate_panel": "Boundary panel",
+    "boundary_output_schema_json": "{}",
+    "segments_json": "[]",
+    "comment_interaction": "A viewer asks about the product size.",
+    "product_catalog_json": "[]",
+    "all_frame_urls": "[]",
+    "all_product_image_urls": "[]",
+}
+
 EXPECTED_BOUNDARY_INPUT_BLOCK = """Boundary contract version: {{boundary_contract_version}}
 Boundary gate panel: {{boundary_gate_panel}}
 Boundary output schema: {{boundary_output_schema_json}}
@@ -313,12 +364,30 @@ def _load_prompt(path):
         return f.read()
 
 
-def _extract_final_json_example(user_prompt):
+def _extract_final_json_template(user_prompt):
     marker = "FINAL_JSON:\n"
     marker_index = user_prompt.index(marker)
     json_start = marker_index + len(marker)
-    payload, end_offset = json.JSONDecoder().raw_decode(user_prompt[json_start:])
-    return payload, user_prompt[json_start + end_offset:]
+    json_end = user_prompt.index("\n\nRequirements:", json_start)
+    return user_prompt[json_start:json_end], user_prompt[json_end:]
+
+
+def _extract_final_json_example(rendered_user_prompt):
+    json_text, suffix = _extract_final_json_template(rendered_user_prompt)
+    return json.loads(json_text), suffix
+
+
+def _render_user_prompt(user_prompt, overrides=None):
+    values = dict(PROMPT_RUNTIME_VALUES)
+    values.update(overrides or {})
+    variables = set(re.findall(r"{{([^{}]*)}}", user_prompt))
+    missing = variables - set(values)
+    if missing:
+        raise AssertionError("missing prompt substitutions: %s" % sorted(missing))
+    rendered = user_prompt
+    for variable in variables:
+        rendered = rendered.replace("{{%s}}" % variable, values[variable])
+    return rendered
 
 
 def _nonblank_section_lines(text, start_marker, end_marker):
@@ -1259,6 +1328,25 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertNotIn("return no_hit or unable_to_judge", system_prompt.lower())
         self.assertNotIn("return no_hit or unable_to_judge", user_prompt.lower())
 
+    def test_prompts_define_exact_category_10_trusted_source_contract(self):
+        system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
+        user_prompt = _load_prompt(USER_PROMPT_PATH)
+        self.assertIn("Category 10 evidence contract\n", system_prompt)
+        self.assertIn("Category 10 evidence contract\n", user_prompt)
+        system_category_10 = _nonblank_section_lines(
+            system_prompt,
+            "Category 10 evidence contract\n",
+            "\nCategory 12 requires",
+        )
+        user_category_10 = _nonblank_section_lines(
+            user_prompt,
+            "Category 10 evidence contract\n",
+            "\nDecision precedence",
+        )
+
+        self.assertEqual(system_category_10, EXPECTED_CATEGORY_10_PROMPT_LINES)
+        self.assertEqual(user_category_10, EXPECTED_CATEGORY_10_PROMPT_LINES)
+
     def test_user_prompt_boundary_input_block_and_variables_are_exact(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
         rules_start = user_prompt.index("## Rules")
@@ -1293,6 +1381,7 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual(user_prompt.count("{{"), len(user_variables))
         self.assertEqual(user_prompt.count("}}"), len(user_variables))
         self.assertTrue(user_variables)
+        self.assertEqual(set(user_variables), EXPECTED_USER_PROMPT_VARIABLE_NAMES)
         for variable in user_variables:
             with self.subTest(variable=variable):
                 self.assertRegex(variable, r"\A[A-Za-z_][A-Za-z0-9_]*\Z")
@@ -1313,7 +1402,8 @@ class RuleCalibrationTest(unittest.TestCase):
 
     def test_user_prompt_final_json_example_has_complete_boundary_fact_contract(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
-        payload, suffix = _extract_final_json_example(user_prompt)
+        rendered_prompt = _render_user_prompt(user_prompt)
+        payload, suffix = _extract_final_json_example(rendered_prompt)
 
         self.assertIn("Requirements:", suffix)
         self.assertEqual(
@@ -1334,10 +1424,10 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual(
             payload["material_summary"],
             {
-                "segment_count": 0,
-                "product_count": 0,
-                "comment_interaction_available": False,
-                "material_quality_warning": [],
+                "segment_count": 2,
+                "product_count": 1,
+                "comment_interaction_available": True,
+                "material_quality_warning": ["trusted_warning"],
             },
         )
         self.assertIs(type(payload["material_summary"]["segment_count"]), int)
@@ -1465,35 +1555,100 @@ class RuleCalibrationTest(unittest.TestCase):
 
     def test_user_prompt_json_example_uses_runtime_identity_placeholders(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
-        payload, _ = _extract_final_json_example(user_prompt)
+        json_template, _ = _extract_final_json_template(user_prompt)
+        rendered_prompt = _render_user_prompt(user_prompt)
+        payload, _ = _extract_final_json_example(rendered_prompt)
 
+        self.assertIn('"rules_version": "{{rules_version}}"', json_template)
+        self.assertIn('"room_id": "{{room_id}}"', json_template)
+        self.assertIn(
+            '"contract_version": "{{boundary_contract_version}}"',
+            json_template,
+        )
+        self.assertIn('"segment_count": {{segment_count}}', json_template)
+        self.assertIn('"product_count": {{product_count}}', json_template)
+        self.assertIn(
+            '"material_quality_warning": {{material_quality_warning}}',
+            json_template,
+        )
         self.assertIsInstance(payload["rules_version"], str)
-        self.assertEqual(payload["rules_version"], "{{rules_version}}")
+        self.assertEqual(payload["rules_version"], EXPECTED_V3_VERSION)
         self.assertIsInstance(payload["room_id"], str)
-        self.assertEqual(payload["room_id"], "{{room_id}}")
+        self.assertEqual(payload["room_id"], PROMPT_RUNTIME_VALUES["room_id"])
         self.assertIsInstance(payload["boundary_checks"]["contract_version"], str)
         self.assertEqual(
             payload["boundary_checks"]["contract_version"],
-            "{{boundary_contract_version}}",
+            EXPECTED_V3_VERSION,
         )
         self.assertIn(
             "rules_version, room_id, and boundary_checks.contract_version must copy their exact runtime values and must not remain placeholders or blank.",
             user_prompt,
         )
+        self.assertIn(
+            "Finalizer deterministically rebuilds material_summary from trusted Normalize inputs.",
+            user_prompt,
+        )
+        self.assertIn(
+            "The model must copy segment_count, product_count, and material_quality_warning from their runtime values and must not use shape defaults.",
+            user_prompt,
+        )
+        self.assertIn(
+            "The model must set comment_interaction_available to true when comment_interaction is nonempty and false when it is empty.",
+            user_prompt,
+        )
 
     def test_rendered_prompt_json_example_passes_real_finalizer(self):
-        room_id = "7380123456789012345"
+        room_id = PROMPT_RUNTIME_VALUES["room_id"]
         user_prompt = _load_prompt(USER_PROMPT_PATH)
-        rendered_prompt = user_prompt
-        for variable, value in (
-            ("rules_version", EXPECTED_V3_VERSION),
-            ("room_id", room_id),
-            ("boundary_contract_version", EXPECTED_V3_VERSION),
-        ):
-            rendered_prompt = rendered_prompt.replace("{{%s}}" % variable, value)
-
+        rendered_prompt = _render_user_prompt(user_prompt)
         payload, _ = _extract_final_json_example(rendered_prompt)
-        result = finalize_judge_output(_finalizer_params(payload))
+        trusted_segments = [
+            {
+                "segment_index": index,
+                "asr_summary": "The host explains the promoted product.",
+                "frame_urls": ["https://example.com/live-frame-%d.jpg" % index],
+            }
+            for index in (1, 2)
+        ]
+        trusted_products = [
+            {
+                "product_index": 1,
+                "title": "Example product",
+                "image_urls": ["https://example.com/product.jpg"],
+            }
+        ]
+        trusted_warnings = ["trusted_warning"]
+        trusted_comment = "A viewer asks about the product size."
+        segments_json = json.dumps(trusted_segments)
+        product_catalog_json = json.dumps(trusted_products)
+        material_quality_warning = json.dumps(trusted_warnings)
+        gate_output = build_boundary_gate_output(
+            {
+                "segments_json": segments_json,
+                "segment_count": 2,
+                "comment_interaction": trusted_comment,
+                "product_catalog_json": product_catalog_json,
+                "product_count": 1,
+                "material_quality_warning": material_quality_warning,
+                "rules_version": EXPECTED_V3_VERSION,
+            }
+        )
+        result = finalize_judge_output(
+            {
+                "judge_output": "Judge report\nFINAL_JSON:\n"
+                + json.dumps(payload, ensure_ascii=False),
+                "boundary_gates_json": gate_output["boundary_gates_json"],
+                "boundary_contract_version": gate_output["boundary_contract_version"],
+                "rules_version": EXPECTED_V3_VERSION,
+                "room_id": room_id,
+                "segments_json": segments_json,
+                "segment_count": 2,
+                "comment_interaction": trusted_comment,
+                "product_catalog_json": product_catalog_json,
+                "product_count": 1,
+                "material_quality_warning": material_quality_warning,
+            }
+        )
 
         self.assertEqual(result["finalization_status"], "warning")
         self.assertEqual(json.loads(result["finalizer_errors"]), [])
@@ -1505,12 +1660,21 @@ class RuleCalibrationTest(unittest.TestCase):
             EXPECTED_V3_VERSION,
         )
         self.assertEqual(
+            finalized_payload["material_summary"],
+            {
+                "segment_count": 2,
+                "product_count": 1,
+                "comment_interaction_available": True,
+                "material_quality_warning": trusted_warnings,
+            },
+        )
+        self.assertEqual(
             [item["category_id"] for item in finalized_payload["final_results"]],
             list(range(1, 20)),
         )
         self.assertEqual(finalized_payload["hit_category_ids"], [])
-        self.assertEqual(finalized_payload["no_hit_category_ids"], [19])
-        self.assertEqual(finalized_payload["unable_to_judge_category_ids"], list(range(1, 19)))
+        self.assertEqual(finalized_payload["no_hit_category_ids"], list(range(1, 20)))
+        self.assertEqual(finalized_payload["unable_to_judge_category_ids"], [])
 
     def test_validator_rejects_disabled_category_19_hit(self):
         evidence = [
