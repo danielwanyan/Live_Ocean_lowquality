@@ -240,6 +240,14 @@ def finalized_payload(result):
     return json.loads(result["finalized_final_json"])
 
 
+def customize_hit(payload, category_id, evidence, reason, confidence):
+    item = category_result(payload, category_id)
+    item["evidence"] = copy.deepcopy(evidence)
+    item["evidence_count"] = len(evidence)
+    item["judge_reason"] = reason
+    item["confidence"] = confidence
+
+
 class LiveBoundaryFinalizerTest(unittest.TestCase):
     def assert_failure(self, result, expected_error):
         self.assertEqual(set(result), EXPECTED_RETURN_KEYS)
@@ -651,6 +659,28 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         self.assert_decision(finalized, 2, "no_hit")
 
+    def test_existing_category_2_hit_with_unknown_fact_source_is_demoted(self):
+        payload = valid_payload()
+        set_decision(payload, 2, "hit")
+        set_fact(
+            payload,
+            "disturbing_visual_dominates",
+            source="keyword-only detector",
+            detail="Unsupported keyword observation.",
+        )
+
+        result = finalize_judge_output(build_params(payload))
+        finalized = finalized_payload(result)
+        category_2 = category_result(finalized, 2)
+
+        self.assertEqual(result["finalization_status"], "warning")
+        self.assertEqual(category_2["decision"], "no_hit")
+        self.assertEqual(category_2["evidence"], [])
+        self.assertIn("允许材料证据", category_2["judge_reason"])
+        self.assertTrue(
+            any(item["category_id"] == 2 for item in finalized["boundary_overrides"])
+        )
+
     def test_novelty_or_product_art_context_blocks_category_2(self):
         payload = valid_payload()
         set_decision(payload, 2, "hit")
@@ -765,6 +795,55 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             category_result(finalized, 6)["priority_rule_applied"],
         )
 
+    def test_existing_category_3_target_preserves_fields_across_two_reroutes(self):
+        payload = valid_payload()
+        set_decision(payload, 3, "hit")
+        set_decision(payload, 5, "hit")
+        set_decision(payload, 6, "hit")
+        original_evidence = [
+            {
+                "source": "Comment Interaction",
+                "quote_or_visual_detail": "Original category 3 evidence.",
+                "reason": "Original category 3 rationale.",
+            }
+        ]
+        customize_hit(
+            payload,
+            3,
+            original_evidence,
+            "Keep the original category 3 reason.",
+            "low",
+        )
+        set_fact(payload, "unrelated_content_dominates", source="Segment #1 ASR")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        category_3 = category_result(finalized, 3)
+        target_audits = [
+            item
+            for item in finalized["boundary_overrides"]
+            if item["category_id"] == 3
+            and item["priority_rule_applied"]
+            in {
+                "priority_3_over_5_for_unrelated_content",
+                "priority_3_over_6",
+            }
+        ]
+
+        self.assertEqual(category_3["evidence"], original_evidence)
+        self.assertEqual(category_3["judge_reason"], "Keep the original category 3 reason.")
+        self.assertEqual(category_3["confidence"], "low")
+        self.assertEqual(
+            category_3["priority_rule_applied"],
+            ["priority_3_over_5_for_unrelated_content", "priority_3_over_6"],
+        )
+        self.assertEqual(
+            {item["priority_rule_applied"] for item in target_audits},
+            {"priority_3_over_5_for_unrelated_content", "priority_3_over_6"},
+        )
+        self.assertTrue(
+            all(item["from_decision"] == item["to_decision"] == "hit" for item in target_audits)
+        )
+
     def test_no_physical_display_reroutes_original_category_6_to_5(self):
         payload = valid_payload()
         set_decision(payload, 6, "hit")
@@ -777,6 +856,95 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         self.assertIn(
             "priority_5_over_6_for_no_physical_display",
             category_result(finalized, 6)["priority_rule_applied"],
+        )
+
+    def test_existing_category_5_target_preserves_fields_and_audits_priority_associations(self):
+        payload = valid_payload()
+        set_decision(payload, 5, "hit")
+        set_decision(payload, 6, "hit")
+        original_evidence = [
+            {
+                "source": "Segment #7 frame",
+                "quote_or_visual_detail": "Only a static product card is visible.",
+                "reason": "Original category 5 evidence.",
+            }
+        ]
+        customize_hit(
+            payload,
+            5,
+            original_evidence,
+            "Keep the original category 5 reason.",
+            "medium",
+        )
+        set_fact(payload, "sustained_product_promotion_found", source="Segment #1 ASR")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        category_5 = category_result(finalized, 5)
+        category_6 = category_result(finalized, 6)
+        rule = "priority_5_over_6_for_no_physical_display"
+        priority_audits = [
+            item
+            for item in finalized["boundary_overrides"]
+            if item["priority_rule_applied"] == rule
+        ]
+
+        self.assertEqual(category_5["evidence"], original_evidence)
+        self.assertEqual(category_5["judge_reason"], "Keep the original category 5 reason.")
+        self.assertEqual(category_5["confidence"], "medium")
+        self.assertIn(rule, category_5["priority_rule_applied"])
+        self.assertIn(rule, category_6["priority_rule_applied"])
+        self.assertEqual({item["category_id"] for item in priority_audits}, {5, 6})
+        self.assertTrue(
+            all(item["from_decision"] == item["to_decision"] for item in priority_audits)
+        )
+
+    def test_demoted_reroute_source_keeps_gate_fields_and_gets_priority_audit(self):
+        payload = valid_payload()
+        set_decision(payload, 6, "hit")
+        customize_hit(
+            payload,
+            6,
+            [
+                {
+                    "source": "Segment #1 ASR",
+                    "quote_or_visual_detail": "Original category 6 evidence.",
+                    "reason": "Original category 6 rationale.",
+                }
+            ],
+            "Original category 6 reason.",
+            "low",
+        )
+        set_fact(payload, "sustained_product_promotion_found", source="Segment #1 ASR")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        category_6 = category_result(finalized, 6)
+        rule = "priority_5_over_6_for_no_physical_display"
+        category_6_audits = [
+            item
+            for item in finalized["boundary_overrides"]
+            if item["category_id"] == 6
+        ]
+
+        self.assertEqual(category_6["decision"], "no_hit")
+        self.assertEqual(category_6["evidence"], [])
+        self.assertIn("边界必要事实不完整", category_6["judge_reason"])
+        self.assertNotIn("优先级规则", category_6["judge_reason"])
+        self.assertEqual(category_6["confidence"], "low")
+        self.assertIn(rule, category_6["priority_rule_applied"])
+        self.assertTrue(
+            any(
+                item["from_decision"] == "hit"
+                and item["to_decision"] == "no_hit"
+                and item["priority_rule_applied"] == "boundary_gate_category_6"
+                for item in category_6_audits
+            )
+        )
+        self.assertTrue(
+            any(
+                item["from_decision"] == item["to_decision"] == "no_hit"
+                and item["priority_rule_applied"] == rule
+                for item in category_6_audits
+            )
         )
 
     def test_full_ipp_facts_reroute_original_category_8_to_15(self):
@@ -831,6 +999,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             ["pearl_product_image", "pearl_product_title", "segment_asr"],
         )
         self.assertTrue(category_12["product_image_used"])
+        self.assertEqual(category_12["confidence"], "medium")
         self.assertTrue(
             all(
                 set(item) == {"source", "quote_or_visual_detail", "reason"}
@@ -912,6 +1081,67 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
         self.assert_decision(finalized, 12, "no_hit")
+        self.assertEqual(finalized["boundary_overrides"], [])
+
+    def test_existing_category_12_hit_with_product_only_live_claim_is_demoted(self):
+        payload = valid_payload()
+        set_decision(payload, 12, "hit")
+        set_fact(
+            payload,
+            "concrete_live_effect_claim_found",
+            source="Pearl product #1 image",
+        )
+        set_fact(payload, "materially_misleading_basis_found", source="Pearl product #1 image")
+        set_fact(
+            payload,
+            "effect_claim_prevalence_or_strength_threshold_met",
+            source="Pearl product #1 title",
+        )
+
+        result = finalize_judge_output(build_params(payload))
+        finalized = finalized_payload(result)
+        category_12 = category_result(finalized, 12)
+
+        self.assertEqual(result["finalization_status"], "warning")
+        self.assertEqual(category_12["decision"], "no_hit")
+        self.assertEqual(category_12["evidence"], [])
+        self.assertIn("允许材料证据", category_12["judge_reason"])
+        self.assertEqual(category_12["confidence"], "medium")
+
+    def test_existing_category_12_hit_with_valid_gate_evidence_preserves_original_fields(self):
+        payload = valid_payload()
+        set_decision(payload, 12, "hit")
+        original_evidence = [
+            {
+                "source": "Segment #4 ASR",
+                "quote_or_visual_detail": "Original live claim quote.",
+                "reason": "Original model threshold analysis.",
+            }
+        ]
+        customize_hit(
+            payload,
+            12,
+            original_evidence,
+            "Keep the original category 12 reason.",
+            "low",
+        )
+        set_fact(payload, "concrete_live_effect_claim_found", source="Segment #1 ASR")
+        set_fact(payload, "materially_misleading_basis_found", source="Pearl product #1 image")
+        set_fact(
+            payload,
+            "effect_claim_prevalence_or_strength_threshold_met",
+            source="Pearl product #1 title",
+        )
+
+        result = finalize_judge_output(build_params(payload))
+        finalized = finalized_payload(result)
+        category_12 = category_result(finalized, 12)
+
+        self.assertEqual(result["finalization_status"], "pass")
+        self.assertEqual(category_12["decision"], "hit")
+        self.assertEqual(category_12["evidence"], original_evidence)
+        self.assertEqual(category_12["judge_reason"], "Keep the original category 12 reason.")
+        self.assertEqual(category_12["confidence"], "low")
         self.assertEqual(finalized["boundary_overrides"], [])
 
     def test_final_payload_lists_report_and_override_log_are_synchronized(self):

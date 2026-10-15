@@ -491,6 +491,38 @@ def _append_priority_rule(item, rule):
     item["priority_rule_applied"] = updated
 
 
+def _decision_confidence(item):
+    confidence = item.get("confidence")
+    if confidence in {"high", "medium", "low"}:
+        return confidence
+    return "medium"
+
+
+def _append_audit(item, from_decision, to_decision, reason, priority_rule, audit):
+    audit.append(
+        {
+            "category_id": item.get("category_id"),
+            "from_decision": from_decision,
+            "to_decision": to_decision,
+            "reason": reason,
+            "priority_rule_applied": priority_rule,
+        }
+    )
+
+
+def _record_priority_association(item, reason, priority_rule, audit):
+    decision = item.get("decision")
+    _append_priority_rule(item, priority_rule)
+    _append_audit(
+        item,
+        decision,
+        decision,
+        reason,
+        priority_rule,
+        audit,
+    )
+
+
 def _set_decision(
     item,
     decision,
@@ -498,9 +530,9 @@ def _set_decision(
     evidence,
     priority_rule,
     audit,
-    force_audit=False,
 ):
     previous_decision = item.get("decision")
+    confidence = _decision_confidence(item)
     evidence = list(evidence or []) if decision == "hit" else []
     materials_used = []
     for entry in evidence:
@@ -515,18 +547,17 @@ def _set_decision(
     item["evidence_count"] = len(evidence)
     item["materials_used"] = materials_used
     item["product_image_used"] = "pearl_product_image" in materials_used
-    item["confidence"] = "high"
+    item["confidence"] = confidence
     _append_priority_rule(item, priority_rule)
 
-    if previous_decision != decision or force_audit:
-        audit.append(
-            {
-                "category_id": item.get("category_id"),
-                "from_decision": previous_decision,
-                "to_decision": decision,
-                "reason": reason,
-                "priority_rule_applied": priority_rule,
-            }
+    if previous_decision != decision:
+        _append_audit(
+            item,
+            previous_decision,
+            decision,
+            reason,
+            priority_rule,
+            audit,
         )
 
 
@@ -575,6 +606,16 @@ def _apply_general_gates(payload, results_by_id, definitions, audit):
             continue
 
         if item.get("decision") == "hit":
+            evidence = _gate_evidence(payload, category_id, definition)
+            if not evidence:
+                _set_decision(
+                    item,
+                    "no_hit",
+                    "边界必要事实缺少可用的允许材料证据，改判为不命中。",
+                    [],
+                    rule,
+                    audit,
+                )
             continue
 
         if not gate_passes:
@@ -631,25 +672,49 @@ def _apply_reroutes(payload, results_by_id, definitions, original_hit_ids, audit
             source = results_by_id.get(source_id)
             if source is None:
                 continue
-            _set_decision(
-                source,
-                "no_hit",
-                "根据优先级规则%s，改判至类别%d。" % (rule, target_id),
-                [],
+            source_reason = "优先级规则%s关联类别%d至类别%d。" % (
+                rule,
+                source_id,
+                target_id,
+            )
+            if source.get("decision") == "no_hit":
+                _record_priority_association(
+                    source,
+                    source_reason,
+                    rule,
+                    audit,
+                )
+            else:
+                _set_decision(
+                    source,
+                    "no_hit",
+                    source_reason,
+                    [],
+                    rule,
+                    audit,
+                )
+
+        target_reason = "优先级规则%s关联类别%s至类别%d。" % (
+            rule,
+            "、".join(str(category_id) for category_id in source_ids),
+            target_id,
+        )
+        if target.get("decision") == "hit":
+            _record_priority_association(
+                target,
+                target_reason,
                 rule,
                 audit,
             )
-
-        _set_decision(
-            target,
-            "hit",
-            "根据优先级规则%s，由类别%s改判。"
-            % (rule, "、".join(str(category_id) for category_id in source_ids)),
-            evidence,
-            rule,
-            audit,
-            force_audit=target.get("decision") == "hit",
-        )
+        else:
+            _set_decision(
+                target,
+                "hit",
+                target_reason,
+                evidence,
+                rule,
+                audit,
+            )
         if rule not in applied_rules:
             applied_rules.append(rule)
     return sorted(applied_rules)
