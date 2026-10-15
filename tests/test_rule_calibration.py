@@ -230,6 +230,13 @@ def _compact_category_sections(compact_rules):
     return sections
 
 
+def _priority_context(priority_rules):
+    return "\n".join(
+        "%s: %s" % (item["id"], item["rule_en"])
+        for item in priority_rules
+    )
+
+
 def _valid_payload(hit_ids=(), evidence_by_id=None):
     hit_ids = set(hit_ids)
     evidence_by_id = evidence_by_id or {}
@@ -364,6 +371,17 @@ class RuleCalibrationTest(unittest.TestCase):
             [item["category_id"] for item in category_catalog],
             list(range(1, 20)),
         )
+        self.assertEqual(
+            result["priority_rules_context"],
+            _priority_context(FALLBACK_RULES["exclusive_priority_rules"]),
+        )
+        self.assertTrue(
+            all(
+                line.split(":", 1)[1].strip()
+                for line in result["priority_rules_context"].splitlines()
+            )
+        )
+        self.assertNotIn("altered priority text", result["priority_rules_context"])
 
     def test_structured_rules_use_exact_v3_contract_version(self):
         rules = _load_structured_rules()
@@ -565,6 +583,51 @@ class RuleCalibrationTest(unittest.TestCase):
         for name, candidate_rules in cases.items():
             with self.subTest(name=name):
                 self._assert_rules_brain_fallback(candidate_rules)
+
+    def test_rules_brain_rejects_missing_blank_or_altered_priority_instructions(self):
+        mutations = (
+            ("missing_rule_en", "rule_en", None),
+            ("missing_rule_zh", "rule_zh", None),
+            ("empty_rule_en", "rule_en", ""),
+            ("empty_rule_zh", "rule_zh", ""),
+            ("whitespace_rule_en", "rule_en", "   "),
+            ("whitespace_rule_zh", "rule_zh", "   "),
+            ("altered_rule_en", "rule_en", "altered priority text"),
+            ("altered_rule_zh", "rule_zh", "altered priority text"),
+        )
+
+        for priority_index in range(5):
+            for mutation_name, field, replacement in mutations:
+                candidate_rules = copy.deepcopy(_load_structured_rules())
+                priority = candidate_rules["exclusive_priority_rules"][priority_index]
+                if replacement is None:
+                    del priority[field]
+                else:
+                    priority[field] = replacement
+                with self.subTest(
+                    priority_id=priority["id"],
+                    mutation=mutation_name,
+                ):
+                    self._assert_rules_brain_fallback(candidate_rules)
+
+    def test_rules_brain_fallback_priorities_match_structured_rules_exactly(self):
+        priority_fields = (
+            "id",
+            "higher_priority_category_id",
+            "lower_priority_category_id",
+            "rule_en",
+            "rule_zh",
+        )
+        fallback_priorities = [
+            {field: item.get(field) for field in priority_fields}
+            for item in FALLBACK_RULES["exclusive_priority_rules"]
+        ]
+        structured_priorities = [
+            {field: item.get(field) for field in priority_fields}
+            for item in _load_structured_rules()["exclusive_priority_rules"]
+        ]
+
+        self.assertEqual(fallback_priorities, structured_priorities)
 
     def test_rules_brain_fallback_matches_structured_v3_category_contract_exactly(self):
         structured_categories = _load_structured_rules()["categories"]

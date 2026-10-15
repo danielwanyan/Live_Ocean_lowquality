@@ -37,31 +37,36 @@ FALLBACK_RULES = {
             "id": "priority_3_over_5_for_unrelated_content",
             "higher_priority_category_id": 3,
             "lower_priority_category_id": 5,
-            "rule_en": "If the unrelated live core has no sustained promotion, category 3 has priority over category 5.",
+            "rule_en": "If the unrelated live core has no sustained promotion, classify as category 3, not category 5.",
+            "rule_zh": "若直播核心内容与商品无关且没有持续商品推广，应判定【商品无关低质问题】（类别3），而非【无实物商品展示低质问题】（类别5）。",
         },
         {
             "id": "priority_3_over_6",
             "higher_priority_category_id": 3,
             "lower_priority_category_id": 6,
-            "rule_en": "If live content is unrelated to bound products and lacks sustained promotion, category 3 has priority over category 6.",
+            "rule_en": "If there is no clear sustained product promotion, explanation, or demonstration intent, including long periods with no pinned product, no product talk, sports/game/life-chat as the core content, classify as category 3 and do not classify as category 6.",
+            "rule_zh": "若直播内容无明确、持续的商品推广、讲解、演示行为，核心内容与绑定商品无任何关联，或长时间不挂品/不讲品/只直播比赛、聊天、个人生活，一律优先判定为【商品无关低质问题】，不得改判为【商品描述不详细低质问题】。",
         },
         {
             "id": "priority_1_over_19",
             "higher_priority_category_id": 1,
             "lower_priority_category_id": 19,
             "rule_en": "Sexual exposure or sexualized implication belongs to category 1, not category 19.",
+            "rule_zh": "色情暴露、性暗示类内容归为【色情低俗低质问题】，不得同时归为【隐私敏感商品低质问题】。",
         },
         {
             "id": "priority_15_over_8_for_product_mismatch",
             "higher_priority_category_id": 15,
             "lower_priority_category_id": 8,
-            "rule_en": "Product mismatch / IPP belongs to category 15, not category 8 language violation.",
+            "rule_en": "When the core issue is a clear entity/category/use-case mismatch between the live displayed item and bound Pearl product, route it to category 15 product-mismatch/IPP boundary, not category 8 language violation.",
+            "rule_zh": "若问题本质是直播展示商品与挂车商品/商品图在实体、类目、用途上明显不一致，优先按【违法违规商品低质问题】中的货不对板/IPP 边界判断，不得因为商品图语言、异域服饰、OCR 文本或标题语言而判为【非母语违规低质问题】。",
         },
         {
             "id": "priority_5_over_6_for_no_physical_display",
             "higher_priority_category_id": 5,
             "lower_priority_category_id": 6,
-            "rule_en": "No real physical product display belongs to category 5 before category 6.",
+            "rule_en": "If product talk exists but most live frames lack real physical video display of the bound product and show only stickers, screenshots, product cards, static photos, overlays, or unrecognizable partials, classify category 5 before category 6.",
+            "rule_zh": "若主播围绕商品说话但直播画面长期没有真实实物视频展示，只出现贴图、截图、商品卡、静态照片、产品角标或不可识别局部，优先判定【无实物商品展示低质问题】，不得仅因讲解信息少而判定【商品描述不详细低质问题】。",
         },
     ],
     "categories": FALLBACK_CATEGORIES,
@@ -166,20 +171,37 @@ def _validate_rules_contract(rules):
     priority_rules = rules.get("exclusive_priority_rules")
     if type(priority_rules) is not list or len(priority_rules) != len(EXPECTED_PRIORITY_MAPPINGS):
         return "exclusive priority rules must contain exactly five items"
-    actual_priority_mappings = {}
+    canonical_priorities = {
+        priority["id"]: priority
+        for priority in FALLBACK_RULES["exclusive_priority_rules"]
+    }
+    seen_priority_ids = set()
     for priority in priority_rules:
         if type(priority) is not dict:
             return "exclusive priority rule must be an object"
         rule_id = priority.get("id")
-        if type(rule_id) is not str or rule_id in actual_priority_mappings:
+        if type(rule_id) is not str or rule_id in seen_priority_ids:
             return "exclusive priority rule IDs must be unique strings"
-        higher = priority.get("higher_priority_category_id")
-        lower = priority.get("lower_priority_category_id")
-        if type(higher) is not int or type(lower) is not int:
+        canonical = canonical_priorities.get(rule_id)
+        if canonical is None:
+            return "exclusive priority IDs mismatch"
+        for field in (
+            "higher_priority_category_id",
+            "lower_priority_category_id",
+            "rule_en",
+            "rule_zh",
+        ):
+            if field not in priority or priority.get(field) != canonical.get(field):
+                return "exclusive priority %s %s mismatch" % (rule_id, field)
+        if type(priority.get("higher_priority_category_id")) is not int:
             return "exclusive priority mappings must use integer category IDs"
-        actual_priority_mappings[rule_id] = (higher, lower)
-    if actual_priority_mappings != EXPECTED_PRIORITY_MAPPINGS:
-        return "exclusive priority IDs or mappings mismatch"
+        if type(priority.get("lower_priority_category_id")) is not int:
+            return "exclusive priority mappings must use integer category IDs"
+        if type(priority.get("rule_en")) is not str or type(priority.get("rule_zh")) is not str:
+            return "exclusive priority instructions must be strings"
+        seen_priority_ids.add(rule_id)
+    if seen_priority_ids != set(EXPECTED_PRIORITY_MAPPINGS):
+        return "exclusive priority IDs mismatch"
     return ""
 
 
