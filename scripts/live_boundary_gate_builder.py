@@ -193,6 +193,44 @@ def _has_nonempty_list_field(value):
     return any(_has_nonblank_string(item) for item in value)
 
 
+def _is_positive_exact_int(value):
+    return type(value) is int and value > 0
+
+
+def _build_allowed_source_labels(params):
+    segments = _parse_json_list(params.get("segments_json"))
+    products = _parse_json_list(params.get("product_catalog_json"))
+    labels = set()
+
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+        segment_index = segment.get("segment_index")
+        if not _is_positive_exact_int(segment_index):
+            continue
+        if _has_nonblank_string(segment.get("asr_summary")):
+            labels.add("Segment #%d ASR" % segment_index)
+        if _has_nonempty_list_field(segment.get("frame_urls")):
+            labels.add("Segment #%d frame" % segment_index)
+            labels.add("Segment #%d visible text" % segment_index)
+
+    if _has_nonblank_string(params.get("comment_interaction")):
+        labels.add("Comment Interaction")
+
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+        product_index = product.get("product_index")
+        if not _is_positive_exact_int(product_index):
+            continue
+        if _has_nonblank_string(product.get("title")):
+            labels.add("Pearl product #%d title" % product_index)
+        if _has_nonempty_list_field(product.get("image_urls")):
+            labels.add("Pearl product #%d image" % product_index)
+
+    return sorted(labels)
+
+
 def _build_material_availability(params):
     segments = _parse_json_list(params.get("segments_json"))
     products = _parse_json_list(params.get("product_catalog_json"))
@@ -241,12 +279,14 @@ def build_boundary_gate_output(params):
         params = {}
     rules_version = _text(params.get("rules_version"))
     material_availability = _build_material_availability(params)
+    allowed_source_labels = _build_allowed_source_labels(params)
     warnings = _build_warnings(material_availability, rules_version)
 
     boundary_gates = {
         "contract_version": BOUNDARY_CONTRACT_VERSION,
         "rules_version": rules_version,
         "material_availability": material_availability,
+        "allowed_source_labels": allowed_source_labels,
         "required_facts": REQUIRED_FACTS,
         "gate_definitions": GATE_DEFINITIONS,
         "reroutes": REROUTES,

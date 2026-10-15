@@ -77,6 +77,30 @@ EXPECTED_MATERIAL_AVAILABILITY_KEYS = (
     "pearl_product_title",
     "pearl_product_image",
 )
+EXPECTED_CATEGORY_NAMES = MappingProxyType(
+    {
+        1: "色情低俗低质问题",
+        2: "恶心恐怖低质问题",
+        3: "商品无关低质问题",
+        4: "无互动低质问题",
+        5: "无实物商品展示低质问题",
+        6: "商品描述不详细低质问题",
+        7: "静态帧遮挡低质问题",
+        8: "非母语违规低质问题",
+        9: "AIGC真实性低质问题",
+        10: "AIGC商品展示低质问题",
+        11: "录播回放低质问题",
+        12: "功能效果虚假宣传低质问题",
+        13: "危险行为低质问题",
+        14: "站外引流交易低质问题",
+        15: "违法违规商品低质问题",
+        16: "政治敏感低质问题",
+        17: "争议话题低质问题",
+        18: "负面引导低质问题",
+        19: "隐私敏感商品低质问题",
+    }
+)
+PRODUCT_IMAGE_ALLOWED_CATEGORY_IDS = frozenset((3, 5, 6, 9, 10, 12, 15, 16, 17))
 EXPECTED_GATE_DEFINITIONS = _immutable(
     {
         "1": {
@@ -263,6 +287,113 @@ MINIMUM_DISTINCT_EVIDENCE_UNITS = MappingProxyType(
         for category_id in range(1, 20)
     }
 )
+FACT_ALLOWED_MATERIALS = MappingProxyType(
+    {
+        "sexualized_exposure_or_behavior_found": frozenset(("segment_frame", "segment_asr")),
+        "ordinary_tryon_or_public_context_only": frozenset(("segment_frame", "segment_asr")),
+        "disturbing_visual_dominates": frozenset(("segment_frame", "segment_asr")),
+        "cleaning_demo_context": frozenset(("segment_frame", "segment_asr")),
+        "novelty_or_product_art_context": frozenset(("segment_frame", "segment_asr")),
+        "sustained_product_promotion_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "unrelated_content_dominates": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "real_physical_product_display_found": frozenset(("segment_frame",)),
+        "core_buying_information_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "identifiable_product_and_core_purpose_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "extremely_low_information_across_relevant_segments": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "explicit_generated_content_evidence_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "authenticity_misleading_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "generated_product_material_mismatch_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "concrete_replay_indicator_found": frozenset(("segment_frame", "segment_asr")),
+        "replay_weak_signal_only": frozenset(("segment_frame", "segment_asr")),
+        "concrete_live_effect_claim_found": frozenset(("segment_frame", "segment_asr")),
+        "materially_misleading_basis_found": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "effect_claim_prevalence_or_strength_threshold_met": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "marketing_or_product_image_only": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "off_platform_destination_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "explicit_transaction_guidance_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "same_scene_transaction_requirement_met": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "live_promoted_item_evidence_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text")
+        ),
+        "bound_product_evidence_found": frozenset(
+            ("pearl_product_title", "pearl_product_image")
+        ),
+        "core_product_contradiction_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "minor_variant_or_background_only": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "category_15_non_ipp_illegal_basis_found": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "sustained_negative_emotion_found": frozenset(
+            ("segment_frame", "segment_asr", "comment_interaction")
+        ),
+        "hostile_shaming_fear_evidence_found": frozenset(
+            ("segment_frame", "segment_asr", "comment_interaction")
+        ),
+        "routine_sales_or_knowledge_marketing_only": frozenset(
+            ("segment_frame", "segment_asr", "comment_interaction")
+        ),
+    }
+)
 
 
 def _text(value):
@@ -358,6 +489,13 @@ def _validate_contract(payload, gates, expected_version):
     if not material_availability_valid:
         errors.append("gate_material_availability_contract_mismatch")
 
+    allowed_source_labels_valid = _allowed_source_labels_are_valid(
+        gates.get("allowed_source_labels"),
+        material_availability if type(material_availability) is dict else {},
+    )
+    if not allowed_source_labels_valid:
+        errors.append("gate_allowed_source_labels_contract_mismatch")
+
     boundary_checks = payload.get("boundary_checks")
     if not isinstance(boundary_checks, dict):
         errors.append("boundary_checks_missing_or_not_object")
@@ -432,6 +570,9 @@ def _validate_final_results_structure(payload):
         else:
             seen_ids.add(category_id)
             valid_ids.add(category_id)
+
+        if item.get("category_name") != EXPECTED_CATEGORY_NAMES.get(category_id):
+            errors.append("final_result_category_name_mismatch:%d" % category_id)
 
         decision = item.get("decision")
         if type(decision) is not str or decision not in {"hit", "no_hit", "unable_to_judge"}:
@@ -520,6 +661,20 @@ def _source_material(source):
     return None
 
 
+def _allowed_source_labels_are_valid(labels, material_availability):
+    if type(labels) is not list:
+        return False
+    if any(type(label) is not str or not label.strip() for label in labels):
+        return False
+    if labels != sorted(set(labels)):
+        return False
+    for label in labels:
+        material = _source_material(label)
+        if material is None or not _material_is_available(material, material_availability):
+            return False
+    return True
+
+
 def _availability_key(material):
     if material == "segment_frame_visible_text":
         return "segment_frame"
@@ -535,7 +690,13 @@ def _meets_evidence_threshold(category_id, evidence):
     return len(evidence) >= MINIMUM_DISTINCT_EVIDENCE_UNITS[category_id]
 
 
-def _fact_evidence(payload, category_id, fact_name, material_availability):
+def _fact_evidence(
+    payload,
+    category_id,
+    fact_name,
+    material_availability,
+    allowed_source_labels,
+):
     fact = _fact(payload, fact_name)
     if fact["value"] is not True:
         return []
@@ -544,8 +705,12 @@ def _fact_evidence(payload, category_id, fact_name, material_availability):
     detail = _text(fact["evidence_detail"])
     evidence = []
     for source in fact["evidence_sources"]:
+        if source not in allowed_source_labels:
+            continue
         material = _source_material(source)
         if material not in allowed_materials:
+            continue
+        if material not in FACT_ALLOWED_MATERIALS[fact_name]:
             continue
         if not _material_is_available(material, material_availability):
             continue
@@ -565,25 +730,69 @@ def _fact_evidence(payload, category_id, fact_name, material_availability):
     return evidence
 
 
-def _fact_true(payload, category_id, fact_name, material_availability):
-    return bool(_fact_evidence(payload, category_id, fact_name, material_availability))
+def _fact_true(
+    payload,
+    category_id,
+    fact_name,
+    material_availability,
+    allowed_source_labels,
+):
+    return bool(
+        _fact_evidence(
+            payload,
+            category_id,
+            fact_name,
+            material_availability,
+            allowed_source_labels,
+        )
+    )
 
 
-def _required_path_passes(payload, category_id, definition, material_availability):
+def _required_path_passes(
+    payload,
+    category_id,
+    definition,
+    material_availability,
+    allowed_source_labels,
+):
     return all(
-        _fact_true(payload, category_id, name, material_availability)
+        _fact_true(
+            payload,
+            category_id,
+            name,
+            material_availability,
+            allowed_source_labels,
+        )
         for name in definition.get("required_true", [])
     ) and not any(
-        _fact_true(payload, category_id, name, material_availability)
+        _fact_true(
+            payload,
+            category_id,
+            name,
+            material_availability,
+            allowed_source_labels,
+        )
         for name in definition.get("blocked_true", [])
     )
 
 
-def _gate_passes(payload, category_id, definition, material_availability):
+def _gate_passes(
+    payload,
+    category_id,
+    definition,
+    material_availability,
+    allowed_source_labels,
+):
     if definition.get("disabled") is True:
         return False
     if any(
-        _fact_true(payload, category_id, name, material_availability)
+        _fact_true(
+            payload,
+            category_id,
+            name,
+            material_availability,
+            allowed_source_labels,
+        )
         for name in definition.get("alternative_true", [])
     ):
         return True
@@ -592,10 +801,17 @@ def _gate_passes(payload, category_id, definition, material_availability):
         category_id,
         definition,
         material_availability,
+        allowed_source_labels,
     )
 
 
-def _path_evidence(payload, category_id, fact_names, material_availability):
+def _path_evidence(
+    payload,
+    category_id,
+    fact_names,
+    material_availability,
+    allowed_source_labels,
+):
     evidence = []
     seen = set()
     for fact_name in fact_names:
@@ -604,11 +820,12 @@ def _path_evidence(payload, category_id, fact_names, material_availability):
             category_id,
             fact_name,
             material_availability,
+            allowed_source_labels,
         )
         if not fact_entries:
             return None
         for entry in fact_entries:
-            dedupe_key = (entry["source"], entry["quote_or_visual_detail"])
+            dedupe_key = entry["source"]
             if dedupe_key in seen:
                 continue
             seen.add(dedupe_key)
@@ -621,16 +838,24 @@ def _gate_evidence(
     category_id,
     definition,
     material_availability,
+    allowed_source_labels,
     allow_alternative=True,
 ):
     if allow_alternative:
         for fact_name in definition.get("alternative_true", []):
-            if _fact_true(payload, category_id, fact_name, material_availability):
+            if _fact_true(
+                payload,
+                category_id,
+                fact_name,
+                material_availability,
+                allowed_source_labels,
+            ):
                 alternative_evidence = _path_evidence(
                     payload,
                     category_id,
                     [fact_name],
                     material_availability,
+                    allowed_source_labels,
                 )
                 if _meets_evidence_threshold(category_id, alternative_evidence):
                     return alternative_evidence
@@ -639,6 +864,7 @@ def _gate_evidence(
         category_id,
         definition,
         material_availability,
+        allowed_source_labels,
     ):
         return None
     required_evidence = _path_evidence(
@@ -646,26 +872,45 @@ def _gate_evidence(
         category_id,
         definition.get("required_true", []),
         material_availability,
+        allowed_source_labels,
     )
     if required_evidence and _meets_evidence_threshold(category_id, required_evidence):
         return required_evidence
     return None
 
 
-def _gate_failure_reason(payload, category_id, definition, material_availability):
+def _gate_failure_reason(
+    payload,
+    category_id,
+    definition,
+    material_availability,
+    allowed_source_labels,
+):
     if definition.get("disabled") is True:
         return "类别%d在当前规则版本中已禁用，强制改判为不命中。" % category_id
     blocked = [
         fact_name
         for fact_name in definition.get("blocked_true", [])
-        if _fact_true(payload, category_id, fact_name, material_availability)
+        if _fact_true(
+            payload,
+            category_id,
+            fact_name,
+            material_availability,
+            allowed_source_labels,
+        )
     ]
     if blocked:
         return "边界阻断事实成立，改判为不命中：" + "、".join(blocked) + "。"
     missing = [
         fact_name
         for fact_name in definition.get("required_true", [])
-        if not _fact_true(payload, category_id, fact_name, material_availability)
+        if not _fact_true(
+            payload,
+            category_id,
+            fact_name,
+            material_availability,
+            allowed_source_labels,
+        )
     ]
     unsupported = [
         fact_name
@@ -717,13 +962,20 @@ def _set_evidence_fields(item, evidence):
     item["product_image_used"] = "pearl_product_image" in materials_used
 
 
-def _authorized_model_evidence(item, category_id, material_availability):
+def _authorized_model_evidence(
+    item,
+    category_id,
+    material_availability,
+    allowed_source_labels,
+):
     allowed_materials = CATEGORY_ALLOWED_MATERIALS[category_id]
     authorized = []
     seen = set()
     for entry in item["evidence"]:
         source = entry["source"]
         detail = entry["quote_or_visual_detail"]
+        if source not in allowed_source_labels:
+            continue
         material = _source_material(source)
         if material not in allowed_materials:
             continue
@@ -731,7 +983,7 @@ def _authorized_model_evidence(item, category_id, material_availability):
             continue
         if not source or not detail.strip():
             continue
-        dedupe_key = (source, detail)
+        dedupe_key = source
         if dedupe_key in seen:
             continue
         seen.add(dedupe_key)
@@ -809,22 +1061,59 @@ def _canonicalize_results(
     results_by_id,
     definitions,
     material_availability,
+    allowed_source_labels,
     audit,
 ):
     for category_id in sorted(results_by_id):
         item = results_by_id[category_id]
-        item["confidence"] = _decision_confidence(item)
+        original_confidence = item.get("confidence")
+        canonical_confidence = _decision_confidence(item)
+        item["confidence"] = canonical_confidence
         item["priority_rule_applied"] = _canonical_priority_rules(item)
+        if canonical_confidence != original_confidence:
+            rule = "boundary_confidence_normalization_category_%d" % category_id
+            _record_priority_association(
+                item,
+                "已将类别%d的无效置信度规范为medium。" % category_id,
+                rule,
+                audit,
+            )
+
+        definition = definitions.get(str(category_id))
+        if (
+            item.get("decision") == "hit"
+            and definition
+            and definition.get("disabled") is True
+        ):
+            continue
 
         if item.get("decision") != "hit":
+            had_stale_hit_fields = bool(
+                item.get("evidence")
+                or item.get("evidence_count")
+                or item.get("materials_used")
+                or item.get("product_image_used") is True
+            )
             _set_evidence_fields(item, [])
+            if had_stale_hit_fields:
+                rule = "boundary_non_hit_cleanup_category_%d" % category_id
+                _record_priority_association(
+                    item,
+                    "已清理类别%d非命中判定中的陈旧命中证据字段。" % category_id,
+                    rule,
+                    audit,
+                )
             continue
 
         original_evidence = list(item["evidence"])
+        original_evidence_count = item.get("evidence_count")
+        original_materials = list(item.get("materials_used", []))
+        original_product_image_used = item.get("product_image_used")
         authorized_evidence = _authorized_model_evidence(
             item,
             category_id,
             material_availability,
+            allowed_source_labels,
         )
         if _meets_evidence_threshold(category_id, authorized_evidence):
             _set_evidence_fields(item, authorized_evidence)
@@ -836,21 +1125,34 @@ def _canonicalize_results(
                     rule,
                     audit,
                 )
+            elif (
+                item["evidence_count"] != original_evidence_count
+                or item["materials_used"] != original_materials
+                or item["product_image_used"] != original_product_image_used
+            ):
+                rule = "boundary_evidence_metadata_repair_category_%d" % category_id
+                _record_priority_association(
+                    item,
+                    "已根据类别%d的最终有效证据重算材料与商品图标志。" % category_id,
+                    rule,
+                    audit,
+                )
             continue
 
-        definition = definitions.get(str(category_id))
         gate_evidence = None
         if definition and _gate_passes(
             payload,
             category_id,
             definition,
             material_availability,
+            allowed_source_labels,
         ):
             gate_evidence = _gate_evidence(
                 payload,
                 category_id,
                 definition,
                 material_availability,
+                allowed_source_labels,
             )
         if gate_evidence:
             _set_evidence_fields(item, gate_evidence)
@@ -878,6 +1180,7 @@ def _apply_general_gates(
     results_by_id,
     definitions,
     material_availability,
+    allowed_source_labels,
     audit,
 ):
     for category_text in sorted(definitions, key=int):
@@ -898,6 +1201,7 @@ def _apply_general_gates(
                         category_id,
                         definition,
                         material_availability,
+                        allowed_source_labels,
                     ),
                     [],
                     rule,
@@ -910,6 +1214,7 @@ def _apply_general_gates(
             category_id,
             definition,
             material_availability,
+            allowed_source_labels,
         )
         if item.get("decision") == "hit" and not gate_passes:
             _set_decision(
@@ -920,6 +1225,7 @@ def _apply_general_gates(
                     category_id,
                     definition,
                     material_availability,
+                    allowed_source_labels,
                 ),
                 [],
                 rule,
@@ -933,6 +1239,7 @@ def _apply_general_gates(
                 category_id,
                 definition,
                 material_availability,
+                allowed_source_labels,
             )
             if not evidence:
                 _set_decision(
@@ -953,6 +1260,7 @@ def _apply_general_gates(
             category_id,
             definition,
             material_availability,
+            allowed_source_labels,
         )
         if not evidence:
             continue
@@ -971,6 +1279,7 @@ def _apply_reroutes(
     results_by_id,
     definitions,
     material_availability,
+    allowed_source_labels,
     original_hit_ids,
     audit,
 ):
@@ -992,6 +1301,7 @@ def _apply_reroutes(
                 target_id,
                 definition,
                 material_availability,
+                allowed_source_labels,
             ):
                 continue
             evidence = _gate_evidence(
@@ -999,6 +1309,7 @@ def _apply_reroutes(
                 target_id,
                 definition,
                 material_availability,
+                allowed_source_labels,
                 allow_alternative=False,
             )
         else:
@@ -1007,6 +1318,7 @@ def _apply_reroutes(
                 target_id,
                 definition,
                 material_availability,
+                allowed_source_labels,
             ):
                 continue
             evidence = _gate_evidence(
@@ -1014,6 +1326,7 @@ def _apply_reroutes(
                 target_id,
                 definition,
                 material_availability,
+                allowed_source_labels,
             )
         if not evidence:
             continue
@@ -1104,15 +1417,53 @@ def _sync_decision_lists(payload):
     category_ids = {
         item.get("category_id") for item in results if type(item) is dict
     }
-    coverage = payload.get("coverage_check")
-    if type(coverage) is dict:
-        coverage["expected_category_count"] = 19
-        coverage["actual_category_count"] = len(results)
-        coverage["missing_category_ids"] = sorted(set(range(1, 20)) - category_ids)
-        coverage["extra_category_ids"] = sorted(category_ids - set(range(1, 20)))
-        coverage["hit_no_hit_overlap_category_ids"] = sorted(
+    payload["coverage_check"] = {
+        "expected_category_count": 19,
+        "actual_category_count": len(results),
+        "missing_category_ids": sorted(set(range(1, 20)) - category_ids),
+        "extra_category_ids": sorted(category_ids - set(range(1, 20))),
+        "hit_no_hit_overlap_category_ids": sorted(
             (hit_ids & no_hit_ids) | (hit_ids & unable_ids) | (no_hit_ids & unable_ids)
+        ),
+    }
+
+
+def _threshold_recheck_warnings(payload):
+    policy_checks = payload.get("policy_checks")
+    if type(policy_checks) is not dict:
+        return []
+    warnings = policy_checks.get("threshold_recheck_warnings")
+    if type(warnings) is not list or any(type(item) is not str for item in warnings):
+        return []
+    return list(warnings)
+
+
+def _sync_permission_and_policy(payload, applied_rules, threshold_warnings, audit):
+    violations = []
+    for item in payload["final_results"]:
+        category_id = item["category_id"]
+        permission_ok = not (
+            item["decision"] == "hit"
+            and item["product_image_used"] is True
+            and category_id not in PRODUCT_IMAGE_ALLOWED_CATEGORY_IDS
         )
+        if item.get("product_image_permission_ok") is not permission_ok:
+            item["product_image_permission_ok"] = permission_ok
+            rule = "boundary_product_permission_repair_category_%d" % category_id
+            _record_priority_association(
+                item,
+                "已根据类别%d的最终证据重算商品图权限标志。" % category_id,
+                rule,
+                audit,
+            )
+        if not permission_ok:
+            violations.append(category_id)
+
+    payload["policy_checks"] = {
+        "product_image_permission_violations": sorted(violations),
+        "exclusive_priority_applied": list(applied_rules),
+        "threshold_recheck_warnings": threshold_warnings,
+    }
 
 
 def _render_report(payload):
@@ -1174,6 +1525,8 @@ def _render_report(payload):
 def _finalize_payload(payload, gates):
     definitions = _mutable(EXPECTED_GATE_DEFINITIONS)
     material_availability = gates["material_availability"]
+    allowed_source_labels = frozenset(gates["allowed_source_labels"])
+    threshold_warnings = _threshold_recheck_warnings(payload)
     results_by_id = _results_by_id(payload)
     original_hit_ids = {
         category_id
@@ -1186,6 +1539,7 @@ def _finalize_payload(payload, gates):
         results_by_id,
         definitions,
         material_availability,
+        allowed_source_labels,
         audit,
     )
     _apply_general_gates(
@@ -1193,6 +1547,7 @@ def _finalize_payload(payload, gates):
         results_by_id,
         definitions,
         material_availability,
+        allowed_source_labels,
         audit,
     )
     applied_rules = _apply_reroutes(
@@ -1200,14 +1555,18 @@ def _finalize_payload(payload, gates):
         results_by_id,
         definitions,
         material_availability,
+        allowed_source_labels,
         original_hit_ids,
         audit,
     )
-    policy_checks = payload.get("policy_checks")
-    if type(policy_checks) is dict:
-        policy_checks["exclusive_priority_applied"] = applied_rules
-    payload["boundary_overrides"] = audit
     _sync_decision_lists(payload)
+    _sync_permission_and_policy(
+        payload,
+        applied_rules,
+        threshold_warnings,
+        audit,
+    )
+    payload["boundary_overrides"] = audit
     return audit
 
 
@@ -1247,6 +1606,11 @@ def finalize_judge_output(params):
     input_rules_version = params.get("rules_version")
     if type(input_rules_version) is not str or input_rules_version != expected_version:
         errors.append("rules_version_mismatch")
+    input_room_id = params.get("room_id")
+    if type(input_room_id) is not str or not input_room_id.strip():
+        errors.append("room_id_missing_or_invalid")
+    elif type(payload.get("room_id")) is not str or payload.get("room_id") != input_room_id:
+        errors.append("room_id_mismatch")
     if errors:
         return _failure(errors)
 

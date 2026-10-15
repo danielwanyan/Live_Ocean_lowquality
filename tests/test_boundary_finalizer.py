@@ -179,6 +179,7 @@ def build_params(payload=None, judge_output=None):
         "boundary_gates_json": gate_output["boundary_gates_json"],
         "boundary_contract_version": gate_output["boundary_contract_version"],
         "rules_version": BOUNDARY_CONTRACT_VERSION,
+        "room_id": payload.get("room_id"),
     }
 
 
@@ -186,6 +187,25 @@ def build_params_with_availability(payload, **availability_overrides):
     params = build_params(payload)
     gates = json.loads(params["boundary_gates_json"])
     gates["material_availability"].update(availability_overrides)
+    unavailable_materials = {
+        material for material, available in availability_overrides.items() if available is False
+    }
+    if unavailable_materials:
+        filtered_labels = []
+        for label in gates["allowed_source_labels"]:
+            if label == "Comment Interaction":
+                material = "comment_interaction"
+            elif label.startswith("Pearl product #") and label.endswith(" title"):
+                material = "pearl_product_title"
+            elif label.startswith("Pearl product #") and label.endswith(" image"):
+                material = "pearl_product_image"
+            elif label.startswith("Segment #") and label.endswith(" ASR"):
+                material = "segment_asr"
+            else:
+                material = "segment_frame"
+            if material not in unavailable_materials:
+                filtered_labels.append(label)
+        gates["allowed_source_labels"] = filtered_labels
     params["boundary_gates_json"] = gates
     return params
 
@@ -264,6 +284,23 @@ def customize_hit(payload, category_id, evidence, reason, confidence):
     item["evidence_count"] = len(evidence)
     item["judge_reason"] = reason
     item["confidence"] = confidence
+    materials = set()
+    for entry in evidence:
+        source = entry["source"]
+        if source == "Comment Interaction":
+            materials.add("comment_interaction")
+        elif source.startswith("Pearl product #") and source.endswith(" title"):
+            materials.add("pearl_product_title")
+        elif source.startswith("Pearl product #") and source.endswith(" image"):
+            materials.add("pearl_product_image")
+        elif source.startswith("Segment #") and source.endswith(" ASR"):
+            materials.add("segment_asr")
+        elif source.startswith("Segment #") and source.endswith(" visible text"):
+            materials.add("segment_frame_visible_text")
+        elif source.startswith("Segment #") and source.endswith(" frame"):
+            materials.add("segment_frame")
+    item["materials_used"] = sorted(materials)
+    item["product_image_used"] = "pearl_product_image" in materials
 
 
 def set_complete_category_12_facts(payload):
@@ -593,6 +630,17 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             with self.subTest(expected_error=expected_error):
                 self.assert_payload_failure_no_raise(payload, expected_error)
 
+    def test_final_result_category_name_must_match_canonical_contract(self):
+        for invalid_name in (None, 1, "Wrong category name"):
+            with self.subTest(invalid_name=invalid_name):
+                payload = valid_payload()
+                payload["final_results"][0]["category_name"] = invalid_name
+
+                self.assert_payload_failure_no_raise(
+                    payload,
+                    "final_result_category_name_mismatch:1",
+                )
+
     def test_gate_required_facts_must_match_independent_contract_exactly(self):
         adversarial_lists = (
             [],
@@ -683,6 +731,72 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 result = finalize_judge_output(params)
 
                 self.assert_failure(result, "gate_material_availability_contract_mismatch")
+
+    def test_gate_allowed_source_labels_contract_is_validated(self):
+        def missing(gates):
+            del gates["allowed_source_labels"]
+
+        def duplicate(gates):
+            gates["allowed_source_labels"].append(gates["allowed_source_labels"][0])
+
+        def non_string(gates):
+            gates["allowed_source_labels"][0] = 1
+
+        def blank(gates):
+            gates["allowed_source_labels"][0] = "   "
+
+        def malformed(gates):
+            gates["allowed_source_labels"][0] = "Segment unknown frame"
+
+        def unavailable_channel(gates):
+            gates["material_availability"]["segment_frame"] = False
+
+        for mutation in (
+            missing,
+            duplicate,
+            non_string,
+            blank,
+            malformed,
+            unavailable_channel,
+        ):
+            with self.subTest(mutation=mutation.__name__):
+                params = build_params()
+                gates = json.loads(params["boundary_gates_json"])
+                mutation(gates)
+                params["boundary_gates_json"] = gates
+
+                result = finalize_judge_output(params)
+
+                self.assert_failure(result, "gate_allowed_source_labels_contract_mismatch")
+
+    def test_room_id_is_required_and_must_match_payload(self):
+        payload = valid_payload()
+
+        missing_params = build_params(payload)
+        del missing_params["room_id"]
+        self.assert_failure(
+            finalize_judge_output(missing_params),
+            "room_id_missing_or_invalid",
+        )
+
+        for invalid_room_id in (1, True, None, "   "):
+            with self.subTest(invalid_room_id=invalid_room_id):
+                params = build_params(payload)
+                params["room_id"] = invalid_room_id
+                self.assert_failure(
+                    finalize_judge_output(params),
+                    "room_id_missing_or_invalid",
+                )
+
+        mismatch_params = build_params(payload)
+        mismatch_params["room_id"] = "different-room"
+        self.assert_failure(
+            finalize_judge_output(mismatch_params),
+            "room_id_mismatch",
+        )
+
+        matching_result = finalize_judge_output(build_params(payload))
+        self.assertEqual(matching_result["finalization_status"], "pass")
 
     def test_fact_object_requires_exact_keys_when_true_detail_is_missing(self):
         payload = valid_payload()
@@ -909,6 +1023,52 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         self.assert_decision(finalized, 1, "no_hit")
         self.assertEqual(finalized["boundary_overrides"], [])
 
+    def test_unpublished_segment_identity_cannot_promote_category_1(self):
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "sexualized_exposure_or_behavior_found",
+            source="Segment #999 frame",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assert_decision(finalized, 1, "no_hit")
+
+    def test_category_3_cannot_promote_from_pearl_only_dominance(self):
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "unrelated_content_dominates",
+            source="Pearl product #1 image",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assert_decision(finalized, 3, "no_hit")
+
+    def test_category_6_live_facts_cannot_be_supported_by_pearl_only_sources(self):
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "sustained_product_promotion_found",
+            source="Pearl product #1 title",
+        )
+        set_fact(
+            payload,
+            "real_physical_product_display_found",
+            source="Pearl product #1 image",
+        )
+        set_fact(
+            payload,
+            "extremely_low_information_across_relevant_segments",
+            source="Pearl product #1 title",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assert_decision(finalized, 6, "no_hit")
+
     def test_real_physical_display_blocks_category_5(self):
         payload = valid_payload()
         set_decision(payload, 5, "hit")
@@ -978,6 +1138,46 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
                 self.assert_decision(finalized, 19, "no_hit")
+
+    def test_category_19_disabled_reason_precedes_generic_evidence_demotion(self):
+        payload = valid_payload()
+        set_decision(payload, 19, "hit")
+        customize_hit(
+            payload,
+            19,
+            [
+                {
+                    "source": "Comment Interaction",
+                    "quote_or_visual_detail": "Unauthorized category 19 evidence.",
+                    "reason": "Disabled rule must remain authoritative.",
+                }
+            ],
+            "Original category 19 hit.",
+            "medium",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        category_19 = category_result(finalized, 19)
+        category_19_audits = [
+            item
+            for item in finalized["boundary_overrides"]
+            if item["category_id"] == 19
+        ]
+
+        self.assertEqual(category_19["decision"], "no_hit")
+        self.assertIn("禁用", category_19["judge_reason"])
+        self.assertTrue(
+            any(
+                item["priority_rule_applied"] == "boundary_gate_category_19"
+                for item in category_19_audits
+            )
+        )
+        self.assertFalse(
+            any(
+                item["priority_rule_applied"] == "boundary_evidence_category_19"
+                for item in category_19_audits
+            )
+        )
 
     def test_unrelated_content_reroutes_original_categories_5_and_6_to_3(self):
         payload = valid_payload()
@@ -1072,7 +1272,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         set_decision(payload, 6, "hit")
         original_evidence = [
             {
-                "source": "Segment #7 frame",
+                "source": "Segment #1 frame",
                 "quote_or_visual_detail": "Only a static product card is visible.",
                 "reason": "Original category 5 evidence.",
             }
@@ -1395,6 +1595,68 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             [item["source"] for item in category_15["evidence"]],
         )
 
+    def test_category_15_rejects_asr_as_bound_product_evidence(self):
+        payload = valid_payload()
+        set_fact(payload, "live_promoted_item_evidence_found", source="Segment #1 frame")
+        set_fact(payload, "bound_product_evidence_found", source="Segment #1 ASR")
+        set_fact(payload, "core_product_contradiction_found", source="Segment #1 ASR")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assert_decision(finalized, 15, "no_hit")
+
+    def test_unpublished_pearl_identities_cannot_promote_category_15(self):
+        payload = valid_payload()
+        set_fact_sources(
+            payload,
+            "category_15_non_ipp_illegal_basis_found",
+            ("Pearl product #999 title", "Pearl product #999 image"),
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assert_decision(finalized, 15, "no_hit")
+
+    def test_category_15_same_source_with_different_details_counts_as_one_unit(self):
+        payload = valid_payload()
+        set_decision(payload, 15, "hit")
+        original_evidence = [
+            {
+                "source": "Segment #1 frame",
+                "quote_or_visual_detail": "First model detail.",
+                "reason": "Original model evidence.",
+            },
+            {
+                "source": "Segment #1 frame",
+                "quote_or_visual_detail": "Second model detail.",
+                "reason": "Original model evidence.",
+            },
+        ]
+        customize_hit(
+            payload,
+            15,
+            original_evidence,
+            "Original category 15 hit.",
+            "medium",
+        )
+        set_fact(payload, "live_promoted_item_evidence_found", source="Segment #1 frame")
+        set_fact(payload, "bound_product_evidence_found", source="Pearl product #1 image")
+        set_fact(payload, "core_product_contradiction_found", source="Segment #1 ASR")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        category_15 = category_result(finalized, 15)
+
+        self.assertEqual(category_15["decision"], "hit")
+        self.assertNotEqual(category_15["evidence"], original_evidence)
+        self.assertEqual(category_15["evidence_count"], 3)
+        self.assertTrue(
+            any(
+                item["category_id"] == 15
+                and item["priority_rule_applied"] == "boundary_evidence_repair_category_15"
+                for item in finalized["boundary_overrides"]
+            )
+        )
+
     def test_non_ipp_category_15_fact_does_not_reroute_category_8(self):
         payload = valid_payload()
         set_decision(payload, 8, "hit")
@@ -1440,6 +1702,25 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             "hostile_shaming_fear_evidence_found",
             source="Segment #1 ASR",
             detail=shared_detail,
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assert_decision(finalized, 18, "no_hit")
+
+    def test_category_18_same_source_with_different_details_is_one_unit(self):
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "sustained_negative_emotion_found",
+            source="Segment #1 ASR",
+            detail="First model-authored detail.",
+        )
+        set_fact(
+            payload,
+            "hostile_shaming_fear_evidence_found",
+            source="Segment #1 ASR",
+            detail="Second model-authored detail.",
         )
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
@@ -1585,10 +1866,10 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             self.assertEqual(item["materials_used"], [])
             self.assertFalse(item["product_image_used"])
         self.assertEqual(category_result(finalized, 4)["confidence"], "medium")
-        self.assertEqual(
-            category_result(finalized, 4)["priority_rule_applied"],
-            ["existing_rule"],
-        )
+        category_4_rules = category_result(finalized, 4)["priority_rule_applied"]
+        self.assertIn("existing_rule", category_4_rules)
+        self.assertIn("boundary_confidence_normalization_category_4", category_4_rules)
+        self.assertIn("boundary_non_hit_cleanup_category_4", category_4_rules)
 
     def test_category_7_product_image_evidence_cannot_preserve_hit_even_with_false_flag(self):
         payload = valid_payload()
@@ -1624,12 +1905,22 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         category_7["materials_used"] = ["pearl_product_image"]
         category_7["product_image_used"] = True
 
-        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        result = finalize_judge_output(build_params(payload))
+        finalized = finalized_payload(result)
         category_7 = category_result(finalized, 7)
 
+        self.assertEqual(result["finalization_status"], "warning")
         self.assertEqual(category_7["decision"], "hit")
         self.assertEqual(category_7["materials_used"], ["segment_frame"])
         self.assertFalse(category_7["product_image_used"])
+        self.assertTrue(
+            any(
+                item["category_id"] == 7
+                and item["priority_rule_applied"]
+                == "boundary_evidence_metadata_repair_category_7"
+                for item in finalized["boundary_overrides"]
+            )
+        )
 
     def test_category_7_filters_forbidden_evidence_when_valid_frame_remains(self):
         payload = valid_payload()
@@ -1755,7 +2046,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         set_decision(payload, 12, "hit")
         original_evidence = [
             {
-                "source": "Segment #4 ASR",
+                "source": "Segment #1 ASR",
                 "quote_or_visual_detail": "Original live claim quote.",
                 "reason": "Original model threshold analysis.",
             }
@@ -1807,6 +2098,134 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             finalized["boundary_overrides"],
         )
         self.assertEqual(json.loads(result["finalizer_errors"]), [])
+
+    def test_top_level_coverage_and_policy_checks_are_rebuilt_unconditionally(self):
+        for missing in (False, True):
+            with self.subTest(missing=missing):
+                payload = valid_payload()
+                if missing:
+                    del payload["coverage_check"]
+                    del payload["policy_checks"]
+                else:
+                    payload["coverage_check"] = None
+                    payload["policy_checks"] = None
+
+                finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+                self.assertEqual(
+                    finalized["coverage_check"],
+                    {
+                        "expected_category_count": 19,
+                        "actual_category_count": 19,
+                        "missing_category_ids": [],
+                        "extra_category_ids": [],
+                        "hit_no_hit_overlap_category_ids": [],
+                    },
+                )
+                self.assertEqual(
+                    finalized["policy_checks"],
+                    {
+                        "product_image_permission_violations": [],
+                        "exclusive_priority_applied": [],
+                        "threshold_recheck_warnings": [],
+                    },
+                )
+
+    def test_stale_policy_lists_are_rebuilt_and_valid_threshold_warnings_preserved(self):
+        payload = valid_payload()
+        payload["coverage_check"] = {
+            "expected_category_count": 99,
+            "actual_category_count": 0,
+            "missing_category_ids": [1],
+            "extra_category_ids": [99],
+            "hit_no_hit_overlap_category_ids": [1],
+        }
+        payload["policy_checks"] = {
+            "product_image_permission_violations": [7],
+            "exclusive_priority_applied": ["stale_priority"],
+            "threshold_recheck_warnings": ["keep_warning"],
+        }
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assertEqual(finalized["coverage_check"]["actual_category_count"], 19)
+        self.assertEqual(finalized["coverage_check"]["missing_category_ids"], [])
+        self.assertEqual(finalized["coverage_check"]["extra_category_ids"], [])
+        self.assertEqual(
+            finalized["coverage_check"]["hit_no_hit_overlap_category_ids"],
+            [],
+        )
+        self.assertEqual(
+            finalized["policy_checks"],
+            {
+                "product_image_permission_violations": [],
+                "exclusive_priority_applied": [],
+                "threshold_recheck_warnings": ["keep_warning"],
+            },
+        )
+
+        payload = valid_payload()
+        payload["policy_checks"]["threshold_recheck_warnings"] = [1]
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        self.assertEqual(
+            finalized["policy_checks"]["threshold_recheck_warnings"],
+            [],
+        )
+
+    def test_product_image_permission_fields_are_recomputed_from_final_evidence(self):
+        payload = valid_payload()
+        set_decision(payload, 3, "hit")
+        customize_hit(
+            payload,
+            3,
+            [
+                {
+                    "source": "Pearl product #1 image",
+                    "quote_or_visual_detail": "Valid category 3 product comparison.",
+                    "reason": "Product evidence is permitted for category 3.",
+                }
+            ],
+            "Original category 3 hit.",
+            "medium",
+        )
+        category_result(payload, 3)["product_image_permission_ok"] = False
+        set_fact(payload, "unrelated_content_dominates", source="Segment #1 ASR")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+        category_3 = category_result(finalized, 3)
+
+        self.assertTrue(category_3["product_image_used"])
+        self.assertTrue(category_3["product_image_permission_ok"])
+        self.assertEqual(
+            finalized["policy_checks"]["product_image_permission_violations"],
+            [],
+        )
+
+    def test_confidence_and_stale_non_hit_repairs_are_audited(self):
+        payload = valid_payload()
+        category_4 = category_result(payload, 4)
+        category_4["confidence"] = "unexpected"
+        category_4["evidence"] = [
+            {
+                "source": "Segment #1 frame",
+                "quote_or_visual_detail": "Stale no-hit evidence.",
+                "reason": "Must be removed with audit.",
+            }
+        ]
+        category_4["evidence_count"] = 1
+        category_4["materials_used"] = ["segment_frame"]
+
+        result = finalize_judge_output(build_params(payload))
+        finalized = finalized_payload(result)
+        category_4_rules = {
+            item["priority_rule_applied"]
+            for item in finalized["boundary_overrides"]
+            if item["category_id"] == 4
+        }
+
+        self.assertEqual(result["finalization_status"], "warning")
+        self.assertIn("boundary_confidence_normalization_category_4", category_4_rules)
+        self.assertIn("boundary_non_hit_cleanup_category_4", category_4_rules)
 
     def test_fully_valid_payload_passes_without_business_overrides(self):
         payload = valid_payload()

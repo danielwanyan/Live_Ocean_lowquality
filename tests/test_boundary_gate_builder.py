@@ -17,6 +17,14 @@ from live_boundary_gate_builder import (
     build_boundary_gate_output,
     main,
 )
+from live_boundary_finalizer import (
+    CATEGORY_ALLOWED_MATERIALS,
+    EXPECTED_GATE_DEFINITIONS as FINALIZER_GATE_DEFINITIONS,
+    EXPECTED_REQUIRED_FACTS as FINALIZER_REQUIRED_FACTS,
+    EXPECTED_REROUTES as FINALIZER_REROUTES,
+    FACT_ALLOWED_MATERIALS,
+    MINIMUM_DISTINCT_EVIDENCE_UNITS,
+)
 
 
 EXPECTED_CONTRACT_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
@@ -172,9 +180,208 @@ EXPECTED_RETURN_KEYS = {
     "boundary_contract_version",
     "boundary_builder_warnings",
 }
+EXPECTED_CATEGORY_ALLOWED_MATERIALS = {
+    1: {"segment_frame", "segment_asr"},
+    2: {"segment_frame", "segment_asr"},
+    3: {"segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"},
+    4: {"segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"},
+    5: {"segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"},
+    6: {"segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"},
+    7: {"segment_frame"},
+    8: {"segment_asr", "segment_frame_visible_text"},
+    9: {"segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"},
+    10: {"segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"},
+    11: {"segment_frame", "segment_asr"},
+    12: {"segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"},
+    13: {"segment_frame", "segment_asr"},
+    14: {"segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"},
+    15: {"segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"},
+    16: {"segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"},
+    17: {"segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"},
+    18: {"segment_frame", "segment_asr", "comment_interaction"},
+    19: {"segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"},
+}
+EXPECTED_MINIMUM_EVIDENCE_UNITS = {
+    category_id: 2 if category_id in {13, 15, 16, 17, 18} else 1
+    for category_id in range(1, 20)
+}
+
+
+def thaw_immutable(value):
+    if type(value) is tuple:
+        return [thaw_immutable(item) for item in value]
+    if hasattr(value, "items"):
+        return {key: thaw_immutable(item) for key, item in value.items()}
+    return value
 
 
 class BoundaryGateBuilderTest(unittest.TestCase):
+    def test_builder_and_finalizer_contract_mirrors_match_independent_literals(self):
+        self.assertEqual(REQUIRED_FACTS, EXPECTED_REQUIRED_FACTS)
+        self.assertEqual(list(FINALIZER_REQUIRED_FACTS), EXPECTED_REQUIRED_FACTS)
+        self.assertEqual(GATE_DEFINITIONS, EXPECTED_GATE_DEFINITIONS)
+        self.assertEqual(
+            thaw_immutable(FINALIZER_GATE_DEFINITIONS),
+            EXPECTED_GATE_DEFINITIONS,
+        )
+        self.assertEqual(REROUTES, EXPECTED_REROUTES)
+        self.assertEqual(thaw_immutable(FINALIZER_REROUTES), EXPECTED_REROUTES)
+        self.assertEqual(
+            {category_id: set(materials) for category_id, materials in CATEGORY_ALLOWED_MATERIALS.items()},
+            EXPECTED_CATEGORY_ALLOWED_MATERIALS,
+        )
+        self.assertEqual(
+            dict(MINIMUM_DISTINCT_EVIDENCE_UNITS),
+            EXPECTED_MINIMUM_EVIDENCE_UNITS,
+        )
+        self.assertEqual(set(FACT_ALLOWED_MATERIALS), set(EXPECTED_REQUIRED_FACTS))
+
+    def test_publishes_exact_sorted_source_labels_from_indexed_materials(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(
+                    [
+                        {
+                            "segment_index": 2,
+                            "asr_summary": "Second segment ASR.",
+                            "frame_urls": [],
+                        },
+                        {
+                            "segment_index": 1,
+                            "asr_summary": "First segment ASR.",
+                            "frame_urls": ["https://example.com/frame-1.jpg"],
+                        },
+                    ]
+                ),
+                "comment_interaction": "A viewer asks a question.",
+                "product_catalog_json": json.dumps(
+                    [
+                        {
+                            "product_index": 2,
+                            "title": "Second product",
+                            "image_urls": ["https://example.com/product-2.jpg"],
+                        },
+                        {
+                            "product_index": 1,
+                            "title": "First product",
+                            "image_urls": [],
+                        },
+                    ]
+                ),
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertEqual(
+            gates["allowed_source_labels"],
+            [
+                "Comment Interaction",
+                "Pearl product #1 title",
+                "Pearl product #2 image",
+                "Pearl product #2 title",
+                "Segment #1 ASR",
+                "Segment #1 frame",
+                "Segment #1 visible text",
+                "Segment #2 ASR",
+            ],
+        )
+
+    def test_missing_or_malformed_indices_do_not_fabricate_source_labels(self):
+        invalid_indices = (None, True, 0, -1, "1", 1.0)
+        segments = [
+            {
+                "segment_index": value,
+                "asr_summary": "ASR without a valid identity.",
+                "frame_urls": ["https://example.com/frame.jpg"],
+            }
+            for value in invalid_indices
+        ]
+        products = [
+            {
+                "product_index": value,
+                "title": "Product without a valid identity.",
+                "image_urls": ["https://example.com/product.jpg"],
+            }
+            for value in invalid_indices
+        ]
+
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(segments),
+                "comment_interaction": "",
+                "product_catalog_json": json.dumps(products),
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertEqual(gates["allowed_source_labels"], [])
+
+    def test_repeated_indexed_inputs_dedupe_source_labels(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(
+                    [
+                        {
+                            "segment_index": 1,
+                            "asr_summary": "First copy.",
+                            "frame_urls": ["https://example.com/frame-1.jpg"],
+                        },
+                        {
+                            "segment_index": 1,
+                            "asr_summary": "Second copy.",
+                            "frame_urls": ["https://example.com/frame-2.jpg"],
+                        },
+                    ]
+                ),
+                "comment_interaction": "Repeated comment identity.",
+                "product_catalog_json": json.dumps(
+                    [
+                        {
+                            "product_index": 1,
+                            "title": "First copy",
+                            "image_urls": ["https://example.com/product-1.jpg"],
+                        },
+                        {
+                            "product_index": 1,
+                            "title": "Second copy",
+                            "image_urls": ["https://example.com/product-2.jpg"],
+                        },
+                    ]
+                ),
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        labels = json.loads(result["boundary_gates_json"])["allowed_source_labels"]
+
+        self.assertEqual(len(labels), len(set(labels)))
+        self.assertEqual(labels, sorted(labels))
+        self.assertEqual(labels.count("Segment #1 frame"), 1)
+        self.assertEqual(labels.count("Pearl product #1 image"), 1)
+
+    def test_source_labels_only_use_available_channels(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(
+                    [{"segment_index": 1, "asr_summary": "", "frame_urls": []}]
+                ),
+                "comment_interaction": "",
+                "product_catalog_json": json.dumps(
+                    [{"product_index": 1, "title": "", "image_urls": []}]
+                ),
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertEqual(gates["allowed_source_labels"], [])
+        self.assertTrue(not any(gates["material_availability"].values()))
+
     def test_builds_versioned_gate_contract_with_available_materials(self):
         result = build_boundary_gate_output(
             {
