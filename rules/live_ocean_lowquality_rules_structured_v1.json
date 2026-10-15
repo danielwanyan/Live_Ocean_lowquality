@@ -344,7 +344,7 @@
       ],
       "product_image_allowed": true,
       "trigger_threshold": "Independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other non-IPP subtypes retain their cumulative at least 2 evidence threshold. IPP specifically requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction.",
-      "hit_definition_zh": "直播中销售法律法规禁止商品、假冒仿冒伪劣商品，或直播展示商品与绑定商品/商品图在实体、类目、用途上明显不一致，构成货不对板/IPP。",
+      "hit_definition_zh": "直播中销售法律法规禁止商品、假冒仿冒伪劣商品，或直播推广商品与绑定商品/商品图在实体、类目、用途、核心数量或关键规格上存在明确矛盾，构成货不对板/IPP。",
       "judge_focus_en": "For IPP/product mismatch, require live promoted item evidence, bound product evidence, and a core entity/category/use/quantity/spec contradiction. A minor variant or background difference is blocked from IPP. Preserve independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other non-IPP subtypes. Do not route product mismatch to category 8 language.",
       "exemptions": [
         "Normal legal goods, regular brand goods, and ordinary product demonstrations.",

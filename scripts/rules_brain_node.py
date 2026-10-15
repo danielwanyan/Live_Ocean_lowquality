@@ -1,8 +1,10 @@
+import hashlib
 import json
 import re
 
 
 BOUNDARY_CONTRACT_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
+CANONICAL_STRUCTURED_RULES_DIGEST = "b9b103e997c61b0a222e6b916049d2854bde6ac32b27b8860633b6118234d075"
 PRODUCT_IMAGE_ALLOWED_IDS = [3, 5, 6, 9, 10, 12, 15, 16, 17]
 
 FALLBACK_CATEGORIES = [
@@ -88,6 +90,39 @@ EXPECTED_PRIORITY_MAPPINGS = {
     "priority_1_over_19": (1, 19),
 }
 
+POLICY_TOP_LEVEL_FIELDS = (
+    "version",
+    "boundary_contract_version",
+    "fixed_category_count",
+    "global_rules",
+    "source_language",
+    "judge_instruction_language",
+    "final_report_language",
+    "product_image_allowed_category_ids",
+    "judge_output_requirements",
+    "final_report_requirements",
+)
+
+POLICY_PRIORITY_FIELDS = (
+    "id",
+    "higher_priority_category_id",
+    "lower_priority_category_id",
+    "rule_en",
+    "rule_zh",
+)
+
+POLICY_CATEGORY_FIELDS = (
+    "category_id",
+    "category_name",
+    "english_key",
+    "allowed_materials",
+    "product_image_allowed",
+    "trigger_threshold",
+    "hit_definition_zh",
+    "judge_focus_en",
+    "exemptions",
+)
+
 
 def _text(value):
     if value is None:
@@ -132,6 +167,52 @@ def _find_param(params, names):
 def _parse_json_array(value):
     parsed = _parse_json(_unwrap_body(value), [])
     return parsed if isinstance(parsed, list) else []
+
+
+def _project_policy_items(value, fields):
+    if type(value) is not list:
+        return value
+    projected = []
+    for item in value:
+        if type(item) is not dict:
+            projected.append(item)
+            continue
+        projected.append({field: item.get(field) for field in fields})
+    return projected
+
+
+def _policy_projection(rules):
+    if type(rules) is not dict:
+        return rules
+    projection = {field: rules.get(field) for field in POLICY_TOP_LEVEL_FIELDS}
+    projection["exclusive_priority_rules"] = _project_policy_items(
+        rules.get("exclusive_priority_rules"),
+        POLICY_PRIORITY_FIELDS,
+    )
+    projection["categories"] = _project_policy_items(
+        rules.get("categories"),
+        POLICY_CATEGORY_FIELDS,
+    )
+    projection["additional_judge_output_fields"] = {
+        key: rules.get(key)
+        for key in sorted(rules)
+        if key.startswith("judge_output") and key != "judge_output_requirements"
+    }
+    return projection
+
+
+def _policy_digest(rules):
+    try:
+        normalized = json.dumps(
+            _policy_projection(rules),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    except Exception:
+        return ""
 
 
 def _validate_rules_contract(rules):
@@ -202,6 +283,11 @@ def _validate_rules_contract(rules):
         seen_priority_ids.add(rule_id)
     if seen_priority_ids != set(EXPECTED_PRIORITY_MAPPINGS):
         return "exclusive priority IDs mismatch"
+    policy_digest = _policy_digest(rules)
+    if not policy_digest:
+        return "policy signature could not be normalized"
+    if policy_digest != CANONICAL_STRUCTURED_RULES_DIGEST:
+        return "policy signature mismatch"
     return ""
 
 

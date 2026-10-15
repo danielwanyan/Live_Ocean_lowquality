@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import os
 import re
@@ -39,6 +40,10 @@ EXPECTED_CATEGORY_9_HIT_DEFINITION_ZH = (
 EXPECTED_CATEGORY_12_HIT_DEFINITION_ZH = (
     "仅当直播画面或 ASR 中存在具体商品功能效果主张，且该主张有实质误导依据并达到现行覆盖度/强度阈值时命中；"
     "商品物料仅可佐证，不能单独构成命中。"
+)
+EXPECTED_CATEGORY_15_HIT_DEFINITION_ZH = (
+    "直播中销售法律法规禁止商品、假冒仿冒伪劣商品，或直播推广商品与绑定商品/商品图在实体、类目、用途、"
+    "核心数量或关键规格上存在明确矛盾，构成货不对板/IPP。"
 )
 EXPECTED_COMPACT_CATEGORY_11_HIT = (
     "Hit: a clear replay/loop/pre-recorded indicator is required, such as replay/loop labels, "
@@ -355,9 +360,14 @@ def _validator_params(payload=None, **extra):
 
 
 class RuleCalibrationTest(unittest.TestCase):
-    def _assert_rules_brain_fallback(self, candidate_rules):
+    def _assert_rules_brain_fallback(self, candidate_rules, serialize=True):
+        rules_json = (
+            json.dumps(candidate_rules, ensure_ascii=False)
+            if serialize
+            else candidate_rules
+        )
         result = build_rules_brain_output(
-            {"rules_json": json.dumps(candidate_rules, ensure_ascii=False)}
+            {"rules_json": rules_json}
         )
         category_catalog = json.loads(result["category_catalog"])
 
@@ -382,6 +392,17 @@ class RuleCalibrationTest(unittest.TestCase):
             )
         )
         self.assertNotIn("altered priority text", result["priority_rules_context"])
+
+    def _assert_policy_drift_falls_back(self, candidate_rules, serialize=True):
+        digest_function = getattr(rules_brain_node, "_policy_digest", None)
+        canonical_digest = getattr(
+            rules_brain_node,
+            "CANONICAL_STRUCTURED_RULES_DIGEST",
+            None,
+        )
+        if digest_function is not None and canonical_digest:
+            self.assertNotEqual(digest_function(candidate_rules), canonical_digest)
+        self._assert_rules_brain_fallback(candidate_rules, serialize=serialize)
 
     def test_structured_rules_use_exact_v3_contract_version(self):
         rules = _load_structured_rules()
@@ -510,6 +531,161 @@ class RuleCalibrationTest(unittest.TestCase):
         for name, candidate_rules in cases.items():
             with self.subTest(name=name):
                 self._assert_rules_brain_fallback(candidate_rules)
+
+    def test_checked_in_structured_rules_match_embedded_policy_digest(self):
+        digest_function = getattr(rules_brain_node, "_policy_digest", None)
+        projection_function = getattr(rules_brain_node, "_policy_projection", None)
+        canonical_digest = getattr(
+            rules_brain_node,
+            "CANONICAL_STRUCTURED_RULES_DIGEST",
+            None,
+        )
+
+        self.assertIsNotNone(digest_function)
+        self.assertIsNotNone(projection_function)
+        self.assertIsInstance(canonical_digest, str)
+        self.assertRegex(canonical_digest or "", r"^[0-9a-f]{64}$")
+        if digest_function is not None and projection_function is not None:
+            rules = _load_structured_rules()
+            normalized = json.dumps(
+                projection_function(rules),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            independently_computed_digest = hashlib.sha256(
+                normalized.encode("utf-8")
+            ).hexdigest()
+            self.assertEqual(
+                digest_function(rules),
+                independently_computed_digest,
+            )
+            self.assertEqual(
+                independently_computed_digest,
+                canonical_digest,
+            )
+
+    def test_rules_brain_digest_rejects_top_level_policy_drift(self):
+        canonical = _load_structured_rules()
+        altered_values = {
+            "version": "stale-version",
+            "boundary_contract_version": "stale-boundary-version",
+            "fixed_category_count": 18,
+            "global_rules": {"full_coverage_required": "altered policy"},
+            "product_image_allowed_category_ids": PRODUCT_IMAGE_ALLOWED_IDS[:-1],
+            "exclusive_priority_rules": list(
+                reversed(canonical["exclusive_priority_rules"])
+            ),
+            "judge_output_requirements": {"raw_json_only": False},
+            "final_report_requirements": {"first_section": "altered report"},
+            "final_report_language": "en",
+            "source_language": "en",
+            "judge_instruction_language": "zh-CN",
+        }
+
+        for field, altered_value in altered_values.items():
+            altered = copy.deepcopy(canonical)
+            altered[field] = copy.deepcopy(altered_value)
+            with self.subTest(field=field, mutation="altered"):
+                self._assert_policy_drift_falls_back(altered)
+
+            deleted = copy.deepcopy(canonical)
+            del deleted[field]
+            with self.subTest(field=field, mutation="deleted"):
+                self._assert_policy_drift_falls_back(deleted)
+
+        for judge_output_field in canonical["judge_output_requirements"]:
+            altered = copy.deepcopy(canonical)
+            altered["judge_output_requirements"][judge_output_field] = "altered"
+            with self.subTest(
+                field="judge_output_requirements.%s" % judge_output_field,
+                mutation="altered",
+            ):
+                self._assert_policy_drift_falls_back(altered)
+
+            deleted = copy.deepcopy(canonical)
+            del deleted["judge_output_requirements"][judge_output_field]
+            with self.subTest(
+                field="judge_output_requirements.%s" % judge_output_field,
+                mutation="deleted",
+            ):
+                self._assert_policy_drift_falls_back(deleted)
+
+        for final_report_field in canonical["final_report_requirements"]:
+            altered = copy.deepcopy(canonical)
+            altered["final_report_requirements"][final_report_field] = "altered"
+            with self.subTest(
+                field="final_report_requirements.%s" % final_report_field,
+                mutation="altered",
+            ):
+                self._assert_policy_drift_falls_back(altered)
+
+            deleted = copy.deepcopy(canonical)
+            del deleted["final_report_requirements"][final_report_field]
+            with self.subTest(
+                field="final_report_requirements.%s" % final_report_field,
+                mutation="deleted",
+            ):
+                self._assert_policy_drift_falls_back(deleted)
+
+        added_judge_output = copy.deepcopy(canonical)
+        added_judge_output["judge_output"] = {"fields": ["altered"]}
+        with self.subTest(field="judge_output", mutation="added"):
+            self._assert_policy_drift_falls_back(added_judge_output)
+
+    def test_rules_brain_digest_rejects_every_category_policy_field_drift(self):
+        canonical = _load_structured_rules()
+        category_fields = (
+            "category_id",
+            "category_name",
+            "english_key",
+            "allowed_materials",
+            "product_image_allowed",
+            "trigger_threshold",
+            "hit_definition_zh",
+            "judge_focus_en",
+            "exemptions",
+        )
+
+        for category_index in range(19):
+            for field in category_fields:
+                altered = copy.deepcopy(canonical)
+                category = altered["categories"][category_index]
+                if field == "category_id":
+                    category[field] = category[field] + 100
+                elif field == "product_image_allowed":
+                    category[field] = not category[field]
+                elif field in ("allowed_materials", "exemptions"):
+                    category[field] = list(category[field]) + ["altered"]
+                else:
+                    category[field] = str(category[field]) + " altered"
+                with self.subTest(
+                    category_id=category_index + 1,
+                    field=field,
+                    mutation="altered",
+                ):
+                    self._assert_policy_drift_falls_back(altered)
+
+                deleted = copy.deepcopy(canonical)
+                del deleted["categories"][category_index][field]
+                with self.subTest(
+                    category_id=category_index + 1,
+                    field=field,
+                    mutation="deleted",
+                ):
+                    self._assert_policy_drift_falls_back(deleted)
+
+        reversed_categories = copy.deepcopy(canonical)
+        reversed_categories["categories"].reverse()
+        with self.subTest(field="categories", mutation="reordered"):
+            self._assert_policy_drift_falls_back(reversed_categories)
+
+    def test_rules_brain_digest_handles_unserializable_policy_values_safely(self):
+        rules = copy.deepcopy(_load_structured_rules())
+        rules["global_rules"]["unserializable"] = {"not", "json"}
+
+        self._assert_policy_drift_falls_back(rules, serialize=False)
 
     def test_rules_brain_rejects_invalid_category_contracts(self):
         empty_categories = copy.deepcopy(_load_structured_rules())
@@ -684,6 +860,18 @@ class RuleCalibrationTest(unittest.TestCase):
             EXPECTED_CATEGORY_12_HIT_DEFINITION_ZH,
         )
         self.assertNotIn("直播或商品物料对商品功能效果作出", by_id[12]["hit_definition_zh"])
+
+    def test_structured_category_15_definition_includes_quantity_and_spec_ipp(self):
+        by_id = {
+            item["category_id"]: item for item in _load_structured_rules()["categories"]
+        }
+
+        self.assertEqual(
+            by_id[15]["hit_definition_zh"],
+            EXPECTED_CATEGORY_15_HIT_DEFINITION_ZH,
+        )
+        self.assertNotIn("在实体、类目、用途上明显不一致", by_id[15]["hit_definition_zh"])
+        self.assertIn("minor variant", _category_text(by_id[15]))
 
     def test_rules_brain_invalid_rules_json_uses_exact_v3_fallback_with_warning(self):
         result = build_rules_brain_output({"rules_json": "{"})
