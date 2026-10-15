@@ -175,16 +175,8 @@ def _parse_json_list(value):
     return parsed if isinstance(parsed, list) else []
 
 
-def _has_nonempty_value(value):
-    if value is None:
-        return False
-    if isinstance(value, str):
-        return bool(value.strip())
-    if isinstance(value, (list, tuple, set)):
-        return any(_has_nonempty_value(item) for item in value)
-    if isinstance(value, dict):
-        return bool(value)
-    return bool(value)
+def _has_nonblank_string(value):
+    return isinstance(value, str) and bool(value.strip())
 
 
 def _has_nonempty_list_field(value):
@@ -198,7 +190,7 @@ def _has_nonempty_list_field(value):
             return False
     if not isinstance(value, list):
         return False
-    return any(_has_nonempty_value(item) for item in value)
+    return any(_has_nonblank_string(item) for item in value)
 
 
 def _build_material_availability(params):
@@ -210,11 +202,11 @@ def _build_material_availability(params):
         for segment in segments
     )
     segment_asr = any(
-        isinstance(segment, dict) and bool(_text(segment.get("asr_summary")))
+        isinstance(segment, dict) and _has_nonblank_string(segment.get("asr_summary"))
         for segment in segments
     )
     pearl_product_title = any(
-        isinstance(product, dict) and bool(_text(product.get("title")))
+        isinstance(product, dict) and _has_nonblank_string(product.get("title"))
         for product in products
     )
     pearl_product_image = any(
@@ -225,7 +217,7 @@ def _build_material_availability(params):
     return {
         "segment_frame": segment_frame,
         "segment_asr": segment_asr,
-        "comment_interaction": _has_nonempty_value(params.get("comment_interaction")),
+        "comment_interaction": _has_nonblank_string(params.get("comment_interaction")),
         "pearl_product_title": pearl_product_title,
         "pearl_product_image": pearl_product_image,
     }
