@@ -394,27 +394,45 @@ def _valid_finalizer_payload():
 
 
 def _finalizer_params(payload):
+    material_summary = payload.get("material_summary", {})
+    segment_count = material_summary.get("segment_count", 0)
+    product_count = material_summary.get("product_count", 0)
+    segments_json = json.dumps(
+        [
+            {
+                "segment_index": index,
+                "asr_summary": "The host explains the promoted product.",
+                "frame_urls": ["https://example.com/live-frame-%d.jpg" % index],
+            }
+            for index in range(1, segment_count + 1)
+        ]
+    )
+    comment_interaction = (
+        "A viewer asks about the product size."
+        if material_summary.get("comment_interaction_available") is True
+        else ""
+    )
+    product_catalog_json = json.dumps(
+        [
+            {
+                "product_index": index,
+                "title": "Example product %d" % index,
+                "image_urls": ["https://example.com/product-%d.jpg" % index],
+            }
+            for index in range(1, product_count + 1)
+        ]
+    )
+    material_quality_warning = json.dumps(
+        material_summary.get("material_quality_warning", [])
+    )
     gate_output = build_boundary_gate_output(
         {
-            "segments_json": json.dumps(
-                [
-                    {
-                        "segment_index": 1,
-                        "asr_summary": "The host explains the promoted product.",
-                        "frame_urls": ["https://example.com/live-frame.jpg"],
-                    }
-                ]
-            ),
-            "comment_interaction": "A viewer asks about the product size.",
-            "product_catalog_json": json.dumps(
-                [
-                    {
-                        "product_index": 1,
-                        "title": "Example product",
-                        "image_urls": ["https://example.com/product.jpg"],
-                    }
-                ]
-            ),
+            "segments_json": segments_json,
+            "segment_count": segment_count,
+            "comment_interaction": comment_interaction,
+            "product_catalog_json": product_catalog_json,
+            "product_count": product_count,
+            "material_quality_warning": material_quality_warning,
             "rules_version": BOUNDARY_CONTRACT_VERSION,
         }
     )
@@ -425,6 +443,12 @@ def _finalizer_params(payload):
         "boundary_contract_version": gate_output["boundary_contract_version"],
         "rules_version": BOUNDARY_CONTRACT_VERSION,
         "room_id": payload["room_id"],
+        "segments_json": segments_json,
+        "segment_count": segment_count,
+        "comment_interaction": comment_interaction,
+        "product_catalog_json": product_catalog_json,
+        "product_count": product_count,
+        "material_quality_warning": material_quality_warning,
     }
 
 
@@ -1390,7 +1414,7 @@ class RuleCalibrationTest(unittest.TestCase):
         payload, _ = _extract_final_json_example(rendered_prompt)
         result = finalize_judge_output(_finalizer_params(payload))
 
-        self.assertEqual(result["finalization_status"], "pass")
+        self.assertEqual(result["finalization_status"], "warning")
         self.assertEqual(json.loads(result["finalizer_errors"]), [])
         finalized_payload = json.loads(result["finalized_final_json"])
         self.assertEqual(finalized_payload["room_id"], room_id)
@@ -1404,8 +1428,8 @@ class RuleCalibrationTest(unittest.TestCase):
             list(range(1, 20)),
         )
         self.assertEqual(finalized_payload["hit_category_ids"], [])
-        self.assertEqual(finalized_payload["no_hit_category_ids"], list(range(1, 20)))
-        self.assertEqual(finalized_payload["unable_to_judge_category_ids"], [])
+        self.assertEqual(finalized_payload["no_hit_category_ids"], [19])
+        self.assertEqual(finalized_payload["unable_to_judge_category_ids"], list(range(1, 19)))
 
     def test_validator_rejects_disabled_category_19_hit(self):
         evidence = [

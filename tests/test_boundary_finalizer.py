@@ -539,6 +539,34 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                     % (first_fact, second_fact),
                 )
 
+    def test_raw_contradictory_facts_fail_even_with_unpublished_sources(self):
+        pairs = (
+            ("sexualized_exposure_or_behavior_found", "ordinary_tryon_or_public_context_only"),
+            ("unrelated_content_dominates", "sustained_product_promotion_found"),
+            ("extremely_low_information_across_relevant_segments", "core_buying_information_found"),
+            ("extremely_low_information_across_relevant_segments", "identifiable_product_and_core_purpose_found"),
+            ("concrete_replay_indicator_found", "replay_weak_signal_only"),
+            ("concrete_live_effect_claim_found", "marketing_or_product_image_only"),
+            ("materially_misleading_basis_found", "marketing_or_product_image_only"),
+            ("core_product_contradiction_found", "minor_variant_or_background_only"),
+            ("sustained_negative_emotion_found", "routine_sales_or_knowledge_marketing_only"),
+            ("hostile_shaming_fear_evidence_found", "routine_sales_or_knowledge_marketing_only"),
+        )
+
+        for first_fact, second_fact in pairs:
+            with self.subTest(first_fact=first_fact, second_fact=second_fact):
+                payload = valid_payload()
+                set_fact(payload, first_fact, source="Segment #999 frame")
+                set_fact(payload, second_fact, source="Segment #999 frame")
+
+                result = finalize_judge_output(build_params(payload))
+
+                self.assert_failure(
+                    result,
+                    "contradictory_boundary_facts:%s:%s"
+                    % (first_fact, second_fact),
+                )
+
     def test_gate_contract_version_mismatch_fails_closed(self):
         params = build_params()
         gates = json.loads(params["boundary_gates_json"])
@@ -655,6 +683,42 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 del params[field_name]
 
                 self.assert_failure(finalize_judge_output(params), expected_error)
+
+    def test_all_trusted_inputs_absent_cannot_use_legacy_gate_manifest(self):
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "sexualized_exposure_or_behavior_found",
+            source="Segment #1 frame",
+        )
+        params = build_params(payload)
+        for field_name in (
+            "segments_json",
+            "segment_count",
+            "comment_interaction",
+            "product_catalog_json",
+            "product_count",
+            "material_quality_warning",
+        ):
+            del params[field_name]
+        gates = json.loads(params["boundary_gates_json"])
+        gates["declared_counts"] = {
+            "segment_count": None,
+            "product_count": None,
+        }
+        gates["material_reliability"] = {
+            "segments": False,
+            "products": False,
+            "comment": True,
+        }
+        params["boundary_gates_json"] = gates
+
+        result = finalize_judge_output(params)
+
+        self.assertEqual(result["finalization_status"], "fail")
+        errors = json.loads(result["finalizer_errors"])
+        self.assertIn("segments_json_invalid", errors)
+        self.assertIn("product_catalog_json_invalid", errors)
 
     def test_gate_manifest_and_dynamic_metadata_must_match_trusted_reconstruction(self):
         params = build_params()
@@ -1273,7 +1337,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             "contradictory_boundary_facts:sexualized_exposure_or_behavior_found:ordinary_tryon_or_public_context_only",
         )
 
-    def test_unsupported_ordinary_tryon_blocker_does_not_demote_category_1(self):
+    def test_unsupported_ordinary_tryon_still_conflicts_with_sexual_fact(self):
         payload = valid_payload()
         set_decision(payload, 1, "hit")
         set_fact(payload, "sexualized_exposure_or_behavior_found", source="Segment #1 frame")
@@ -1284,10 +1348,11 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         )
 
         result = finalize_judge_output(build_params(payload))
-        finalized = finalized_payload(result)
 
-        self.assertEqual(result["finalization_status"], "pass")
-        self.assert_decision(finalized, 1, "hit")
+        self.assert_failure(
+            result,
+            "contradictory_boundary_facts:sexualized_exposure_or_behavior_found:ordinary_tryon_or_public_context_only",
+        )
 
     def test_unavailable_frame_channel_cannot_promote_category_1(self):
         payload = valid_payload()
@@ -1735,6 +1800,29 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             "priority_15_over_8_for_product_mismatch",
             category_result(finalized, 8)["priority_rule_applied"],
         )
+
+    def test_disjoint_category_5_does_not_escape_its_own_gate_for_category_3(self):
+        payload = valid_payload()
+        set_decision(payload, 5, "hit")
+        customize_hit(
+            payload,
+            5,
+            [
+                {
+                    "source": "Segment #1 ASR",
+                    "quote_or_visual_detail": "Independent category 5 model evidence.",
+                    "reason": "Does not overlap category 3 frame evidence.",
+                }
+            ],
+            "Original category 5 hit without the required promotion fact.",
+            "medium",
+        )
+        set_fact(payload, "unrelated_content_dominates", source="Segment #1 frame")
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assertEqual(finalized["hit_category_ids"], [3])
+        self.assert_decision(finalized, 5, "no_hit")
 
     def test_same_source_category_8_and_15_evidence_reroutes_to_15(self):
         payload = valid_payload()

@@ -533,54 +533,6 @@ def _positive_exact_int(value):
 
 
 def _reconstruct_trusted_context(params):
-    trusted_field_names = (
-        "segments_json",
-        "segment_count",
-        "comment_interaction",
-        "product_catalog_json",
-        "product_count",
-        "material_quality_warning",
-    )
-    if all(field_name not in params for field_name in trusted_field_names):
-        gates = params.get("_loaded_boundary_gates")
-        if type(gates) is dict and gates.get("declared_counts") == {
-            "segment_count": None,
-            "product_count": None,
-        }:
-            observed_counts = gates.get("observed_counts")
-            material_warnings = gates.get("material_warnings")
-            material_reliability = gates.get("material_reliability")
-            if (
-                type(observed_counts) is dict
-                and type(observed_counts.get("segment_count")) is int
-                and type(observed_counts.get("product_count")) is int
-                and type(material_warnings) is list
-                and all(type(item) is str for item in material_warnings)
-                and type(material_reliability) is dict
-            ):
-                availability = gates.get("material_availability", {})
-                return {
-                    "segments": [],
-                    "products": [],
-                    "comment_interaction": (
-                        "legacy-comment-available"
-                        if availability.get("comment_interaction") is True
-                        else ""
-                    ),
-                    "allowed_source_labels": gates.get("allowed_source_labels", []),
-                    "material_availability": availability,
-                    "declared_counts": gates["declared_counts"],
-                    "observed_counts": observed_counts,
-                    "material_warnings": material_warnings,
-                    "material_reliability": material_reliability,
-                    "effective_material_reliability": {
-                        "segments": True,
-                        "products": True,
-                        "comment": True,
-                    },
-                    "legacy": True,
-                }, []
-
     errors = []
     segments = _parse_trusted_json_list(
         params.get("segments_json"),
@@ -1197,21 +1149,10 @@ def _gate_failure_reason(
 
 def _validate_supported_contradictions(payload, trusted_context):
     errors = []
-    allowed_source_labels = frozenset(trusted_context["allowed_source_labels"])
-    material_availability = trusted_context["material_availability"]
     for category_id, first_fact, second_fact in CONTRADICTORY_FACT_PAIRS:
-        if _fact_true(
-            payload,
-            category_id,
-            first_fact,
-            material_availability,
-            allowed_source_labels,
-        ) and _fact_true(
-            payload,
-            category_id,
-            second_fact,
-            material_availability,
-            allowed_source_labels,
+        if (
+            _fact(payload, first_fact)["value"] is True
+            and _fact(payload, second_fact)["value"] is True
         ):
             errors.append(
                 "contradictory_boundary_facts:%s:%s" % (first_fact, second_fact)
@@ -1368,10 +1309,7 @@ def _results_by_id(payload):
 def _material_reliable(material, trusted_context):
     if not _material_is_available(material, trusted_context["material_availability"]):
         return False
-    reliability = trusted_context.get(
-        "effective_material_reliability",
-        trusted_context["material_reliability"],
-    )
+    reliability = trusted_context["material_reliability"]
     if material.startswith("segment_"):
         return reliability["segments"] is True
     if material.startswith("pearl_product_"):
@@ -1754,8 +1692,14 @@ def _deferred_reroute_sources(
         )
         if not target_evidence:
             continue
+        target_sources = {entry["source"] for entry in target_evidence}
         for source_id in reroute["from"]:
-            if source_id != 19 and original_hit_sources.get(source_id):
+            source_sources = original_hit_sources.get(source_id, set())
+            if (
+                source_id != 19
+                and source_sources
+                and source_sources & target_sources
+            ):
                 deferred.add(source_id)
     return deferred
 
@@ -2012,22 +1956,15 @@ def _finalize_payload(payload, gates, trusted_context):
         ),
         "material_quality_warning": list(trusted_context["material_warnings"]),
     }
-    if (
-        trusted_context.get("legacy") is not True
-        and payload.get("material_summary") != canonical_material_summary
-    ):
+    if payload.get("material_summary") != canonical_material_summary:
         payload["material_summary"] = canonical_material_summary
         _append_context_audit(
             "已根据可信Normalize输入重建material_summary。",
             "material_summary_repair",
             audit,
         )
-    effective_reliability = trusted_context.get(
-        "effective_material_reliability",
-        trusted_context["material_reliability"],
-    )
-    if trusted_context.get("legacy") is not True and (
-        trusted_context["material_warnings"] or not all(effective_reliability.values())
+    if trusted_context["material_warnings"] or not all(
+        trusted_context["material_reliability"].values()
     ):
         _append_context_audit(
             "素材警告或声明数量不可靠，需要保守判断。",
@@ -2140,9 +2077,7 @@ def finalize_judge_output(params):
     except Exception as exc:
         return _failure([_text(exc) or "boundary_gates_load_failed"])
 
-    trusted_params = dict(params)
-    trusted_params["_loaded_boundary_gates"] = gates
-    trusted_context, trusted_errors = _reconstruct_trusted_context(trusted_params)
+    trusted_context, trusted_errors = _reconstruct_trusted_context(params)
     if trusted_errors:
         return _failure(trusted_errors)
 
