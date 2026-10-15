@@ -70,6 +70,13 @@ EXPECTED_REQUIRED_FACTS = (
     "routine_sales_or_knowledge_marketing_only",
 )
 EXPECTED_FACT_KEYS = ("value", "evidence_sources", "evidence_detail")
+EXPECTED_MATERIAL_AVAILABILITY_KEYS = (
+    "segment_frame",
+    "segment_asr",
+    "comment_interaction",
+    "pearl_product_title",
+    "pearl_product_image",
+)
 EXPECTED_GATE_DEFINITIONS = _immutable(
     {
         "1": {
@@ -180,6 +187,14 @@ CATEGORY_ALLOWED_MATERIALS = MappingProxyType(
                 "pearl_product_image",
             )
         ),
+        4: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "comment_interaction",
+            )
+        ),
         5: frozenset(
             (
                 "segment_frame",
@@ -199,6 +214,8 @@ CATEGORY_ALLOWED_MATERIALS = MappingProxyType(
                 "pearl_product_image",
             )
         ),
+        7: frozenset(("segment_frame",)),
+        8: frozenset(("segment_asr", "segment_frame_visible_text")),
         9: frozenset(
             (
                 "segment_frame",
@@ -221,16 +238,29 @@ CATEGORY_ALLOWED_MATERIALS = MappingProxyType(
         12: frozenset(
             ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
         ),
+        13: frozenset(("segment_frame", "segment_asr")),
         14: frozenset(
             ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
         ),
         15: frozenset(
             ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
         ),
+        16: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        17: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
         18: frozenset(("segment_frame", "segment_asr", "comment_interaction")),
         19: frozenset(
             ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
         ),
+    }
+)
+MINIMUM_DISTINCT_EVIDENCE_UNITS = MappingProxyType(
+    {
+        category_id: 2 if category_id in {13, 15, 16, 17, 18} else 1
+        for category_id in range(1, 20)
     }
 )
 
@@ -319,6 +349,15 @@ def _validate_contract(payload, gates, expected_version):
     if not reroutes_valid:
         errors.append("gate_reroutes_contract_mismatch")
 
+    material_availability = gates.get("material_availability")
+    material_availability_valid = (
+        type(material_availability) is dict
+        and set(material_availability) == set(EXPECTED_MATERIAL_AVAILABILITY_KEYS)
+        and all(type(value) is bool for value in material_availability.values())
+    )
+    if not material_availability_valid:
+        errors.append("gate_material_availability_contract_mismatch")
+
     boundary_checks = payload.get("boundary_checks")
     if not isinstance(boundary_checks, dict):
         errors.append("boundary_checks_missing_or_not_object")
@@ -367,30 +406,105 @@ def _validate_contract(payload, gates, expected_version):
     return errors
 
 
+def _validate_final_results_structure(payload):
+    errors = []
+    results = payload.get("final_results")
+    if type(results) is not list:
+        return ["final_results_missing_or_not_list"]
+    if len(results) != 19:
+        errors.append("final_results_count_mismatch")
+
+    valid_ids = set()
+    seen_ids = set()
+    for index, item in enumerate(results):
+        if type(item) is not dict:
+            errors.append("final_result_item_not_object:index_%d" % index)
+            continue
+
+        category_id = item.get("category_id")
+        if type(category_id) is not int:
+            errors.append("final_result_category_id_not_exact_int:index_%d" % index)
+            continue
+        if category_id < 1 or category_id > 19:
+            errors.append("final_result_category_id_out_of_range:%d" % category_id)
+        elif category_id in seen_ids:
+            errors.append("duplicate_final_result_category_id:%d" % category_id)
+        else:
+            seen_ids.add(category_id)
+            valid_ids.add(category_id)
+
+        decision = item.get("decision")
+        if type(decision) is not str or decision not in {"hit", "no_hit", "unable_to_judge"}:
+            errors.append("invalid_final_result_decision:%d" % category_id)
+
+        evidence = item.get("evidence")
+        if type(evidence) is not list:
+            errors.append("final_result_evidence_not_list:%d" % category_id)
+        else:
+            for evidence_index, entry in enumerate(evidence):
+                if type(entry) is not dict:
+                    errors.append(
+                        "final_result_evidence_item_not_object:%d:index_%d"
+                        % (category_id, evidence_index)
+                    )
+                    continue
+                for field_name in ("source", "quote_or_visual_detail", "reason"):
+                    if type(entry.get(field_name)) is not str:
+                        errors.append(
+                            "final_result_evidence_%s_not_string:%d:index_%d"
+                            % (field_name, category_id, evidence_index)
+                        )
+
+        evidence_count = item.get("evidence_count")
+        if type(evidence_count) is not int:
+            errors.append("final_result_evidence_count_not_exact_int:%d" % category_id)
+        elif type(evidence) is list and evidence_count != len(evidence):
+            errors.append("final_result_evidence_count_mismatch:%d" % category_id)
+
+        if type(item.get("judge_reason")) is not str:
+            errors.append("final_result_judge_reason_not_string:%d" % category_id)
+
+        materials_used = item.get("materials_used")
+        if type(materials_used) is not list:
+            errors.append("final_result_materials_used_not_list:%d" % category_id)
+        else:
+            for material_index, material in enumerate(materials_used):
+                if type(material) is not str:
+                    errors.append(
+                        "final_result_material_not_string:%d:index_%d"
+                        % (category_id, material_index)
+                    )
+
+        if type(item.get("product_image_used")) is not bool:
+            errors.append("final_result_product_image_used_not_bool:%d" % category_id)
+        if type(item.get("product_image_permission_ok")) is not bool:
+            errors.append(
+                "final_result_product_image_permission_ok_not_bool:%d" % category_id
+            )
+
+        priority_rules = item.get("priority_rule_applied")
+        if type(priority_rules) is not list:
+            errors.append("final_result_priority_rule_applied_not_list:%d" % category_id)
+        else:
+            for rule_index, rule in enumerate(priority_rules):
+                if type(rule) is not str:
+                    errors.append(
+                        "final_result_priority_rule_not_string:%d:index_%d"
+                        % (category_id, rule_index)
+                    )
+
+    if valid_ids != set(range(1, 20)):
+        errors.append("final_result_category_ids_mismatch")
+    return errors
+
+
 def _fact(payload, fact_name):
     return payload["boundary_checks"]["facts"][fact_name]
 
 
-def _fact_true(payload, fact_name):
-    return _fact(payload, fact_name)["value"] is True
-
-
-def _required_path_passes(payload, definition):
-    return all(_fact_true(payload, name) for name in definition.get("required_true", [])) and not any(
-        _fact_true(payload, name) for name in definition.get("blocked_true", [])
-    )
-
-
-def _gate_passes(payload, definition):
-    if definition.get("disabled") is True:
-        return False
-    if any(_fact_true(payload, name) for name in definition.get("alternative_true", [])):
-        return True
-    return _required_path_passes(payload, definition)
-
-
 def _source_material(source):
-    source = _text(source)
+    if type(source) is not str:
+        return None
     if source == "Comment Interaction":
         return "comment_interaction"
     if re.fullmatch(r"Pearl product #[1-9][0-9]* image", source):
@@ -406,7 +520,22 @@ def _source_material(source):
     return None
 
 
-def _fact_evidence(payload, category_id, fact_name):
+def _availability_key(material):
+    if material == "segment_frame_visible_text":
+        return "segment_frame"
+    return material
+
+
+def _material_is_available(material, material_availability):
+    availability_key = _availability_key(material)
+    return material_availability.get(availability_key) is True
+
+
+def _meets_evidence_threshold(category_id, evidence):
+    return len(evidence) >= MINIMUM_DISTINCT_EVIDENCE_UNITS[category_id]
+
+
+def _fact_evidence(payload, category_id, fact_name, material_availability):
     fact = _fact(payload, fact_name)
     if fact["value"] is not True:
         return []
@@ -415,9 +544,10 @@ def _fact_evidence(payload, category_id, fact_name):
     detail = _text(fact["evidence_detail"])
     evidence = []
     for source in fact["evidence_sources"]:
-        normalized_source = _text(source)
-        material = _source_material(normalized_source)
+        material = _source_material(source)
         if material not in allowed_materials:
+            continue
+        if not _material_is_available(material, material_availability):
             continue
         if (
             category_id == 12
@@ -427,7 +557,7 @@ def _fact_evidence(payload, category_id, fact_name):
             continue
         evidence.append(
             {
-                "source": normalized_source,
+                "source": source,
                 "quote_or_visual_detail": detail,
                 "reason": "经边界事实核验：" + fact_name,
             }
@@ -435,11 +565,46 @@ def _fact_evidence(payload, category_id, fact_name):
     return evidence
 
 
-def _path_evidence(payload, category_id, fact_names):
+def _fact_true(payload, category_id, fact_name, material_availability):
+    return bool(_fact_evidence(payload, category_id, fact_name, material_availability))
+
+
+def _required_path_passes(payload, category_id, definition, material_availability):
+    return all(
+        _fact_true(payload, category_id, name, material_availability)
+        for name in definition.get("required_true", [])
+    ) and not any(
+        _fact_true(payload, category_id, name, material_availability)
+        for name in definition.get("blocked_true", [])
+    )
+
+
+def _gate_passes(payload, category_id, definition, material_availability):
+    if definition.get("disabled") is True:
+        return False
+    if any(
+        _fact_true(payload, category_id, name, material_availability)
+        for name in definition.get("alternative_true", [])
+    ):
+        return True
+    return _required_path_passes(
+        payload,
+        category_id,
+        definition,
+        material_availability,
+    )
+
+
+def _path_evidence(payload, category_id, fact_names, material_availability):
     evidence = []
     seen = set()
     for fact_name in fact_names:
-        fact_entries = _fact_evidence(payload, category_id, fact_name)
+        fact_entries = _fact_evidence(
+            payload,
+            category_id,
+            fact_name,
+            material_availability,
+        )
         if not fact_entries:
             return None
         for entry in fact_entries:
@@ -451,33 +616,64 @@ def _path_evidence(payload, category_id, fact_names):
     return evidence
 
 
-def _gate_evidence(payload, category_id, definition, allow_alternative=True):
+def _gate_evidence(
+    payload,
+    category_id,
+    definition,
+    material_availability,
+    allow_alternative=True,
+):
     if allow_alternative:
         for fact_name in definition.get("alternative_true", []):
-            if _fact_true(payload, fact_name):
-                alternative_evidence = _path_evidence(payload, category_id, [fact_name])
-                if alternative_evidence:
+            if _fact_true(payload, category_id, fact_name, material_availability):
+                alternative_evidence = _path_evidence(
+                    payload,
+                    category_id,
+                    [fact_name],
+                    material_availability,
+                )
+                if _meets_evidence_threshold(category_id, alternative_evidence):
                     return alternative_evidence
-    if not _required_path_passes(payload, definition):
+    if not _required_path_passes(
+        payload,
+        category_id,
+        definition,
+        material_availability,
+    ):
         return None
-    return _path_evidence(payload, category_id, definition.get("required_true", []))
+    required_evidence = _path_evidence(
+        payload,
+        category_id,
+        definition.get("required_true", []),
+        material_availability,
+    )
+    if required_evidence and _meets_evidence_threshold(category_id, required_evidence):
+        return required_evidence
+    return None
 
 
-def _gate_failure_reason(payload, category_id, definition):
+def _gate_failure_reason(payload, category_id, definition, material_availability):
     if definition.get("disabled") is True:
         return "类别%d在当前规则版本中已禁用，强制改判为不命中。" % category_id
     blocked = [
         fact_name
         for fact_name in definition.get("blocked_true", [])
-        if _fact_true(payload, fact_name)
+        if _fact_true(payload, category_id, fact_name, material_availability)
     ]
     if blocked:
         return "边界阻断事实成立，改判为不命中：" + "、".join(blocked) + "。"
     missing = [
         fact_name
         for fact_name in definition.get("required_true", [])
-        if not _fact_true(payload, fact_name)
+        if not _fact_true(payload, category_id, fact_name, material_availability)
     ]
+    unsupported = [
+        fact_name
+        for fact_name in missing
+        if _fact(payload, fact_name)["value"] is True
+    ]
+    if unsupported:
+        return "边界必要事实缺少可用的允许材料证据，改判为不命中：" + "、".join(unsupported) + "。"
     return "边界必要事实不完整，改判为不命中：" + "、".join(missing) + "。"
 
 
@@ -496,6 +692,51 @@ def _decision_confidence(item):
     if type(confidence) is str and confidence in {"high", "medium", "low"}:
         return confidence
     return "medium"
+
+
+def _canonical_priority_rules(item):
+    canonical = []
+    for rule in item.get("priority_rule_applied", []):
+        if rule.strip() and rule not in canonical:
+            canonical.append(rule)
+    return canonical
+
+
+def _set_evidence_fields(item, evidence):
+    evidence = list(evidence)
+    materials_used = sorted(
+        {
+            material
+            for material in (_source_material(entry.get("source")) for entry in evidence)
+            if material
+        }
+    )
+    item["evidence"] = evidence
+    item["evidence_count"] = len(evidence)
+    item["materials_used"] = materials_used
+    item["product_image_used"] = "pearl_product_image" in materials_used
+
+
+def _authorized_model_evidence(item, category_id, material_availability):
+    allowed_materials = CATEGORY_ALLOWED_MATERIALS[category_id]
+    authorized = []
+    seen = set()
+    for entry in item["evidence"]:
+        source = entry["source"]
+        detail = entry["quote_or_visual_detail"]
+        material = _source_material(source)
+        if material not in allowed_materials:
+            continue
+        if not _material_is_available(material, material_availability):
+            continue
+        if not source or not detail.strip():
+            continue
+        dedupe_key = (source, detail)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        authorized.append(entry)
+    return authorized
 
 
 def _append_audit(item, from_decision, to_decision, reason, priority_rule, audit):
@@ -534,19 +775,10 @@ def _set_decision(
     previous_decision = item.get("decision")
     confidence = _decision_confidence(item)
     evidence = list(evidence or []) if decision == "hit" else []
-    materials_used = []
-    for entry in evidence:
-        material = _source_material(entry.get("source"))
-        if material and material not in materials_used:
-            materials_used.append(material)
-    materials_used.sort()
 
     item["decision"] = decision
     item["judge_reason"] = reason
-    item["evidence"] = evidence
-    item["evidence_count"] = len(evidence)
-    item["materials_used"] = materials_used
-    item["product_image_used"] = "pearl_product_image" in materials_used
+    _set_evidence_fields(item, evidence)
     item["confidence"] = confidence
     _append_priority_rule(item, priority_rule)
 
@@ -572,7 +804,82 @@ def _results_by_id(payload):
     }
 
 
-def _apply_general_gates(payload, results_by_id, definitions, audit):
+def _canonicalize_results(
+    payload,
+    results_by_id,
+    definitions,
+    material_availability,
+    audit,
+):
+    for category_id in sorted(results_by_id):
+        item = results_by_id[category_id]
+        item["confidence"] = _decision_confidence(item)
+        item["priority_rule_applied"] = _canonical_priority_rules(item)
+
+        if item.get("decision") != "hit":
+            _set_evidence_fields(item, [])
+            continue
+
+        original_evidence = list(item["evidence"])
+        authorized_evidence = _authorized_model_evidence(
+            item,
+            category_id,
+            material_availability,
+        )
+        if _meets_evidence_threshold(category_id, authorized_evidence):
+            _set_evidence_fields(item, authorized_evidence)
+            if authorized_evidence != original_evidence:
+                rule = "boundary_evidence_filter_category_%d" % category_id
+                _record_priority_association(
+                    item,
+                    "已移除类别%d中未授权或重复的模型证据。" % category_id,
+                    rule,
+                    audit,
+                )
+            continue
+
+        definition = definitions.get(str(category_id))
+        gate_evidence = None
+        if definition and _gate_passes(
+            payload,
+            category_id,
+            definition,
+            material_availability,
+        ):
+            gate_evidence = _gate_evidence(
+                payload,
+                category_id,
+                definition,
+                material_availability,
+            )
+        if gate_evidence:
+            _set_evidence_fields(item, gate_evidence)
+            rule = "boundary_evidence_repair_category_%d" % category_id
+            _record_priority_association(
+                item,
+                "已用可信边界事实证据修复类别%d的模型命中证据。" % category_id,
+                rule,
+                audit,
+            )
+            continue
+
+        _set_decision(
+            item,
+            "no_hit",
+            "模型命中缺少该类别允许且当前可用的有效证据，改判为不命中。",
+            [],
+            "boundary_evidence_category_%d" % category_id,
+            audit,
+        )
+
+
+def _apply_general_gates(
+    payload,
+    results_by_id,
+    definitions,
+    material_availability,
+    audit,
+):
     for category_text in sorted(definitions, key=int):
         category_id = int(category_text)
         item = results_by_id.get(category_id)
@@ -586,19 +893,34 @@ def _apply_general_gates(payload, results_by_id, definitions, audit):
                 _set_decision(
                     item,
                     "no_hit",
-                    _gate_failure_reason(payload, category_id, definition),
+                    _gate_failure_reason(
+                        payload,
+                        category_id,
+                        definition,
+                        material_availability,
+                    ),
                     [],
                     rule,
                     audit,
                 )
             continue
 
-        gate_passes = _gate_passes(payload, definition)
+        gate_passes = _gate_passes(
+            payload,
+            category_id,
+            definition,
+            material_availability,
+        )
         if item.get("decision") == "hit" and not gate_passes:
             _set_decision(
                 item,
                 "no_hit",
-                _gate_failure_reason(payload, category_id, definition),
+                _gate_failure_reason(
+                    payload,
+                    category_id,
+                    definition,
+                    material_availability,
+                ),
                 [],
                 rule,
                 audit,
@@ -606,7 +928,12 @@ def _apply_general_gates(payload, results_by_id, definitions, audit):
             continue
 
         if item.get("decision") == "hit":
-            evidence = _gate_evidence(payload, category_id, definition)
+            evidence = _gate_evidence(
+                payload,
+                category_id,
+                definition,
+                material_availability,
+            )
             if not evidence:
                 _set_decision(
                     item,
@@ -621,7 +948,12 @@ def _apply_general_gates(payload, results_by_id, definitions, audit):
         if not gate_passes:
             continue
 
-        evidence = _gate_evidence(payload, category_id, definition)
+        evidence = _gate_evidence(
+            payload,
+            category_id,
+            definition,
+            material_availability,
+        )
         if not evidence:
             continue
         _set_decision(
@@ -634,7 +966,14 @@ def _apply_general_gates(payload, results_by_id, definitions, audit):
         )
 
 
-def _apply_reroutes(payload, results_by_id, definitions, original_hit_ids, audit):
+def _apply_reroutes(
+    payload,
+    results_by_id,
+    definitions,
+    material_availability,
+    original_hit_ids,
+    audit,
+):
     applied_rules = []
     for reroute in _mutable(EXPECTED_REROUTES):
         source_ids = [
@@ -648,18 +987,34 @@ def _apply_reroutes(payload, results_by_id, definitions, original_hit_ids, audit
         target_id = reroute["to"]
         definition = definitions[str(target_id)]
         if target_id == 15 and source_ids == [8]:
-            if not _required_path_passes(payload, definition):
+            if not _required_path_passes(
+                payload,
+                target_id,
+                definition,
+                material_availability,
+            ):
                 continue
             evidence = _gate_evidence(
                 payload,
                 target_id,
                 definition,
+                material_availability,
                 allow_alternative=False,
             )
         else:
-            if not _gate_passes(payload, definition):
+            if not _gate_passes(
+                payload,
+                target_id,
+                definition,
+                material_availability,
+            ):
                 continue
-            evidence = _gate_evidence(payload, target_id, definition)
+            evidence = _gate_evidence(
+                payload,
+                target_id,
+                definition,
+                material_availability,
+            )
         if not evidence:
             continue
 
@@ -727,21 +1082,24 @@ def _sync_decision_lists(payload):
     results.sort(
         key=lambda item: item.get("category_id", 0) if type(item) is dict else 0
     )
-    payload["hit_category_ids"] = sorted(
+    hit_ids = {
         item["category_id"]
         for item in results
         if type(item) is dict and item.get("decision") == "hit"
-    )
-    payload["no_hit_category_ids"] = sorted(
+    }
+    no_hit_ids = {
         item["category_id"]
         for item in results
         if type(item) is dict and item.get("decision") == "no_hit"
-    )
-    payload["unable_to_judge_category_ids"] = sorted(
+    }
+    unable_ids = {
         item["category_id"]
         for item in results
         if type(item) is dict and item.get("decision") == "unable_to_judge"
-    )
+    }
+    payload["hit_category_ids"] = sorted(hit_ids)
+    payload["no_hit_category_ids"] = sorted(no_hit_ids)
+    payload["unable_to_judge_category_ids"] = sorted(unable_ids)
 
     category_ids = {
         item.get("category_id") for item in results if type(item) is dict
@@ -752,7 +1110,9 @@ def _sync_decision_lists(payload):
         coverage["actual_category_count"] = len(results)
         coverage["missing_category_ids"] = sorted(set(range(1, 20)) - category_ids)
         coverage["extra_category_ids"] = sorted(category_ids - set(range(1, 20)))
-        coverage["hit_no_hit_overlap_category_ids"] = []
+        coverage["hit_no_hit_overlap_category_ids"] = sorted(
+            (hit_ids & no_hit_ids) | (hit_ids & unable_ids) | (no_hit_ids & unable_ids)
+        )
 
 
 def _render_report(payload):
@@ -811,8 +1171,9 @@ def _render_report(payload):
     return "\n".join(lines)
 
 
-def _finalize_payload(payload):
+def _finalize_payload(payload, gates):
     definitions = _mutable(EXPECTED_GATE_DEFINITIONS)
+    material_availability = gates["material_availability"]
     results_by_id = _results_by_id(payload)
     original_hit_ids = {
         category_id
@@ -820,11 +1181,25 @@ def _finalize_payload(payload):
         if item.get("decision") == "hit"
     }
     audit = []
-    _apply_general_gates(payload, results_by_id, definitions, audit)
+    _canonicalize_results(
+        payload,
+        results_by_id,
+        definitions,
+        material_availability,
+        audit,
+    )
+    _apply_general_gates(
+        payload,
+        results_by_id,
+        definitions,
+        material_availability,
+        audit,
+    )
     applied_rules = _apply_reroutes(
         payload,
         results_by_id,
         definitions,
+        material_availability,
         original_hit_ids,
         audit,
     )
@@ -875,19 +1250,23 @@ def finalize_judge_output(params):
     if errors:
         return _failure(errors)
 
-    audit = _finalize_payload(payload)
     try:
+        structure_errors = _validate_final_results_structure(payload)
+        if structure_errors:
+            return _failure(structure_errors)
+        audit = _finalize_payload(payload, gates)
         serialized_payload = json.dumps(payload, ensure_ascii=False, allow_nan=False)
+        report = _render_report(payload)
+        serialized_audit = json.dumps(audit, ensure_ascii=False, allow_nan=False)
+        return {
+            "finalized_judge_output": report + "\n\nFINAL_JSON:\n" + serialized_payload,
+            "finalized_final_json": serialized_payload,
+            "finalization_status": "warning" if audit else "pass",
+            "boundary_override_log": serialized_audit,
+            "finalizer_errors": "[]",
+        }
     except Exception as exc:
-        return _failure(["final_json_serialize_failed:" + _text(exc)])
-    report = _render_report(payload)
-    return {
-        "finalized_judge_output": report + "\n\nFINAL_JSON:\n" + serialized_payload,
-        "finalized_final_json": serialized_payload,
-        "finalization_status": "warning" if audit else "pass",
-        "boundary_override_log": json.dumps(audit, ensure_ascii=False, allow_nan=False),
-        "finalizer_errors": "[]",
-    }
+        return _failure(["finalization_failed:" + _text(exc)])
 
 
 async def main(args: Args) -> Output:
