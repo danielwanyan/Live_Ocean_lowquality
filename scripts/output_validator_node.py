@@ -4,7 +4,8 @@ import json
 ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17}
 ALL_CATEGORY_IDS = set(range(1, 20))
 ALLOWED_DECISIONS = {"hit", "no_hit", "unable_to_judge"}
-PRIORITY_CONFLICT_PAIRS = ((3, 5), (3, 6), (5, 6), (8, 15), (1, 19))
+PRIORITY_CONFLICT_PAIRS = ((3, 5), (3, 6), (5, 6), (8, 15))
+FINALIZATION_STATUSES = {"pass", "warning", "fail"}
 
 
 def _text(value):
@@ -37,6 +38,14 @@ def _extract_final_json_text(judge_output):
     return json_text
 
 
+def _reject_json_constant(value):
+    raise ValueError("invalid_json_constant:" + value)
+
+
+def _strict_json_loads(value):
+    return json.loads(value, parse_constant=_reject_json_constant)
+
+
 def _parse_id_list(value):
     if isinstance(value, list):
         return [_to_int(item) for item in value]
@@ -45,8 +54,27 @@ def _parse_id_list(value):
 
 def _has_non_empty_evidence(item):
     evidence = item.get("evidence")
-    evidence_count = _to_int(item.get("evidence_count"), 0)
-    return evidence_count > 0 and isinstance(evidence, list) and len(evidence) > 0
+    evidence_count = item.get("evidence_count")
+    return (
+        type(evidence) is list
+        and bool(evidence)
+        and _evidence_entries_are_valid(evidence)
+        and type(evidence_count) is int
+        and evidence_count == len(evidence)
+    )
+
+
+def _evidence_entries_are_valid(evidence):
+    for entry in evidence:
+        if type(entry) is not dict:
+            return False
+        source = entry.get("source")
+        detail = entry.get("quote_or_visual_detail")
+        if type(source) is not str or not source.strip():
+            return False
+        if type(detail) is not str or not detail.strip():
+            return False
+    return True
 
 
 def _check_decision_lists(payload, errors):
@@ -80,16 +108,16 @@ def _check_priority_conflicts(results, errors):
 
 def _normalized_evidence_keys(item):
     evidence = item.get("evidence")
-    if not isinstance(evidence, list):
+    if type(evidence) is not list:
         return set()
 
     keys = set()
     for entry in evidence:
-        if not isinstance(entry, dict):
+        if type(entry) is not dict:
             continue
         source = entry.get("source")
         detail = entry.get("quote_or_visual_detail")
-        if not isinstance(source, str) or not isinstance(detail, str):
+        if type(source) is not str or type(detail) is not str:
             continue
         source = source.strip()
         detail = detail.strip()
@@ -98,52 +126,50 @@ def _normalized_evidence_keys(item):
     return keys
 
 
-def _finalizer_errors_are_nonempty(value):
-    if value is None:
-        return False
-    if isinstance(value, str):
-        return value.strip() not in {"", "[]"}
-    if isinstance(value, (list, tuple, dict, set)):
-        return bool(value)
-    return bool(value)
-
-
-def _finalizer_errors_diagnostic(value):
-    if isinstance(value, str):
-        return value.strip()
+def _parse_finalizer_errors(value):
+    if type(value) is not str:
+        return None
     try:
-        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+        parsed = _strict_json_loads(value)
     except Exception:
-        try:
-            return str(value).strip()
-        except Exception:
-            return "<unprintable>"
+        return None
+    if type(parsed) is not list or any(type(item) is not str for item in parsed):
+        return None
+    return parsed
 
 
 def _check_finalization_status(params, errors, warnings):
-    status = _text(params.get("finalization_status"))
-    finalizer_errors = params.get("finalizer_errors")
-    has_diagnostic = _finalizer_errors_are_nonempty(finalizer_errors)
+    has_status = "finalization_status" in params
+    has_errors = "finalizer_errors" in params
+    if not has_status and not has_errors:
+        return None
 
-    if not status:
-        return
+    status = params.get("finalization_status")
+    status_is_valid = type(status) is str and status in FINALIZATION_STATUSES
+    if has_status != has_errors:
+        errors.append("incomplete_finalizer_metadata")
+        if status_is_valid and status == "fail":
+            errors.append("boundary_finalization_failed")
+        return status if status_is_valid else None
 
-    if status == "fail":
-        errors.append("boundary_finalization_failed")
-    elif status == "warning":
-        warnings.append("boundary_finalization_warning")
-    elif status == "pass":
-        if has_diagnostic:
-            errors.append("unexpected_finalizer_errors")
-    else:
+    if not status_is_valid:
         errors.append("invalid_finalization_status")
 
-    if has_diagnostic:
-        diagnostic = "finalizer_errors:" + _finalizer_errors_diagnostic(finalizer_errors)
-        if status == "warning":
-            warnings.append(diagnostic)
-        else:
-            errors.append(diagnostic)
+    parsed_errors = _parse_finalizer_errors(params.get("finalizer_errors"))
+    if parsed_errors is None:
+        errors.append("invalid_finalizer_errors")
+
+    if not status_is_valid:
+        return None
+    if status == "fail":
+        errors.append("boundary_finalization_failed")
+        if parsed_errors is not None:
+            errors.extend(parsed_errors)
+    elif parsed_errors:
+        errors.append("unexpected_finalizer_errors")
+    elif parsed_errors is not None and status == "warning":
+        warnings.append("boundary_finalization_warning")
+    return status
 
 
 def _validate_payload(payload, params):
@@ -166,6 +192,14 @@ def _validate_payload(payload, params):
         decision = item.get("decision")
         if decision not in ALLOWED_DECISIONS:
             errors.append(f"invalid_decision_category_{category_id}")
+        evidence = item.get("evidence")
+        if type(evidence) is not list or not _evidence_entries_are_valid(evidence):
+            errors.append(f"malformed_evidence_category_{category_id}")
+        evidence_count = item.get("evidence_count")
+        if type(evidence_count) is not int:
+            errors.append(f"invalid_evidence_count_category_{category_id}")
+        elif type(evidence) is list and evidence_count != len(evidence):
+            errors.append(f"evidence_count_mismatch_category_{category_id}")
         if decision == "hit" and not _has_non_empty_evidence(item):
             errors.append(f"hit_without_evidence_category_{category_id}")
         if item.get("product_image_used") is True and category_id not in ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS:
@@ -185,34 +219,58 @@ def _validate_payload(payload, params):
     return errors, warnings
 
 
+def _failure_result(params, report_text, errors):
+    return {
+        "validation_status": "fail",
+        "validation_errors": json.dumps(errors, ensure_ascii=False, allow_nan=False),
+        "validated_final_json": "",
+        "final_report_text": report_text,
+        "room_id": _text(params.get("room_id")),
+        "hit_category_ids": "[]",
+        "no_hit_category_ids": "[]",
+        "unable_to_judge_category_ids": "[]",
+    }
+
+
 def validate_judge_output(params):
     judge_output = params.get("judge_output", "")
     report_text = _text(judge_output).split("FINAL_JSON:", 1)[0].strip() if "FINAL_JSON:" in _text(judge_output) else _text(judge_output)
     finalization_errors = []
     finalization_warnings = []
-    _check_finalization_status(params, finalization_errors, finalization_warnings)
+    finalization_status = _check_finalization_status(
+        params,
+        finalization_errors,
+        finalization_warnings,
+    )
+    if finalization_status == "fail" and not _text(judge_output):
+        return _failure_result(
+            params,
+            report_text,
+            finalization_errors + finalization_warnings,
+        )
     try:
-        payload = json.loads(_extract_final_json_text(judge_output))
+        payload = _strict_json_loads(_extract_final_json_text(judge_output))
+        if type(payload) is not dict:
+            raise ValueError("final_json_not_object")
     except Exception as exc:
-        return {
-            "validation_status": "fail",
-            "validation_errors": json.dumps(
+        return _failure_result(
+            params,
+            report_text,
+            (
                 [f"json_parse_failed:{exc}"]
                 + finalization_errors
-                + finalization_warnings,
-                ensure_ascii=False,
+                + finalization_warnings
             ),
-            "validated_final_json": "",
-            "final_report_text": report_text,
-            "room_id": _text(params.get("room_id")),
-            "hit_category_ids": "[]",
-            "no_hit_category_ids": "[]",
-            "unable_to_judge_category_ids": "[]",
-        }
+        )
 
     errors, warnings = _validate_payload(payload, params)
     errors.extend(finalization_errors)
     warnings.extend(finalization_warnings)
+    try:
+        serialized_payload = json.dumps(payload, ensure_ascii=False, allow_nan=False)
+    except Exception as exc:
+        errors.append("json_serialize_failed:" + _text(exc))
+        serialized_payload = ""
     all_messages = errors + warnings
     if errors:
         status = "fail"
@@ -223,8 +281,12 @@ def validate_judge_output(params):
 
     return {
         "validation_status": status,
-        "validation_errors": json.dumps(all_messages, ensure_ascii=False),
-        "validated_final_json": json.dumps(payload, ensure_ascii=False),
+        "validation_errors": json.dumps(
+            all_messages,
+            ensure_ascii=False,
+            allow_nan=False,
+        ),
+        "validated_final_json": serialized_payload,
         "final_report_text": report_text,
         "room_id": _text(payload.get("room_id") or params.get("room_id")),
         "hit_category_ids": json.dumps(_parse_id_list(payload.get("hit_category_ids")), ensure_ascii=False),
