@@ -101,6 +101,7 @@ EXPECTED_GATE_DEFINITIONS = {
         "required_true": [
             "explicit_generated_content_evidence_found",
             "generated_product_material_mismatch_found",
+            "bound_product_evidence_found",
         ],
         "blocked_true": [],
     },
@@ -202,7 +203,7 @@ EXPECTED_CATEGORY_ALLOWED_MATERIALS = {
     19: {"segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"},
 }
 EXPECTED_MINIMUM_EVIDENCE_UNITS = {
-    category_id: 2 if category_id in {13, 15, 16, 17, 18} else 1
+    category_id: 2 if category_id in {10, 13, 15, 16, 17, 18} else 1
     for category_id in range(1, 20)
 }
 
@@ -216,6 +217,107 @@ def thaw_immutable(value):
 
 
 class BoundaryGateBuilderTest(unittest.TestCase):
+    def test_publishes_declared_observed_counts_warnings_and_reliability(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(
+                    [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}]
+                ),
+                "segment_count": 1,
+                "comment_interaction": "",
+                "product_catalog_json": json.dumps(
+                    [
+                        {"product_index": 1, "title": "One", "image_urls": []},
+                        {"product_index": 2, "title": "Two", "image_urls": []},
+                    ]
+                ),
+                "product_count": 2,
+                "material_quality_warning": json.dumps(
+                    ["segment_frame_missing", "comment_interaction_missing"]
+                ),
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertEqual(
+            gates["declared_counts"],
+            {"segment_count": 1, "product_count": 2},
+        )
+        self.assertEqual(
+            gates["observed_counts"],
+            {"segment_count": 1, "product_count": 2},
+        )
+        self.assertEqual(
+            gates["material_warnings"],
+            ["segment_frame_missing", "comment_interaction_missing"],
+        )
+        self.assertEqual(
+            gates["material_reliability"],
+            {"segments": True, "products": True, "comment": True},
+        )
+
+    def test_count_mismatch_marks_related_material_unreliable(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(
+                    [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}]
+                ),
+                "segment_count": 2,
+                "comment_interaction": "comment",
+                "product_catalog_json": json.dumps(
+                    [{"product_index": 1, "title": "One", "image_urls": []}]
+                ),
+                "product_count": 0,
+                "material_quality_warning": "[]",
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertEqual(
+            gates["material_reliability"],
+            {"segments": False, "products": False, "comment": True},
+        )
+
+    def test_missing_or_malformed_dynamic_inputs_have_deterministic_metadata(self):
+        cases = (
+            ({}, {"segment_count": None, "product_count": None}),
+            (
+                {
+                    "segment_count": True,
+                    "product_count": -1,
+                    "material_quality_warning": "not-json",
+                },
+                {"segment_count": None, "product_count": None},
+            ),
+        )
+
+        for overrides, expected_declared in cases:
+            with self.subTest(overrides=overrides):
+                params = {
+                    "segments_json": "[]",
+                    "comment_interaction": "",
+                    "product_catalog_json": "[]",
+                    "rules_version": EXPECTED_CONTRACT_VERSION,
+                }
+                params.update(overrides)
+                result = build_boundary_gate_output(params)
+                gates = json.loads(result["boundary_gates_json"])
+
+                self.assertEqual(gates["declared_counts"], expected_declared)
+                self.assertEqual(
+                    gates["observed_counts"],
+                    {"segment_count": 0, "product_count": 0},
+                )
+                self.assertEqual(gates["material_warnings"], [])
+                self.assertEqual(
+                    gates["material_reliability"],
+                    {"segments": False, "products": False, "comment": True},
+                )
+
     def test_builder_and_finalizer_contract_mirrors_match_independent_literals(self):
         self.assertEqual(REQUIRED_FACTS, EXPECTED_REQUIRED_FACTS)
         self.assertEqual(list(FINALIZER_REQUIRED_FACTS), EXPECTED_REQUIRED_FACTS)
@@ -725,7 +827,12 @@ class BoundaryGateBuilderTest(unittest.TestCase):
             [
                 "explicit_generated_content_evidence_found",
                 "generated_product_material_mismatch_found",
+                "bound_product_evidence_found",
             ],
+        )
+        self.assertIn(
+            "generated-product material mismatch, and bound-product evidence",
+            result["boundary_gate_panel"],
         )
         self.assertNotEqual(
             gates["gate_definitions"]["9"]["required_true"],

@@ -77,6 +77,7 @@ GATE_DEFINITIONS = {
         "required_true": [
             "explicit_generated_content_evidence_found",
             "generated_product_material_mismatch_found",
+            "bound_product_evidence_found",
         ],
         "blocked_true": [],
     },
@@ -142,7 +143,7 @@ BOUNDARY_GATE_PANEL_LINES = [
     "Category 7: require an interruption or layer with 80%+ occlusion of the live screen.",
     "Category 8: apply the language rule only; product mismatch reroutes to Category 15.",
     "Category 9: require explicit generated-content evidence plus authenticity misleading evidence.",
-    "Category 10: require explicit generated-content evidence plus generated-product material mismatch.",
+    "Category 10: require explicit generated-content evidence, generated-product material mismatch, and bound-product evidence.",
     "Category 11: require a concrete replay indicator; weak replay signals alone block the gate.",
     "Category 12: require a concrete live effect claim, a materially misleading basis, and prevalence or strength threshold; block marketing or product-image-only evidence.",
     "Category 13: apply the dangerous-behavior evidence threshold; no additional machine fact gate.",
@@ -173,6 +174,33 @@ def _parse_json_list(value):
     except Exception:
         return []
     return parsed if isinstance(parsed, list) else []
+
+
+def _parse_list_with_validity(value):
+    if isinstance(value, list):
+        return value, True
+    if not isinstance(value, str) or not value.strip():
+        return [], False
+    try:
+        parsed = json.loads(value)
+    except Exception:
+        return [], False
+    if not isinstance(parsed, list):
+        return [], False
+    return parsed, True
+
+
+def _declared_count(value):
+    if type(value) is int and value >= 0:
+        return value
+    return None
+
+
+def _parse_material_warnings(value):
+    parsed, valid = _parse_list_with_validity(value)
+    if not valid or any(type(item) is not str for item in parsed):
+        return []
+    return parsed
 
 
 def _has_nonblank_string(value):
@@ -261,6 +289,42 @@ def _build_material_availability(params):
     }
 
 
+def _build_dynamic_metadata(params):
+    segments, segments_valid = _parse_list_with_validity(params.get("segments_json"))
+    products, products_valid = _parse_list_with_validity(params.get("product_catalog_json"))
+    declared_segment_count = _declared_count(params.get("segment_count"))
+    declared_product_count = _declared_count(params.get("product_count"))
+    observed_segment_count = len(segments)
+    observed_product_count = len(products)
+
+    return {
+        "declared_counts": {
+            "segment_count": declared_segment_count,
+            "product_count": declared_product_count,
+        },
+        "observed_counts": {
+            "segment_count": observed_segment_count,
+            "product_count": observed_product_count,
+        },
+        "material_warnings": _parse_material_warnings(
+            params.get("material_quality_warning")
+        ),
+        "material_reliability": {
+            "segments": (
+                segments_valid
+                and declared_segment_count is not None
+                and declared_segment_count == observed_segment_count
+            ),
+            "products": (
+                products_valid
+                and declared_product_count is not None
+                and declared_product_count == observed_product_count
+            ),
+            "comment": type(params.get("comment_interaction")) is str,
+        },
+    }
+
+
 def _build_warnings(material_availability, rules_version):
     warnings = []
     if not material_availability["segment_frame"]:
@@ -280,6 +344,7 @@ def build_boundary_gate_output(params):
     rules_version = _text(params.get("rules_version"))
     material_availability = _build_material_availability(params)
     allowed_source_labels = _build_allowed_source_labels(params)
+    dynamic_metadata = _build_dynamic_metadata(params)
     warnings = _build_warnings(material_availability, rules_version)
 
     boundary_gates = {
@@ -287,6 +352,10 @@ def build_boundary_gate_output(params):
         "rules_version": rules_version,
         "material_availability": material_availability,
         "allowed_source_labels": allowed_source_labels,
+        "declared_counts": dynamic_metadata["declared_counts"],
+        "observed_counts": dynamic_metadata["observed_counts"],
+        "material_warnings": dynamic_metadata["material_warnings"],
+        "material_reliability": dynamic_metadata["material_reliability"],
         "required_facts": REQUIRED_FACTS,
         "gate_definitions": GATE_DEFINITIONS,
         "reroutes": REROUTES,
