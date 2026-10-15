@@ -1,27 +1,28 @@
-Live Ocean Low Quality Single-Judge Compact Rules v2
+Live Ocean Low Quality Single-Judge Compact Rules v3
 
 Global
+Boundary contract version: 2026-10-15-v3-cross-project-boundary-gates
 Check all 19 categories independently and in order. Use all available Ocean segments, not a reduced sample. Hit requires concrete evidence from allowed materials and the category threshold. If evidence is weak, missing, below threshold, or from forbidden material, return no_hit.
 Final evidence explanation should be Chinese. Direct quotes may remain in source language.
 Product images are allowed only for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17.
-Priority: category 3 beats category 6 when there is no sustained product promotion intent and the live content is unrelated to bound products. Category 5 beats category 6 when product talk exists but most live frames do not show the real bound product. Category 15 product mismatch / IPP beats category 8 when the issue is live product vs bound product mismatch. Category 1 beats category 19 when there is sexual exposure or sexual implication. Category 19 is disabled in this workflow version and should return no_hit.
+Priority: category 3 beats category 5 when the unrelated live core has no sustained promotion. Category 3 beats category 6 when there is no sustained product promotion intent and the live content is unrelated to bound products. Category 5 beats category 6 when product talk exists but most live frames do not show the real bound product. Category 15 product mismatch / IPP beats category 8 when the issue is live product vs bound product mismatch. Category 1 beats category 19 when there is sexual exposure or sexual implication. Category 19 is disabled in this workflow version and should return no_hit.
 Allowed material names use the new Start-input contract: segment_frame, segment_asr, segment_frame_visible_text, comment_interaction, pearl_product_title, and pearl_product_image.
 
 1 色情低俗低质问题
 Allowed: segment_frame, segment_asr. Pearl product image forbidden.
 Hit: any segment frame or segment ASR shows listed sexualized exposure, sexual teasing, underwear/private-part outline, explicit chest/butt shaking, deliberate cleavage exposure, or clothing/product unsuitable for public display due to sexual exposure.
-Exempt: ordinary cleavage without deliberate sexual action; normal bikini in beach context.
+Exempt: ordinary cleavage without deliberate sexual action; normal bikini in beach context; ordinary try-on, gym activity, swimwear, or shapewear without explicit sexual framing.
 
 2 恶心恐怖低质问题
 Allowed: segment_frame, segment_asr. Pearl product image forbidden.
-Hit: any segment frame or segment ASR shows indoor disgusting/horror content over 50% of frame or many insects, and no active cleaning.
-Exempt: active cleaning or cleaning product use.
+Hit: dominant qualifying disgusting/horror content creates strong discomfort.
+Hard-exempt: active cleaning or cleaning-product use; novelty/product art, calendar imagery, and product packaging.
 
 3 商品无关低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, comment_interaction, pearl_product_title, pearl_product_image.
-Hit: sustained pattern across available segments shows live core content unrelated to bound product or no valid sustained product promotion. Examples: no pinned products, no product talk, sports/game/event streaming, personal life chat, arguments, or fan interaction unrelated to shopping. Isolated unrelated segments are not enough.
-Use bound product category/function/use-case as reference. If there is active product talk but no real physical product display, check category 5 first. If live product and bound product differ, check category 15 product mismatch / IPP.
-Exempt: auction, lottery, card-opening, or fast-selling rooms when the host is clearly selling or opening the bound product type; short off-topic chat when most of the room still promotes products.
+Hit: a sustained unrelated core dominates across available segments and there is no sustained promotion of bound products. Examples: no pinned products, no product talk, sports/game/event streaming, personal life chat, arguments, or fan interaction unrelated to shopping.
+Use bound product category/function/use-case as reference. Unrelated dominance routes to category 3, not category 5 or 6. If live product and bound product differ, check category 15 product mismatch / IPP.
+Exempt: auction, lottery, card-opening, or fast-selling rooms when the host is clearly selling or opening the bound product type; a short opening or off-topic passage followed by a later substantive product demonstration.
 
 4 无互动低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, comment_interaction. Pearl product image forbidden.
@@ -30,15 +31,16 @@ Hit: most available segment ASR evidence, supported by comment_interaction when 
 5 无实物商品展示低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, pearl_product_title, pearl_product_image.
 Hit: most available segment frame groups show no real physical video display of the bound product: only sticker/cutout/photo/screenshot/static image, product card, small product thumbnail/overlay, no product, or unrecognizable partial product. Product cards, Pearl photos, overlays, and screenshots do not count as live physical product display.
-Exempt: real physical product is visible in most relevant live frames even if explanation is brief; temporary camera movement or a few frames without product.
+Physical display includes a real package, wearing, installation, operation, and application/use. Unrelated dominance routes to category 3.
+Exempt: these real physical displays are visible in relevant live frames even if explanation is brief; temporary camera movement or a few frames without product.
 
 6 商品描述不详细低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, comment_interaction, pearl_product_title, pearl_product_image.
 Prerequisite: clear product promotion intent plus sustained product display/explanation/demonstration.
 Hit only when most relevant promotion remains extremely low-information after considering all available segments. Low-information means the room repeatedly fails to provide even basic useful buying information, or product talk is mostly off-topic.
-Human-review calibration: if the host clearly shows the product and mentions one or more core buying facts such as product category, function, use, size, color, price, discount, brand, quantity, condition, ingredients, material, scent/flavor, compatibility, delivery, or return terms, do not hit category 6 just because the explanation is shallow or not systematic.
+Human-review calibration: an identifiable product or package plus its core purpose blocks category 6. Any core buying fact such as product category, function, use, size, color, price, discount, brand, quantity, condition, ingredients, material, scent/flavor, compatibility, delivery, or return terms also blocks category 6.
 Auction guard: in auction, bidding, sudden-death, fast-selling, card, or lottery rooms, product IDs, brand/category, condition, size, price, quantity, bundle contents, and bid rules can be valid commerce information.
-Exempt: merely wearing/showing product with no promotion; clear product display plus any core buying information; missing advanced specs/full ingredients/deep material explanation by itself. If no promotion intent and unrelated content, use category 3 instead. If product is not physically displayed, check category 5 first. If live product differs from bound product, check category 15.
+Exempt: merely wearing/showing product with no promotion; clear product display plus any core buying information; missing advanced specs, deep ingredient analysis, mechanism explanation, or deep material explanation by itself. If no promotion intent and unrelated content, use category 3 instead. If product is not physically displayed, check category 5 first. If live product differs from bound product, check category 15.
 
 7 静态帧遮挡低质问题
 Allowed: segment_frame. Pearl product image forbidden.
@@ -52,22 +54,23 @@ Do not use Pearl product images as evidence. Product mismatch, ethnic clothing s
 
 9 AIGC真实性低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, pearl_product_title, pearl_product_image.
-Hit: any segment frame, segment ASR, visible frame text, or Pearl product evidence shows AIGC-generated content used for product promotion and misleading authenticity or differing from bound physical product, such as fake AI voice/interview, fake before/after, AI size/style mismatch, digital human without real bound product.
+Hit: explicit generated-content evidence is used in product promotion and is authenticity misleading, such as fake AI voice/interview, fake before/after, or digital human presented as authentic product evidence. AI-like style alone is insufficient.
 
 10 AIGC商品展示低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, pearl_product_title, pearl_product_image.
-Hit: any segment frame, segment ASR, visible frame text, or Pearl product evidence shows rendered/generated product or use scene with exaggerated size/style/effect compared with bound real product.
+Hit: an explicit generated product or use-scene has a material mismatch in size, style, function, use, or effect against the bound real product. AI-like style alone is insufficient.
 
 11 录播回放低质问题
 Allowed: segment_frame, segment_asr. Pearl product image forbidden.
 Hit: any segment frame shows taskbar/cursor not used for product pointing, black/green screen, abnormal jump, or nested screen with clear replay/loop/pre-recorded feature; or segment ASR directly mentions replay/loop playback.
-Card-opening guard: for card opening, TCG, trading-card, lottery/spin, or similar live rooms, browser/desktop/OBS-style interface, wheel/spin page, card-list page, or small host camera window is not replay by itself. Host face-cam used to prove real-time opening is exempt when host appears live or ASR aligns with mouth movement. Need additional replay indicators such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, or ASR saying replay/loop.
+Card-opening guard: browser, desktop, OBS, card-list, spin UI, and cursor presence are weak signals, not replay by themselves. For card opening, TCG, trading-card, lottery/spin, or similar live rooms, require additional replay indicators such as replay/loop labels, playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, or ASR saying replay/loop.
 
 12 功能效果虚假宣传低质问题
 Allowed: segment_frame, segment_asr, pearl_product_title, pearl_product_image.
-Hit: at least half of relevant effective promotion materials for the claimed effect, or repeated strong evidence across ASR/frame/Pearl product materials, exaggerates product function/effect beyond reliable capability and is likely to mislead consumers.
-Strong signals: immediate or very short-term transformation, extreme quantified results, medical/clinical therapeutic claims, body-shaping/slimming, dramatic before-after, instant whitening, 7-day/after-one-use whitening, 10/16/30 shade changes, visible lift after one use, sculpted jawline, clinical-looking percentages, or unsupported superlatives.
-Exempt: ordinary product improvement, comfort, hydration, shine, fragrance, coverage, hold, waterproof, tear-proof, brightening, glow, skin-friendly, dermatologist-tested, sensitive-skin-safe, price, discount, return policy, delivery claim, lottery mechanics, or a single weak ASR summary phrase unless tied to strong quantified/immediate/medical transformation.
+Hit: a concrete LIVE frame or ASR claim has a materially misleading basis and meets the current prevalence/strength threshold: at least half of relevant effective live promotion or repeated strong evidence.
+Product image is corroborative only and cannot independently create a hit. Product image copy, routine marketing, and subjective praise alone cannot hit.
+Strong signals: immediate or very short-term transformation, extreme quantified results, medical/clinical therapeutic claims, body-shaping/slimming, dramatic before-after, instant whitening, 7-day/after-one-use whitening, 10/16/30 shade changes, visible lift after one use, sculpted jawline, or clinical-looking percentages.
+Exempt: ordinary product improvement, comfort, hydration, shine, fragrance, coverage, hold, waterproof, tear-proof, brightening, glow, skin-friendly, dermatologist-tested, sensitive-skin-safe, price, discount, return policy, delivery claim, lottery mechanics, or a single weak ASR summary phrase unless tied to a concrete strong misleading live claim.
 
 13 危险行为低质问题
 Allowed: segment_frame, segment_asr. Pearl product image forbidden.
@@ -76,14 +79,13 @@ Exempt: normal safe product demonstration.
 
 14 站外引流交易低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, comment_interaction. Pearl product image forbidden.
-Hit: same scene has both off-platform payment/account/site/app info and explicit transaction guidance.
+Hit: the same scene has both an off-platform destination/payment/account/site/app and explicit transaction guidance.
 Exempt: platform-internal order guidance; social account jump without purchase intent; bio link only; only one of the two core conditions.
 
 15 违法违规商品低质问题
 Allowed: segment_frame, segment_asr, pearl_product_title, pearl_product_image.
-Hit: cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show legally prohibited goods, counterfeit/imitation/inferior product, clear product mismatch / IPP where the live displayed item differs from the bound product entity/category/use-case, abnormal device modification/jailbreak, or missing qualification claim tied to bound product.
-Product mismatch / IPP examples: perfume is sold or demonstrated while bound products are supplements/jewelry; ordinary stones are shown while bound product is a stone wolf; live clothing/product materially differs from the bound catalog images.
-Exempt: normal legal goods and ordinary product demonstration; minor color/style variation within the same product family; broad catalog where the currently shown product is plausibly one of the bound products.
+Hit: independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other non-IPP subtypes retain their cumulative at least 2 evidence threshold. IPP requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction.
+Exempt from IPP: a minor variant in color/style/packaging/quantity without a core contradiction; a background difference; a broad catalog where the shown product is plausibly bound.
 
 16 政治敏感低质问题
 Allowed: segment_frame, segment_asr, pearl_product_title, pearl_product_image.
@@ -96,7 +98,7 @@ Hit: cumulative at least 2 segment frame, segment ASR, or Pearl product evidence
 18 负面引导低质问题
 Allowed: segment_frame, segment_asr, comment_interaction. Pearl product image forbidden.
 Hit: cumulative at least 2 segment frame, segment ASR, or Comment Interaction evidence units show sustained negative emotional guidance such as hostile arguments with viewers, insults, resentment, jealousy, anxiety/fear induction beyond routine sales, wealth flaunting or comparison pressure, or content likely to trigger negative emotion.
-Human-review calibration: ordinary limited-time offers, countdowns, limited stock, bid countdowns, sudden-death auction, gifts, coupons, pay-within-minutes reminders, final minutes, and standard conversion pressure are normal commerce/knowledge marketing and do not hit category 18 by themselves.
+Human-review calibration: routine sales pressure, knowledge marketing, and normal risk explanation are clean without sustained hostile, shaming, fear, resentment, jealousy, or similar negative guidance. Cumulative at least 2 evidence units remain required.
 Card/lottery guard: in card opening, TCG, trading-card, lottery/spin, or similar live rooms, casual slang, short emotional reactions, disappointment about pull results, comments on card art/design, or hype words such as disgusting/crazy/insane used as slang are not a hit by themselves.
 Exempt: neutral/positive content; ordinary product comparison without negative emotion triggering; limited stock/countdown/coupon/gift/payment deadline without hostile or anxiety language; ordinary card-pull disappointment; casual streamer banter; slang or hype language without sustained negative guidance; knowledge marketing that explains risks or product needs without shaming, hostility, resentment, jealousy, or fear pressure.
 

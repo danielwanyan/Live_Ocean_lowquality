@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 import unittest
 
@@ -16,11 +17,196 @@ from live_boundary_gate_builder import (
     build_boundary_gate_output,
 )
 from output_validator_node import PRIORITY_CONFLICT_PAIRS, validate_judge_output
+import rules_brain_node
+from rules_brain_node import FALLBACK_RULES, PRODUCT_IMAGE_ALLOWED_IDS, build_rules_brain_output
 
 
 RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_rules_structured_v1.json")
 COMPACT_RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_judge_rules_compact_v1.txt")
 SYSTEM_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_system_prompt_v1.txt")
+EXPECTED_V3_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
+
+EXPECTED_RULE_CATEGORY_NAMES = [
+    "色情低俗低质问题",
+    "恶心恐怖低质问题",
+    "商品无关低质问题",
+    "无互动低质问题",
+    "无实物商品展示低质问题",
+    "商品描述不详细低质问题",
+    "静态帧遮挡低质问题",
+    "非母语违规低质问题",
+    "AIGC真实性低质问题",
+    "AIGC商品展示低质问题",
+    "录播回放低质问题",
+    "功能效果虚假宣传低质问题",
+    "危险行为低质问题",
+    "站外引流交易低质问题",
+    "违法违规商品低质问题",
+    "政治敏感低质问题",
+    "争议话题低质问题",
+    "负面引导低质问题",
+    "隐私敏感商品低质问题",
+]
+
+EXPECTED_ALLOWED_MATERIALS = {
+    1: ["segment_frame", "segment_asr"],
+    2: ["segment_frame", "segment_asr"],
+    3: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"],
+    4: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"],
+    5: ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"],
+    6: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"],
+    7: ["segment_frame"],
+    8: ["segment_asr", "segment_frame_visible_text"],
+    9: ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"],
+    10: ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"],
+    11: ["segment_frame", "segment_asr"],
+    12: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    13: ["segment_frame", "segment_asr"],
+    14: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"],
+    15: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    16: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    17: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    18: ["segment_frame", "segment_asr", "comment_interaction"],
+    19: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+}
+
+UNCHANGED_CATEGORY_SNAPSHOTS = {
+    4: {
+        "trigger_threshold": "Hit when most available segment ASR evidence, supported by comment_interaction when available, shows both no product promotion and no host-audience interaction. Do not use a fixed ratio threshold from the old workflow.",
+        "exemptions": [],
+    },
+    7: {
+        "trigger_threshold": "Any segment frame group shows an occlusion/interruption layer covering at least 80% of the live screen and seriously blocking viewing.",
+        "exemptions": [],
+    },
+    8: {
+        "trigger_threshold": "Hit only when segment ASR or visible text in segment frames uses a language that is not acceptable for the target market, Chinese/CJK in product promotion, Chinglish, incomprehensible English, or severely broken English, and this prevents normal product understanding across the live. Product mismatch, ethnic clothing style, non-English product titles, or OCR noise alone is not a language hit.",
+        "exemptions": [
+            "Coworker daily Chinese conversation unrelated to product promotion.",
+            "Minor accent that is easy to understand.",
+            "Normal English/local EU-language mixing, including German, French, Spanish, Italian, Dutch, Polish, or other EU language words mixed with English.",
+            'German "Englisch" as a local-language word.',
+            "Isolated frame-text recognition noise, stylized labels, usernames, product names, or minor spelling mistakes unless overall promotion text becomes incomprehensible.",
+            "Product mismatch or item/category difference is not a language violation.",
+        ],
+    },
+    13: {
+        "trigger_threshold": "Cumulative at least 2 segment frame or segment ASR evidence units show life-threatening violent behavior or dangerous goods demonstration, including heavy-smoke products creating fire illusion.",
+        "exemptions": ["Normal product demonstration, explanation, and safe behavior."],
+    },
+    16: {
+        "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show political controversy, sensitive political symbols/movements, political hate symbols, racial discrimination, or polarized political narratives.",
+        "exemptions": ["General non-political content unrelated to controversy or sensitive symbols."],
+    },
+    17: {
+        "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show sensitive topics related to religion, racial discrimination, moral boundary, LGBT, or similarly high-conflict socio-cultural themes.",
+        "exemptions": ["General non-sensitive content outside the specified topic scope."],
+    },
+}
+
+V3_CATEGORY_GUARD_TERMS = {
+    1: [
+        "ordinary try-on",
+        "gym",
+        "swimwear",
+        "shapewear",
+        "without explicit sexual framing",
+    ],
+    2: [
+        "dominant",
+        "strong discomfort",
+        "cleaning",
+        "novelty/product art",
+        "calendar",
+        "packaging",
+        "hard-exempt",
+    ],
+    3: [
+        "sustained unrelated core",
+        "short opening",
+        "later substantive product demonstration",
+    ],
+    5: [
+        "real package",
+        "wearing",
+        "installation",
+        "operation",
+        "application/use",
+        "physical display",
+        "unrelated dominance",
+        "category 3",
+    ],
+    6: [
+        "identifiable product or package",
+        "core purpose",
+        "core buying fact",
+        "blocks category 6",
+        "deep ingredient",
+        "mechanism",
+    ],
+    9: [
+        "ai-like style alone is insufficient",
+        "explicit generated-content evidence",
+        "authenticity misleading",
+    ],
+    10: [
+        "ai-like style alone is insufficient",
+        "explicit generated product or use-scene",
+        "material mismatch",
+    ],
+    11: ["browser", "desktop", "obs", "card", "spin", "cursor", "weak signals"],
+    12: [
+        "concrete live frame or asr claim",
+        "materially misleading basis",
+        "current prevalence/strength threshold",
+        "product image is corroborative only",
+        "product image copy",
+        "routine marketing",
+        "subjective praise alone cannot hit",
+    ],
+    14: ["same scene", "off-platform destination", "transaction guidance"],
+    15: [
+        "cumulative at least 2",
+        "live promoted item evidence",
+        "bound product evidence",
+        "entity/category/use/quantity/spec contradiction",
+        "minor variant",
+        "background difference",
+        "prohibited",
+        "counterfeit",
+        "jailbreak",
+        "non-ipp",
+    ],
+    18: [
+        "cumulative at least 2",
+        "routine sales pressure",
+        "knowledge marketing",
+        "normal risk explanation",
+        "hostile",
+        "shaming",
+        "fear",
+    ],
+    19: ["disabled", "always return no_hit"],
+}
+
+
+def _load_structured_rules():
+    with open(RULES_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _category_text(category):
+    return json.dumps(category, ensure_ascii=False).lower()
+
+
+def _compact_category_sections(compact_rules):
+    matches = list(re.finditer(r"(?m)^(\d+) .+$", compact_rules))
+    sections = {}
+    for index, match in enumerate(matches):
+        category_id = int(match.group(1))
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(compact_rules)
+        sections[category_id] = compact_rules[match.start():end].lower()
+    return sections
 
 
 def _valid_payload(hit_ids=(), evidence_by_id=None):
@@ -141,6 +327,195 @@ def _validator_params(payload=None, **extra):
 
 
 class RuleCalibrationTest(unittest.TestCase):
+    def test_structured_rules_use_exact_v3_contract_version(self):
+        rules = _load_structured_rules()
+
+        self.assertEqual(rules["version"], EXPECTED_V3_VERSION)
+        self.assertEqual(rules["boundary_contract_version"], EXPECTED_V3_VERSION)
+        self.assertIn(
+            "normalized 2026-10-15 reviewed baseline (13 reviewed, user override)",
+            rules["global_rules"]["case_calibration_source"],
+        )
+
+    def test_structured_rules_preserve_fixed_categories_materials_and_permissions(self):
+        rules = _load_structured_rules()
+        categories = rules["categories"]
+
+        self.assertEqual(rules["fixed_category_count"], 19)
+        self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
+        self.assertEqual([item["category_name"] for item in categories], EXPECTED_RULE_CATEGORY_NAMES)
+        self.assertEqual(
+            {item["category_id"]: item["allowed_materials"] for item in categories},
+            EXPECTED_ALLOWED_MATERIALS,
+        )
+        self.assertEqual(
+            rules["product_image_allowed_category_ids"],
+            PRODUCT_IMAGE_ALLOWED_IDS,
+        )
+        self.assertEqual(
+            [item["category_id"] for item in categories if item["product_image_allowed"]],
+            PRODUCT_IMAGE_ALLOWED_IDS,
+        )
+
+    def test_structured_rules_define_exact_five_exclusive_priorities(self):
+        rules = _load_structured_rules()
+        priorities = {
+            item["id"]: (
+                item["higher_priority_category_id"],
+                item["lower_priority_category_id"],
+            )
+            for item in rules["exclusive_priority_rules"]
+        }
+
+        self.assertEqual(
+            priorities,
+            {
+                "priority_3_over_5_for_unrelated_content": (3, 5),
+                "priority_3_over_6": (3, 6),
+                "priority_5_over_6_for_no_physical_display": (5, 6),
+                "priority_15_over_8_for_product_mismatch": (15, 8),
+                "priority_1_over_19": (1, 19),
+            },
+        )
+        priority_3_over_5 = next(
+            item
+            for item in rules["exclusive_priority_rules"]
+            if item["id"] == "priority_3_over_5_for_unrelated_content"
+        )
+        for phrase in ("核心内容与商品无关", "没有持续商品推广", "category 3", "not category 5"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(
+                    phrase.lower(),
+                    json.dumps(priority_3_over_5, ensure_ascii=False).lower(),
+                )
+
+    def test_structured_rules_include_each_v3_mapped_category_guard(self):
+        rules = _load_structured_rules()
+        by_id = {item["category_id"]: item for item in rules["categories"]}
+
+        for category_id, terms in V3_CATEGORY_GUARD_TERMS.items():
+            category_text = _category_text(by_id[category_id])
+            for term in terms:
+                with self.subTest(category_id=category_id, term=term):
+                    self.assertIn(term, category_text)
+
+    def test_unmapped_categories_keep_trigger_and_exemption_semantics(self):
+        rules = _load_structured_rules()
+        by_id = {item["category_id"]: item for item in rules["categories"]}
+
+        for category_id, expected in UNCHANGED_CATEGORY_SNAPSHOTS.items():
+            with self.subTest(category_id=category_id):
+                self.assertEqual(by_id[category_id]["trigger_threshold"], expected["trigger_threshold"])
+                self.assertEqual(by_id[category_id]["exemptions"], expected["exemptions"])
+
+    def test_compact_rules_use_v3_contract_and_keep_all_categories_ordered(self):
+        with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
+            compact_rules = f.read()
+
+        self.assertTrue(
+            compact_rules.startswith("Live Ocean Low Quality Single-Judge Compact Rules v3\n")
+        )
+        self.assertIn("Boundary contract version: " + EXPECTED_V3_VERSION, compact_rules)
+        headings = re.findall(r"(?m)^(\d+) (.+)$", compact_rules)
+        self.assertEqual([int(category_id) for category_id, _ in headings], list(range(1, 20)))
+        self.assertEqual([name for _, name in headings], EXPECTED_RULE_CATEGORY_NAMES)
+
+    def test_compact_rules_map_v3_guards_and_keep_category_7_as_occlusion_only(self):
+        with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
+            compact_rules = f.read()
+
+        sections = _compact_category_sections(compact_rules)
+        for category_id, terms in V3_CATEGORY_GUARD_TERMS.items():
+            for term in terms:
+                with self.subTest(category_id=category_id, term=term):
+                    self.assertIn(term, sections[category_id])
+
+        category_7_section = compact_rules.split("7 静态帧遮挡低质问题", 1)[1].split(
+            "8 非母语违规低质问题", 1
+        )[0]
+        self.assertIn("80%", category_7_section)
+        self.assertNotIn("still_frame", category_7_section.lower())
+        self.assertNotIn("still-frame", category_7_section.lower())
+        self.assertNotIn("LowqualityVideo", category_7_section)
+
+    def test_rules_brain_invalid_rules_json_uses_exact_v3_fallback_with_warning(self):
+        result = build_rules_brain_output({"rules_json": "{"})
+
+        self.assertEqual(result["rules_version"], EXPECTED_V3_VERSION)
+        self.assertIn("parse failed", result["rules_warning"])
+        self.assertIn("Boundary contract version: " + EXPECTED_V3_VERSION, result["rules_context"])
+
+    def test_rules_brain_fetched_structured_rules_return_exact_v3(self):
+        rules = _load_structured_rules()
+        result = build_rules_brain_output({"rules_json": json.dumps(rules, ensure_ascii=False)})
+
+        self.assertEqual(result["rules_version"], EXPECTED_V3_VERSION)
+        self.assertEqual(result["rules_warning"], "")
+        self.assertEqual(result["category_count"], 19)
+        self.assertEqual(result["category_integrity_check"], "ok")
+        self.assertEqual(result["permission_matrix_check"], "ok")
+
+    def test_rules_brain_fallback_preserves_category_and_permission_integrity(self):
+        categories = FALLBACK_RULES["categories"]
+
+        self.assertEqual(FALLBACK_RULES["version"], EXPECTED_V3_VERSION)
+        self.assertEqual(FALLBACK_RULES["boundary_contract_version"], EXPECTED_V3_VERSION)
+        self.assertEqual(FALLBACK_RULES["fixed_category_count"], 19)
+        self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
+        self.assertEqual([item["category_name"] for item in categories], EXPECTED_RULE_CATEGORY_NAMES)
+        self.assertEqual(
+            {item["category_id"]: item["allowed_materials"] for item in categories},
+            EXPECTED_ALLOWED_MATERIALS,
+        )
+        self.assertEqual(FALLBACK_RULES["product_image_allowed_category_ids"], PRODUCT_IMAGE_ALLOWED_IDS)
+        self.assertEqual(
+            [item["category_id"] for item in categories if item["product_image_allowed"]],
+            PRODUCT_IMAGE_ALLOWED_IDS,
+        )
+        self.assertEqual(
+            {item["id"] for item in FALLBACK_RULES["exclusive_priority_rules"]},
+            {
+                "priority_3_over_5_for_unrelated_content",
+                "priority_3_over_6",
+                "priority_5_over_6_for_no_physical_display",
+                "priority_15_over_8_for_product_mismatch",
+                "priority_1_over_19",
+            },
+        )
+        by_id = {item["category_id"]: item for item in categories}
+        for category_id, terms in V3_CATEGORY_GUARD_TERMS.items():
+            category_text = _category_text(by_id[category_id])
+            for term in terms:
+                with self.subTest(category_id=category_id, term=term):
+                    self.assertIn(term, category_text)
+
+    def test_rules_brain_dynamic_context_exposes_required_v3_guards(self):
+        result = build_rules_brain_output({"rules_json": "not-json"})
+        context = result["rules_context"]
+
+        self.assertIn("Boundary contract version: " + EXPECTED_V3_VERSION, context)
+        self.assertIn("Category 3 product_unrelated overrides Category 5", context)
+        self.assertIn("Category 2 hard exemptions: cleaning and novelty/product art/calendar/packaging", context)
+        self.assertIn("Category 12 guard: require a concrete LIVE frame/ASR claim", context)
+        self.assertIn("Product images are corroborative only", context)
+        self.assertIn("Category 18 guard: routine sales pressure, knowledge marketing, and normal risk explanation", context)
+
+    def test_cross_asset_contract_version_matches_gate_and_finalizer_expectations(self):
+        rules = _load_structured_rules()
+
+        self.assertEqual(BOUNDARY_CONTRACT_VERSION, EXPECTED_V3_VERSION)
+        self.assertEqual(
+            getattr(rules_brain_node, "BOUNDARY_CONTRACT_VERSION", None),
+            EXPECTED_V3_VERSION,
+        )
+        self.assertEqual(rules["version"], BOUNDARY_CONTRACT_VERSION)
+        self.assertEqual(rules["boundary_contract_version"], BOUNDARY_CONTRACT_VERSION)
+
+        finalized = finalize_judge_output(_finalizer_params(_valid_finalizer_payload()))
+        finalized_payload = json.loads(finalized["finalized_final_json"])
+        self.assertEqual(finalized["finalization_status"], "pass")
+        self.assertEqual(finalized_payload["rules_version"], EXPECTED_V3_VERSION)
+
     def test_structured_rules_keep_category_and_product_image_permissions_consistent(self):
         with open(RULES_PATH, encoding="utf-8") as f:
             rules = json.load(f)
