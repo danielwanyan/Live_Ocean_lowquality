@@ -493,7 +493,7 @@ def _append_priority_rule(item, rule):
 
 def _decision_confidence(item):
     confidence = item.get("confidence")
-    if confidence in {"high", "medium", "low"}:
+    if type(confidence) is str and confidence in {"high", "medium", "low"}:
         return confidence
     return "medium"
 

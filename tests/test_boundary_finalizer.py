@@ -248,6 +248,16 @@ def customize_hit(payload, category_id, evidence, reason, confidence):
     item["confidence"] = confidence
 
 
+def set_complete_category_12_facts(payload):
+    set_fact(payload, "concrete_live_effect_claim_found", source="Segment #1 ASR")
+    set_fact(payload, "materially_misleading_basis_found", source="Pearl product #1 image")
+    set_fact(
+        payload,
+        "effect_claim_prevalence_or_strength_threshold_met",
+        source="Pearl product #1 title",
+    )
+
+
 class LiveBoundaryFinalizerTest(unittest.TestCase):
     def assert_failure(self, result, expected_error):
         self.assertEqual(set(result), EXPECTED_RETURN_KEYS)
@@ -1006,6 +1016,36 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 for item in category_12["evidence"]
             )
         )
+
+    def test_mutation_normalizes_malformed_confidence_values_to_medium(self):
+        malformed_values = ([], {}, 1, True, None, "", "unexpected")
+
+        for malformed_confidence in malformed_values:
+            with self.subTest(malformed_confidence=malformed_confidence):
+                payload = valid_payload()
+                category_result(payload, 12)["confidence"] = malformed_confidence
+                set_complete_category_12_facts(payload)
+
+                try:
+                    result = finalize_judge_output(build_params(payload))
+                except Exception as exc:
+                    self.fail("finalizer raised for malformed confidence: " + str(exc))
+                finalized = finalized_payload(result)
+
+                self.assert_decision(finalized, 12, "hit")
+                self.assertEqual(category_result(finalized, 12)["confidence"], "medium")
+
+    def test_mutation_preserves_valid_confidence_values(self):
+        for confidence in ("high", "medium", "low"):
+            with self.subTest(confidence=confidence):
+                payload = valid_payload()
+                category_result(payload, 12)["confidence"] = confidence
+                set_complete_category_12_facts(payload)
+
+                finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+                self.assert_decision(finalized, 12, "hit")
+                self.assertEqual(category_result(finalized, 12)["confidence"], confidence)
 
     def test_category_15_non_ipp_fact_preserves_original_hit(self):
         payload = valid_payload()
