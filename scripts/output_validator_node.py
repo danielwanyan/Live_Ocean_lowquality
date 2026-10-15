@@ -4,6 +4,7 @@ import json
 ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17}
 ALL_CATEGORY_IDS = set(range(1, 20))
 ALLOWED_DECISIONS = {"hit", "no_hit", "unable_to_judge"}
+PRIORITY_CONFLICT_PAIRS = ((3, 5), (3, 6), (5, 6), (8, 15), (1, 19))
 
 
 def _text(value):
@@ -62,22 +63,87 @@ def _check_decision_lists(payload, errors):
 
 def _check_priority_conflicts(results, errors):
     by_id = {item.get("category_id"): item for item in results if isinstance(item, dict)}
-    category_3 = by_id.get(3, {})
-    category_6 = by_id.get(6, {})
-    if category_3.get("decision") == "hit" and category_6.get("decision") == "hit":
-        reason_3 = json.dumps(category_3.get("evidence", []), ensure_ascii=False).lower()
-        reason_6 = json.dumps(category_6.get("evidence", []), ensure_ascii=False).lower()
-        if "unrelated" in reason_3 and "unrelated" in reason_6:
-            errors.append("priority_conflict_category_3_and_6")
-    category_1 = by_id.get(1, {})
+    for first_id, second_id in PRIORITY_CONFLICT_PAIRS:
+        first = by_id.get(first_id, {})
+        second = by_id.get(second_id, {})
+        if first.get("decision") != "hit" or second.get("decision") != "hit":
+            continue
+        if _normalized_evidence_keys(first) & _normalized_evidence_keys(second):
+            errors.append(
+                "priority_conflict_category_%d_and_%d" % (first_id, second_id)
+            )
+
     category_19 = by_id.get(19, {})
-    if category_1.get("decision") == "hit" and category_19.get("decision") == "hit":
-        text_1 = json.dumps(category_1.get("evidence", []), ensure_ascii=False).lower()
-        text_19 = json.dumps(category_19.get("evidence", []), ensure_ascii=False).lower()
-        if "sexual" in text_1 and "sexual" in text_19:
-            errors.append("priority_conflict_category_1_and_19")
     if category_19.get("decision") == "hit":
         errors.append("disabled_category_19_hit")
+
+
+def _normalized_evidence_keys(item):
+    evidence = item.get("evidence")
+    if not isinstance(evidence, list):
+        return set()
+
+    keys = set()
+    for entry in evidence:
+        if not isinstance(entry, dict):
+            continue
+        source = entry.get("source")
+        detail = entry.get("quote_or_visual_detail")
+        if not isinstance(source, str) or not isinstance(detail, str):
+            continue
+        source = source.strip()
+        detail = detail.strip()
+        if source and detail:
+            keys.add((source, detail))
+    return keys
+
+
+def _finalizer_errors_are_nonempty(value):
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip() not in {"", "[]"}
+    if isinstance(value, (list, tuple, dict, set)):
+        return bool(value)
+    return bool(value)
+
+
+def _finalizer_errors_diagnostic(value):
+    if isinstance(value, str):
+        return value.strip()
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    except Exception:
+        try:
+            return str(value).strip()
+        except Exception:
+            return "<unprintable>"
+
+
+def _check_finalization_status(params, errors, warnings):
+    status = _text(params.get("finalization_status"))
+    finalizer_errors = params.get("finalizer_errors")
+    has_diagnostic = _finalizer_errors_are_nonempty(finalizer_errors)
+
+    if not status:
+        return
+
+    if status == "fail":
+        errors.append("boundary_finalization_failed")
+    elif status == "warning":
+        warnings.append("boundary_finalization_warning")
+    elif status == "pass":
+        if has_diagnostic:
+            errors.append("unexpected_finalizer_errors")
+    else:
+        errors.append("invalid_finalization_status")
+
+    if has_diagnostic:
+        diagnostic = "finalizer_errors:" + _finalizer_errors_diagnostic(finalizer_errors)
+        if status == "warning":
+            warnings.append(diagnostic)
+        else:
+            errors.append(diagnostic)
 
 
 def _validate_payload(payload, params):
@@ -122,12 +188,20 @@ def _validate_payload(payload, params):
 def validate_judge_output(params):
     judge_output = params.get("judge_output", "")
     report_text = _text(judge_output).split("FINAL_JSON:", 1)[0].strip() if "FINAL_JSON:" in _text(judge_output) else _text(judge_output)
+    finalization_errors = []
+    finalization_warnings = []
+    _check_finalization_status(params, finalization_errors, finalization_warnings)
     try:
         payload = json.loads(_extract_final_json_text(judge_output))
     except Exception as exc:
         return {
             "validation_status": "fail",
-            "validation_errors": json.dumps([f"json_parse_failed:{exc}"], ensure_ascii=False),
+            "validation_errors": json.dumps(
+                [f"json_parse_failed:{exc}"]
+                + finalization_errors
+                + finalization_warnings,
+                ensure_ascii=False,
+            ),
             "validated_final_json": "",
             "final_report_text": report_text,
             "room_id": _text(params.get("room_id")),
@@ -137,6 +211,8 @@ def validate_judge_output(params):
         }
 
     errors, warnings = _validate_payload(payload, params)
+    errors.extend(finalization_errors)
+    warnings.extend(finalization_warnings)
     all_messages = errors + warnings
     if errors:
         status = "fail"
