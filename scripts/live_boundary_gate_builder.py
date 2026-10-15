@@ -184,7 +184,7 @@ def _has_nonempty_value(value):
         return any(_has_nonempty_value(item) for item in value)
     if isinstance(value, dict):
         return bool(value)
-    return True
+    return bool(value)
 
 
 def _has_nonempty_list_field(value):
@@ -193,11 +193,12 @@ def _has_nonempty_list_field(value):
         if not stripped:
             return False
         try:
-            parsed = json.loads(stripped)
+            value = json.loads(stripped)
         except Exception:
-            return True
-        return _has_nonempty_value(parsed)
-    return _has_nonempty_value(value)
+            return False
+    if not isinstance(value, list):
+        return False
+    return any(_has_nonempty_value(item) for item in value)
 
 
 def _build_material_availability(params):

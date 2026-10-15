@@ -129,6 +129,7 @@ class BoundaryGateBuilderTest(unittest.TestCase):
         self.assertNotIn("still_frame", result["boundary_gate_panel"])
         self.assertEqual(schema["contract_version"], EXPECTED_CONTRACT_VERSION)
         self.assertEqual(schema["required_facts"], EXPECTED_REQUIRED_FACTS)
+        self.assertEqual(json.loads(result["boundary_builder_warnings"]), [])
         self.assertEqual(
             schema["fact_shape"],
             {
@@ -164,6 +165,115 @@ class BoundaryGateBuilderTest(unittest.TestCase):
         self.assertIn("segment_frame_missing", warnings)
         self.assertIn("segment_asr_missing", warnings)
         self.assertIn("product_catalog_missing", warnings)
+
+    def test_false_comment_interaction_is_unavailable(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": [],
+                "comment_interaction": False,
+                "product_catalog_json": [],
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertFalse(gates["material_availability"]["comment_interaction"])
+
+    def test_malformed_frame_urls_string_is_unavailable(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": [
+                    {
+                        "asr_summary": "Valid ASR",
+                        "frame_urls": "not-json",
+                    }
+                ],
+                "comment_interaction": "Valid comment",
+                "product_catalog_json": [],
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+        warnings = json.loads(result["boundary_builder_warnings"])
+
+        self.assertFalse(gates["material_availability"]["segment_frame"])
+        self.assertIn("segment_frame_missing", warnings)
+
+    def test_malformed_product_image_urls_string_is_unavailable(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": [],
+                "comment_interaction": "",
+                "product_catalog_json": [
+                    {
+                        "title": "",
+                        "image_urls": "not-json",
+                    }
+                ],
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+        warnings = json.loads(result["boundary_builder_warnings"])
+
+        self.assertFalse(gates["material_availability"]["pearl_product_image"])
+        self.assertIn("product_catalog_missing", warnings)
+
+    def test_rules_version_mismatch_adds_warning(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": [],
+                "comment_interaction": "",
+                "product_catalog_json": [],
+                "rules_version": "different-version",
+            }
+        )
+
+        warnings = json.loads(result["boundary_builder_warnings"])
+
+        self.assertIn("rules_version_mismatch", warnings)
+
+    def test_title_only_catalog_is_available_without_product_missing_warning(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": [],
+                "comment_interaction": "",
+                "product_catalog_json": [{"title": "Title only", "image_urls": []}],
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+        warnings = json.loads(result["boundary_builder_warnings"])
+
+        self.assertTrue(gates["material_availability"]["pearl_product_title"])
+        self.assertFalse(gates["material_availability"]["pearl_product_image"])
+        self.assertNotIn("product_catalog_missing", warnings)
+
+    def test_image_only_catalog_is_available_without_product_missing_warning(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": [],
+                "comment_interaction": "",
+                "product_catalog_json": [
+                    {
+                        "title": "",
+                        "image_urls": ["https://example.com/product.jpg"],
+                    }
+                ],
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+        warnings = json.loads(result["boundary_builder_warnings"])
+
+        self.assertFalse(gates["material_availability"]["pearl_product_title"])
+        self.assertTrue(gates["material_availability"]["pearl_product_image"])
+        self.assertNotIn("product_catalog_missing", warnings)
 
     def test_reroutes_and_generated_content_gates_are_exact(self):
         result = build_boundary_gate_output(
