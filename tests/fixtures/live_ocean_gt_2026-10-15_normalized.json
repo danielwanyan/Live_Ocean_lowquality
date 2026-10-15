@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "schema_version": "1.0-normalized",
+    "source_file": "/Users/bytedance/Downloads/直播间低质人审结果_2026-10-15.json",
+    "reviewed_room_count": 13,
+    "expected_low_quality_room_count": 2,
+    "expected_clean_room_count": 11,
+    "human_overrides": [
+      {
+        "room_id": "7684940374084045590",
+        "is_low_quality": false,
+        "category_ids": [],
+        "reason": "普通营销和知识营销，没有实质功能效果虚假证据，也没有负面引导。"
+      }
+    ]
+  },
+  "reviews": [
+    {
+      "room_id": "7683777632135170819",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7683557938614536982",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7684604074263579394",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7682666560909003523",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7683442568729824023",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7683929339473283862",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7683556905641429782",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7684303184864529174",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7683403737167121174",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7684635473842604822",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7684940374084045590",
+      "is_low_quality": false,
+      "category_ids": []
+    },
+    {
+      "room_id": "7684941369542052630",
+      "is_low_quality": true,
+      "category_ids": [
+        12
+      ]
+    },
+    {
+      "room_id": "7684150291864488726",
+      "is_low_quality": true,
+      "category_ids": [
+        12,
+        15
+      ]
+    }
+  ]
+}
