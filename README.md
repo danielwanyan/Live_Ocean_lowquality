@@ -117,6 +117,8 @@ boundary_contract_version: String
 boundary_builder_warnings: String
 ```
 
+The five-field Output Panel is unchanged. Inside `boundary_gates_json`, v3 now carries the declared and observed segment/product counts, normalized material warnings, per-channel material reliability, material availability, and the exact allowed-source manifest (`allowed_source_labels`). The Finalizer reconstructs the same values from trusted Normalize inputs and rejects any mismatch.
+
 ## LowQuality_Judge
 
 Keep every existing text input:
@@ -155,9 +157,17 @@ all_product_image_urls          Normalize_Input.all_product_image_urls
 
 The System Prompt is plain text. The User Prompt contains the JSON contract and variable interpolation.
 
+The Judge output envelope is a Chinese human-review report followed by `FINAL_JSON:` and valid JSON; `raw_json_only` is `false`. Decision precedence is fixed:
+
+1. Missing or unreliable required channel/material becomes `unable_to_judge`.
+2. Required channels present but evidence below threshold becomes `no_hit`.
+3. Disabled categories or forbidden-only evidence become `no_hit`, overriding missing-material handling.
+
+Category 5 requires reliable live frames; product promotion in ASR without frames is `unable_to_judge`. Category 10 requires a live Segment source proving generated content, an independent Pearl title/image source proving the bound product, a material mismatch comparison, and at least two distinct trusted sources.
+
 ## Live_Boundary_Finalizer
 
-Configure exactly these inputs:
+Configure all 11 mandatory v3 inputs. The v3 path has no legacy bridge:
 
 | Input Variable | Type | Source |
 |---|---|---|
@@ -166,6 +176,12 @@ Configure exactly these inputs:
 | `boundary_contract_version` | String | `Live_Boundary_Gate_Builder.boundary_contract_version` |
 | `rules_version` | String | `Rules_Brain.rules_version` |
 | `room_id` | String | `Normalize_Input.room_id` |
+| `segments_json` | String | `Normalize_Input.segments_json` |
+| `segment_count` | Integer | `Normalize_Input.segment_count` |
+| `comment_interaction` | String | `Normalize_Input.comment_interaction` |
+| `product_catalog_json` | String | `Normalize_Input.product_catalog_json` |
+| `product_count` | Integer | `Normalize_Input.product_count` |
+| `material_quality_warning` | String | `Normalize_Input.material_quality_warning` |
 
 Declare exactly these five Output Panel fields; every field is `String`:
 
@@ -177,6 +193,8 @@ boundary_override_log: String
 finalizer_errors: String
 ```
 
+The Finalizer rebuilds `material_summary`, observed counts, material availability/reliability, and the exact source manifest from the six trusted Normalize inputs rather than trusting model JSON or Gate claims. Contradictory boundary facts fail closed. Gate-driven reroutes require same-evidence source overlap; independent Category 8 and Category 15 evidence may coexist. Nonempty material warnings, count/reliability warnings, or threshold recheck warnings produce `finalization_status=warning` and block rollout cutover pending review.
+
 ## Output_Validator and End
 
 Change the Validator mapping as follows:
@@ -186,6 +204,8 @@ judge_output        Live_Boundary_Finalizer.finalized_judge_output
 finalization_status Live_Boundary_Finalizer.finalization_status
 finalizer_errors    Live_Boundary_Finalizer.finalizer_errors
 ```
+
+Both `finalization_status` and `finalizer_errors` are mandatory on the v3 Validator. Missing either—or both—fails validation as incomplete Finalizer metadata. Compatibility without these fields exists only on the separately retained v2 rollback path; do not use it as a v3 bridge.
 
 Keep all other existing Validator inputs. Its Output Panel keys are unchanged:
 
@@ -204,11 +224,11 @@ unable_to_judge_category_ids
 
 ## Commit-pinned rule URLs
 
-Publish commit `83948a8c0d50024ddb6a22b3ed82af65957de247`, then verify both immutable URLs return the expected v3 assets before entering either URL in the inactive canvas:
+After an authorized push, verify HTTP 200 and the expected v3 contents at commit `e49197b5bd2a0ee11811a9088aa70177ba0d1ca4` before entering either immutable URL in the inactive canvas:
 
 ```text
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/83948a8c0d50024ddb6a22b3ed82af65957de247/rules/live_ocean_lowquality_rules_structured_v1.json
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/83948a8c0d50024ddb6a22b3ed82af65957de247/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/e49197b5bd2a0ee11811a9088aa70177ba0d1ca4/rules/live_ocean_lowquality_rules_structured_v1.json
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/e49197b5bd2a0ee11811a9088aa70177ba0d1ca4/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
 ```
 
 Do not use mutable `main` raw URLs for the v3 rollout.
@@ -246,7 +266,7 @@ Durable project documentation and paste-ready mirrors are maintained under:
 Continue one node per manual message. v3 remains unreleased throughout preparation.
 
 0. Mandatory live-UI preflight: record the exact current `LowQuality_Judge` raw-text output field already wired to the v2 Validator, and record the actual Start Output-panel types of `ocean_segment_count` and `pearl_product_count`. Stop if any value is not confirmed; do not guess `output` versus `result` or either count type.
-1. Push and verify both commit-pinned v3 rule URLs at `83948a8c0d50024ddb6a22b3ed82af65957de247`.
+1. After authorized push, verify HTTP 200 and contents for both commit-pinned v3 rule URLs at `e49197b5bd2a0ee11811a9088aa70177ba0d1ca4`.
 2. Retain or clone the complete active v2 path as rollback. Do not change `End`.
 3. Configure inactive v3 `Rules_JSON` and `Judge_Rules_Compact` HTTP nodes with the pinned v3 SHA URLs.
 4. Paste/update v3 `Rules_Brain` on the inactive path; keep its Output Panel unchanged.
@@ -258,7 +278,7 @@ Continue one node per manual message. v3 remains unreleased throughout preparati
 10. Make one cutover change: switch `End` from the retained v2 Validator to the verified v3 Validator.
 11. Rerun the 13 reviewed rooms before any metric claim or human approval.
 
-Stop immediately before cutover if the live-UI preflight is incomplete, either pinned v3 URL is unavailable or has the wrong version, the retained v2 rollback path is incomplete, any required Code Node output is undeclared, versions disagree, or the inactive smoke has an unexplained warning/error or non-pass Validator result.
+Stop immediately before cutover if the live-UI preflight is incomplete, either pinned v3 URL is not HTTP 200 or has the wrong content/version, the retained v2 rollback path is incomplete, any of the 11 Finalizer inputs or required Code Node outputs is missing, versions disagree, or the inactive smoke has any error/non-pass result. A nonempty `boundary_builder_warnings`, trusted `material_quality_warning`, material reliability warning, or `threshold_recheck_warnings` requires review and blocks cutover even when the Finalizer/Validator status is `warning` rather than `fail`.
 
 Rollback is a single `End` switch back to the retained v2 Validator. The rollback path must continue using the v2 pinned URLs above, the prior v2 `Rules_Brain`, the prior Judge prompt, and the prior Validator mapping. Retain this complete v2 path until a human approves the 13-room v3 rerun.
 
