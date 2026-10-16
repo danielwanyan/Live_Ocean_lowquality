@@ -91,7 +91,7 @@ permission_matrix_check: String
 
 ## Live_Boundary_Gate_Builder
 
-Configure exactly these 11 Input Variables:
+Configure exactly these 8 Input Variables:
 
 | Input Variable | Type | Source |
 |---|---|---|
@@ -101,11 +101,8 @@ Configure exactly these 11 Input Variables:
 | `product_catalog_json` | String | `Normalize_Input.product_catalog_json` |
 | `product_count` | Integer | `Normalize_Input.product_count` |
 | `material_quality_warning` | String | `Normalize_Input.material_quality_warning` |
-| `rules_context` | String | `Rules_Brain.rules_context` |
-| `category_catalog` | String | `Rules_Brain.category_catalog` |
-| `priority_rules_context` | String | `Rules_Brain.priority_rules_context` |
-| `threshold_rules_context` | String | `Rules_Brain.threshold_rules_context` |
 | `rules_version` | String | `Rules_Brain.rules_version` |
+| `rules_warning` | String | `Rules_Brain.rules_warning` |
 
 Declare exactly these five Output Panel fields; every field is `String`:
 
@@ -169,7 +166,7 @@ Category 9 permits concrete authenticity-deception evidence from any allowed liv
 
 ## Live_Boundary_Finalizer
 
-Configure all 11 mandatory v3 inputs. The v3 path has no legacy bridge:
+Configure all 13 mandatory v3 inputs. The v3 path has no legacy bridge:
 
 | Input Variable | Type | Source |
 |---|---|---|
@@ -177,6 +174,7 @@ Configure all 11 mandatory v3 inputs. The v3 path has no legacy bridge:
 | `boundary_gates_json` | String | `Live_Boundary_Gate_Builder.boundary_gates_json` |
 | `boundary_contract_version` | String | `Live_Boundary_Gate_Builder.boundary_contract_version` |
 | `rules_version` | String | `Rules_Brain.rules_version` |
+| `rules_warning` | String | `Rules_Brain.rules_warning` |
 | `room_id` | String | `Normalize_Input.room_id` |
 | `segments_json` | String | `Normalize_Input.segments_json` |
 | `segment_count` | Integer | `Normalize_Input.segment_count` |
@@ -184,6 +182,7 @@ Configure all 11 mandatory v3 inputs. The v3 path has no legacy bridge:
 | `product_catalog_json` | String | `Normalize_Input.product_catalog_json` |
 | `product_count` | Integer | `Normalize_Input.product_count` |
 | `material_quality_warning` | String | `Normalize_Input.material_quality_warning` |
+| `boundary_builder_warnings` | String | `Live_Boundary_Gate_Builder.boundary_builder_warnings` |
 
 Declare exactly these five Output Panel fields; every field is `String`:
 
@@ -195,7 +194,7 @@ boundary_override_log: String
 finalizer_errors: String
 ```
 
-The Finalizer rebuilds `material_summary`, observed counts, material availability/reliability, and the exact source manifest from the six trusted Normalize inputs rather than trusting model JSON or Gate claims. `boundary_checks.facts` must contain exactly the 31 required fact names with no extras. Contradictory boundary facts fail closed. Gate-driven reroutes require same-source evidence overlap; independent Category 8 and Category 15 evidence may coexist. Nonempty material warnings, count/reliability warnings, or threshold recheck warnings propagate as `finalization_status=warning` and block rollout cutover pending review.
+The Finalizer rebuilds `material_summary`, observed counts, material availability/reliability, the exact source manifest, and expected builder warnings from trusted Normalize and Rules Brain inputs rather than trusting model JSON or Gate claims. It rejects any mismatch between the reconstructed builder warnings, the Gate JSON root, and `boundary_builder_warnings`. `boundary_checks.facts` must contain exactly the 31 required fact names with no extras. Contradictory boundary facts fail closed. Gate-driven reroutes require same-source evidence overlap, including Category 19 to Category 1; independent Category 8 and Category 15 evidence may coexist. Nonempty Rules Brain warnings, Gate Builder warnings, material warnings, count/reliability warnings, or threshold recheck warnings propagate as `finalization_status=warning` and block rollout cutover pending review.
 
 ## Output_Validator and End
 
@@ -280,7 +279,7 @@ Continue one node per manual message. v3 remains unreleased throughout preparati
 10. Make one cutover change: switch `End` from the retained v2 Validator to the verified v3 Validator.
 11. Rerun the 13 reviewed rooms before any metric claim or human approval.
 
-Stop immediately before cutover if the live-UI preflight is incomplete, either pinned v3 URL is not HTTP 200 or has the wrong content/version, the retained v2 rollback path is incomplete, any of the 11 Finalizer inputs or required Code Node outputs is missing, versions disagree, or the inactive smoke has any error/non-pass result. A nonempty `boundary_builder_warnings`, trusted `material_quality_warning`, material reliability warning, or `threshold_recheck_warnings` requires review and blocks cutover even when the Finalizer/Validator status is `warning` rather than `fail`.
+Stop immediately before cutover if the live-UI preflight is incomplete, either pinned v3 URL is not HTTP 200 or has the wrong content/version, the retained v2 rollback path is incomplete, any of the 13 Finalizer inputs or required Code Node outputs is missing, versions disagree, or the inactive smoke has any error/non-pass result. A nonempty `rules_warning`, `boundary_builder_warnings`, trusted `material_quality_warning`, material reliability warning, or `threshold_recheck_warnings` requires review and blocks cutover even when the Finalizer/Validator status is `warning` rather than `fail`.
 
 Rollback is a single `End` switch back to the retained v2 Validator. The rollback path must continue using the v2 pinned URLs above, the prior v2 `Rules_Brain`, the prior Judge prompt, and the prior Validator mapping. Retain this complete v2 path until a human approves the 13-room v3 rerun.
 
