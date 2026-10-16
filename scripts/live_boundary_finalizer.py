@@ -114,17 +114,18 @@ CATEGORY_REQUIRED_CHANNEL_GROUPS = MappingProxyType(
                 "segment_asr",
                 "segment_frame_visible_text",
                 "comment_interaction",
-                "pearl_product_title",
-                "pearl_product_image",
             ),
         ),
         4: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
         5: (("segment_frame",),),
-        6: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
+        6: (("segment_frame",),),
         7: (("segment_frame",),),
         8: (("segment_asr", "segment_frame_visible_text"),),
         9: (("segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"),),
-        10: (("segment_frame",), ("pearl_product_title", "pearl_product_image")),
+        10: (
+            ("segment_frame", "segment_asr", "segment_frame_visible_text"),
+            ("pearl_product_title", "pearl_product_image"),
+        ),
         11: (("segment_frame", "segment_asr"),),
         12: (("segment_frame", "segment_asr"),),
         13: (("segment_frame", "segment_asr"),),
@@ -428,6 +429,28 @@ FACT_ALLOWED_MATERIALS = MappingProxyType(
         ),
     }
 )
+CATEGORY_FACT_ALLOWED_MATERIAL_OVERRIDES = MappingProxyType(
+    {
+        (9, "explicit_generated_content_evidence_found"): frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        (9, "authenticity_misleading_found"): frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+    }
+)
 CONTRADICTORY_FACT_PAIRS = (
     (1, "sexualized_exposure_or_behavior_found", "ordinary_tryon_or_public_context_only"),
     (3, "unrelated_content_dominates", "sustained_product_promotion_found"),
@@ -632,9 +655,21 @@ def _reconstruct_trusted_context(params):
         "segment_count": segment_count,
         "product_count": product_count,
     }
+    segment_mismatch_warning = any(
+        warning.startswith("segment_count_mismatch_expected_") for warning in warnings
+    )
+    product_mismatch_warning = any(
+        warning.startswith("product_count_mismatch_expected_") for warning in warnings
+    )
     material_reliability = {
-        "segments": segment_count == observed_counts["segment_count"],
-        "products": product_count == observed_counts["product_count"],
+        "segments": (
+            segment_count == observed_counts["segment_count"]
+            and not segment_mismatch_warning
+        ),
+        "products": (
+            product_count == observed_counts["product_count"]
+            and not product_mismatch_warning
+        ),
         "comment": True,
     }
     return {
@@ -722,6 +757,8 @@ def _validate_contract(payload, gates, trusted_context):
         if not isinstance(facts, dict):
             errors.append("boundary_facts_missing_or_not_object")
         else:
+            if set(facts) != set(EXPECTED_REQUIRED_FACTS):
+                errors.append("boundary_facts_contract_mismatch")
             for fact_name in EXPECTED_REQUIRED_FACTS:
                 fact = facts.get(fact_name)
                 if type(fact) is not dict:
@@ -915,6 +952,13 @@ def _meets_evidence_threshold(category_id, evidence):
     return len(evidence) >= MINIMUM_DISTINCT_EVIDENCE_UNITS[category_id]
 
 
+def _fact_allowed_materials(category_id, fact_name):
+    return CATEGORY_FACT_ALLOWED_MATERIAL_OVERRIDES.get(
+        (category_id, fact_name),
+        FACT_ALLOWED_MATERIALS[fact_name],
+    )
+
+
 def _fact_evidence(
     payload,
     category_id,
@@ -935,7 +979,7 @@ def _fact_evidence(
         material = _source_material(source)
         if material not in allowed_materials:
             continue
-        if material not in FACT_ALLOWED_MATERIALS[fact_name]:
+        if material not in _fact_allowed_materials(category_id, fact_name):
             continue
         if not _material_is_available(material, material_availability):
             continue
@@ -1368,7 +1412,7 @@ def _only_forbidden_evidence(
             if (
                 source in allowed_labels
                 and material in CATEGORY_ALLOWED_MATERIALS[category_id]
-                and material in FACT_ALLOWED_MATERIALS[fact_name]
+                and material in _fact_allowed_materials(category_id, fact_name)
                 and _material_is_available(material, availability)
             ):
                 authorized_source_found = True

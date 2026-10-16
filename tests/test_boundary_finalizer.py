@@ -10,11 +10,14 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS_DIR = os.path.join(PROJECT_DIR, "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
+import live_boundary_finalizer as finalizer_module
+
 from live_boundary_gate_builder import (
     BOUNDARY_CONTRACT_VERSION,
     build_boundary_gate_output,
 )
 from live_boundary_finalizer import finalize_judge_output, main
+from normalize_input_node import build_normalized_output
 
 
 EXPECTED_REQUIRED_FACTS = (
@@ -272,6 +275,20 @@ def build_params_with_trusted_materials(
     return rebuild_gate_from_trusted_params(params)
 
 
+def build_params_from_normalized(payload, normalized):
+    params = build_params(payload)
+    for field_name in (
+        "segments_json",
+        "segment_count",
+        "comment_interaction",
+        "product_catalog_json",
+        "product_count",
+        "material_quality_warning",
+    ):
+        params[field_name] = normalized[field_name]
+    return rebuild_gate_from_trusted_params(params)
+
+
 def category_result(payload, category_id):
     return next(
         item for item in payload["final_results"] if item["category_id"] == category_id
@@ -425,6 +442,14 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         result = finalize_judge_output(build_params(payload))
 
         self.assert_failure(result, "missing_boundary_fact:" + missing_name)
+
+    def test_extra_boundary_fact_fails_exact_fact_contract(self):
+        payload = valid_payload()
+        payload["boundary_checks"]["facts"]["invented_extra_fact"] = fact()
+
+        result = finalize_judge_output(build_params(payload))
+
+        self.assert_failure(result, "boundary_facts_contract_mismatch")
 
     def test_boundary_fact_value_must_be_exact_bool(self):
         payload = valid_payload()
@@ -2243,6 +2268,23 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         self.assertEqual(finalized["hit_category_ids"], [9])
 
+    def test_category_9_can_use_documented_pearl_backed_facts(self):
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "explicit_generated_content_evidence_found",
+            source="Pearl product #1 image",
+        )
+        set_fact(
+            payload,
+            "authenticity_misleading_found",
+            source="Pearl product #1 title",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assertEqual(finalized["hit_category_ids"], [9])
+
     def test_category_10_positive_facts_only_promote_category_10(self):
         payload = valid_payload()
         set_fact(
@@ -2769,6 +2811,188 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 finalized = finalized_payload(finalize_judge_output(params))
 
                 self.assert_decision(finalized, category_id, "unable_to_judge")
+
+    def test_category_10_partial_material_applicability_matrix(self):
+        positive_cases = (
+            (
+                "frame_plus_pearl",
+                [{"segment_index": 1, "asr_summary": "", "frame_urls": ["frame"]}],
+            ),
+            (
+                "asr_plus_pearl",
+                [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}],
+            ),
+            (
+                "visible_text_plus_pearl",
+                [{"segment_index": 1, "asr_summary": "", "frame_urls": ["frame"]}],
+            ),
+        )
+        products = [{"product_index": 1, "title": "Product", "image_urls": []}]
+
+        for case_name, segments in positive_cases:
+            with self.subTest(case_name=case_name):
+                payload = valid_payload()
+                params = build_params_with_trusted_materials(
+                    payload,
+                    segments=segments,
+                    segment_count=1,
+                    comment_interaction="",
+                    products=products,
+                    product_count=1,
+                )
+
+                finalized = finalized_payload(finalize_judge_output(params))
+
+                self.assert_decision(finalized, 10, "no_hit")
+
+        negative_cases = (
+            (
+                "no_pearl",
+                [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}],
+                [],
+            ),
+            (
+                "no_live",
+                [],
+                products,
+            ),
+        )
+        for case_name, segments, case_products in negative_cases:
+            with self.subTest(case_name=case_name):
+                payload = valid_payload()
+                params = build_params_with_trusted_materials(
+                    payload,
+                    segments=segments,
+                    segment_count=len(segments),
+                    comment_interaction="",
+                    products=case_products,
+                    product_count=len(case_products),
+                )
+
+                finalized = finalized_payload(finalize_judge_output(params))
+
+                self.assert_decision(finalized, 10, "unable_to_judge")
+
+    def test_category_3_pearl_only_material_is_unable(self):
+        payload = valid_payload()
+        products = [{"product_index": 1, "title": "Product", "image_urls": ["image"]}]
+        params = build_params_with_trusted_materials(
+            payload,
+            segments=[],
+            segment_count=0,
+            comment_interaction="",
+            products=products,
+            product_count=1,
+        )
+
+        finalized = finalized_payload(finalize_judge_output(params))
+
+        self.assert_decision(finalized, 3, "unable_to_judge")
+
+    def test_category_6_without_reliable_frame_is_unable(self):
+        payload = valid_payload()
+        segments = [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}]
+        products = [{"product_index": 1, "title": "Product", "image_urls": ["image"]}]
+        params = build_params_with_trusted_materials(
+            payload,
+            segments=segments,
+            segment_count=1,
+            comment_interaction="Viewer comment",
+            products=products,
+            product_count=1,
+        )
+
+        finalized = finalized_payload(finalize_judge_output(params))
+
+        self.assert_decision(finalized, 6, "unable_to_judge")
+
+    def test_normalize_count_mismatch_warnings_drive_gate_and_finalizer_reliability(self):
+        normalized = build_normalized_output(
+            {
+                "room_id": "7380123456789012345",
+                "ocean_segment_count": "2",
+                "ocean_segment_ASR": "Segment #1 [0-10]:\nProduct promotion ASR",
+                "ocean_segment_frame_urls": "Segment #1 [0-10]:\nhttps://example.com/frame.jpg",
+                "ocean_summary": "Comment Interaction\nViewer asks a question\nData Analysis",
+                "pearl_product_count": "2",
+                "pearl_product_ids": "product-1",
+                "pearl_product_titles": "Example product",
+                "pearl_product_images": "https://example.com/product.jpg",
+            }
+        )
+        payload = valid_payload()
+        params = build_params_from_normalized(payload, normalized)
+        gates = json.loads(params["boundary_gates_json"])
+
+        self.assertTrue(
+            any(
+                warning.startswith("segment_count_mismatch_expected_")
+                for warning in gates["material_warnings"]
+            )
+        )
+        self.assertTrue(
+            any(
+                warning.startswith("product_count_mismatch_expected_")
+                for warning in gates["material_warnings"]
+            )
+        )
+        self.assertFalse(gates["material_reliability"]["segments"])
+        self.assertFalse(gates["material_reliability"]["products"])
+
+        result = finalize_judge_output(params)
+        finalized = finalized_payload(result)
+
+        self.assertEqual(result["finalization_status"], "warning")
+        self.assert_decision(finalized, 1, "unable_to_judge")
+        self.assert_decision(finalized, 10, "unable_to_judge")
+
+    def test_gated_applicability_groups_align_with_required_fact_material_policies(self):
+        expected_groups = {
+            1: (("segment_frame", "segment_asr"),),
+            2: (("segment_frame", "segment_asr"),),
+            3: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
+            5: (("segment_frame",),),
+            6: (("segment_frame",),),
+            9: (("segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"),),
+            10: (("segment_frame", "segment_asr", "segment_frame_visible_text"), ("pearl_product_title", "pearl_product_image")),
+            11: (("segment_frame", "segment_asr"),),
+            12: (("segment_frame", "segment_asr"),),
+            14: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
+            15: (("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"),),
+            18: (("segment_frame", "segment_asr", "comment_interaction"),),
+            19: (),
+        }
+        actual_groups = {
+            category_id: tuple(tuple(group) for group in groups)
+            for category_id, groups in finalizer_module.CATEGORY_REQUIRED_CHANNEL_GROUPS.items()
+            if str(category_id) in finalizer_module.EXPECTED_GATE_DEFINITIONS
+        }
+
+        self.assertEqual(actual_groups, expected_groups)
+        overrides = getattr(
+            finalizer_module,
+            "CATEGORY_FACT_ALLOWED_MATERIAL_OVERRIDES",
+            {},
+        )
+        self.assertIn((9, "explicit_generated_content_evidence_found"), overrides)
+        self.assertNotIn((10, "explicit_generated_content_evidence_found"), overrides)
+
+        definitions = finalizer_module._mutable(finalizer_module.EXPECTED_GATE_DEFINITIONS)
+        documented_exceptions = {19}
+        for category_text, definition in definitions.items():
+            category_id = int(category_text)
+            if category_id in documented_exceptions:
+                continue
+            required_materials = set()
+            for fact_name in definition.get("required_true", []):
+                required_materials.update(
+                    overrides.get(
+                        (category_id, fact_name),
+                        finalizer_module.FACT_ALLOWED_MATERIALS[fact_name],
+                    )
+                )
+            for group in finalizer_module.CATEGORY_REQUIRED_CHANNEL_GROUPS[category_id]:
+                self.assertTrue(set(group) <= required_materials)
 
     def test_category_3_is_applicable_with_reliable_live_material_only(self):
         payload = valid_payload()

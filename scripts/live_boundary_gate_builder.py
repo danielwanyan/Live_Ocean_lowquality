@@ -296,6 +296,17 @@ def _build_dynamic_metadata(params):
     declared_product_count = _declared_count(params.get("product_count"))
     observed_segment_count = len(segments)
     observed_product_count = len(products)
+    material_warnings = _parse_material_warnings(
+        params.get("material_quality_warning")
+    )
+    segment_mismatch_warning = any(
+        warning.startswith("segment_count_mismatch_expected_")
+        for warning in material_warnings
+    )
+    product_mismatch_warning = any(
+        warning.startswith("product_count_mismatch_expected_")
+        for warning in material_warnings
+    )
 
     return {
         "declared_counts": {
@@ -306,19 +317,19 @@ def _build_dynamic_metadata(params):
             "segment_count": observed_segment_count,
             "product_count": observed_product_count,
         },
-        "material_warnings": _parse_material_warnings(
-            params.get("material_quality_warning")
-        ),
+        "material_warnings": material_warnings,
         "material_reliability": {
             "segments": (
                 segments_valid
                 and declared_segment_count is not None
                 and declared_segment_count == observed_segment_count
+                and not segment_mismatch_warning
             ),
             "products": (
                 products_valid
                 and declared_product_count is not None
                 and declared_product_count == observed_product_count
+                and not product_mismatch_warning
             ),
             "comment": type(params.get("comment_interaction")) is str,
         },
