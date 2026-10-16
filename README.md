@@ -163,7 +163,9 @@ The Judge output envelope is a Chinese human-review report followed by `FINAL_JS
 2. Required channels present but evidence below threshold becomes `no_hit`.
 3. Disabled categories or forbidden-only evidence become `no_hit`, overriding missing-material handling.
 
-Category 5 requires reliable live frames; product promotion in ASR without frames is `unable_to_judge`. Category 10 requires a live Segment source proving generated content, an independent Pearl title/image source proving the bound product, a material mismatch comparison, and at least two distinct trusted sources.
+Applicability is channel-specific: Category 3 requires reliable live Segment or Comment Interaction material; Category 6 requires reliable live frames; Category 10 requires a reliable live frame/ASR/visible-text channel plus Pearl title/image material. Missing a required group is `unable_to_judge`.
+
+Category 9 permits concrete authenticity-deception evidence from any allowed live or Pearl material and remains distinct from Category 10. Category 10 requires a live Segment source proving generated content, an independent Pearl title/image source proving the bound product, a material mismatch comparison, and at least two distinct trusted sources. Category 5 still requires reliable live frames; product-promotion ASR without frames is `unable_to_judge`.
 
 ## Live_Boundary_Finalizer
 
@@ -193,7 +195,7 @@ boundary_override_log: String
 finalizer_errors: String
 ```
 
-The Finalizer rebuilds `material_summary`, observed counts, material availability/reliability, and the exact source manifest from the six trusted Normalize inputs rather than trusting model JSON or Gate claims. Contradictory boundary facts fail closed. Gate-driven reroutes require same-evidence source overlap; independent Category 8 and Category 15 evidence may coexist. Nonempty material warnings, count/reliability warnings, or threshold recheck warnings produce `finalization_status=warning` and block rollout cutover pending review.
+The Finalizer rebuilds `material_summary`, observed counts, material availability/reliability, and the exact source manifest from the six trusted Normalize inputs rather than trusting model JSON or Gate claims. `boundary_checks.facts` must contain exactly the 31 required fact names with no extras. Contradictory boundary facts fail closed. Gate-driven reroutes require same-source evidence overlap; independent Category 8 and Category 15 evidence may coexist. Nonempty material warnings, count/reliability warnings, or threshold recheck warnings propagate as `finalization_status=warning` and block rollout cutover pending review.
 
 ## Output_Validator and End
 
@@ -224,11 +226,11 @@ unable_to_judge_category_ids
 
 ## Commit-pinned rule URLs
 
-After an authorized push, verify HTTP 200 and the expected v3 contents at commit `e49197b5bd2a0ee11811a9088aa70177ba0d1ca4` before entering either immutable URL in the inactive canvas:
+The final local v3 rule pin is commit `27cbff1c51f3a71f40ce92a962446fa858cc2616`. Its remote raw URLs return 404 until an authorized push. After that push, verify HTTP 200 and expected contents before entering either immutable URL in the inactive canvas:
 
 ```text
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/e49197b5bd2a0ee11811a9088aa70177ba0d1ca4/rules/live_ocean_lowquality_rules_structured_v1.json
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/e49197b5bd2a0ee11811a9088aa70177ba0d1ca4/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/live_ocean_lowquality_rules_structured_v1.json
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
 ```
 
 Do not use mutable `main` raw URLs for the v3 rollout.
@@ -266,7 +268,7 @@ Durable project documentation and paste-ready mirrors are maintained under:
 Continue one node per manual message. v3 remains unreleased throughout preparation.
 
 0. Mandatory live-UI preflight: record the exact current `LowQuality_Judge` raw-text output field already wired to the v2 Validator, and record the actual Start Output-panel types of `ocean_segment_count` and `pearl_product_count`. Stop if any value is not confirmed; do not guess `output` versus `result` or either count type.
-1. After authorized push, verify HTTP 200 and contents for both commit-pinned v3 rule URLs at `e49197b5bd2a0ee11811a9088aa70177ba0d1ca4`.
+1. The final local v3 URLs at `27cbff1c51f3a71f40ce92a962446fa858cc2616` remain remote 404 until authorized push; after push, verify HTTP 200 and contents.
 2. Retain or clone the complete active v2 path as rollback. Do not change `End`.
 3. Configure inactive v3 `Rules_JSON` and `Judge_Rules_Compact` HTTP nodes with the pinned v3 SHA URLs.
 4. Paste/update v3 `Rules_Brain` on the inactive path; keep its Output Panel unchanged.
