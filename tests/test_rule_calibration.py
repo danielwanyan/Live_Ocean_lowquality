@@ -69,7 +69,36 @@ EXPECTED_PRIORITY_MAPPINGS = {
     "priority_1_over_19": (1, 19),
 }
 EXPECTED_CATEGORY_9_HIT_DEFINITION_ZH = (
-    "直播中使用有明确生成证据的 AIGC 内容进行商品推广，并对内容或展示主体的真实性造成误导。"
+    "允许依据直播 Segment 画面、Segment ASR、可见文字或 Pearl 商品标题/图片等许可材料，确认明确的生成内容证据和"
+    "商品推广中的真实性欺骗；必须有具体证据，不能仅凭 AI 风格，且不得与类别10的生成直播商品/使用场景对绑定商品"
+    "不一致混淆。"
+)
+EXPECTED_CATEGORY_9_TRIGGER_THRESHOLD = (
+    "Hit only when concrete allowed-material evidence establishes both explicit generated content and authenticity deception in product promotion. "
+    "Evidence may come from live Segment frames, Segment ASR, visible text, Pearl product titles, or Pearl product images. "
+    "AI-like style alone is insufficient. Category 9 covers authenticity deception and must remain distinct from category 10 generated live-to-bound product/use-scene mismatch."
+)
+EXPECTED_CATEGORY_9_COMPACT_HIT = (
+    "Hit: concrete allowed-material evidence establishes both explicit generated content and authenticity deception in product promotion. "
+    "Evidence may come from live Segment frames/ASR/visible text and/or Pearl product titles/images. "
+    "AI-like style alone is insufficient. Category 9 is distinct from Category 10 generated live-to-bound product/use-scene mismatch."
+)
+EXPECTED_CATEGORY_10_TRIGGER_THRESHOLD = (
+    "Hit only when all four conditions are met: (1) explicit generated-content evidence comes from a live Segment frame, Segment ASR, or visible-text source; "
+    "(2) independent bound_product evidence comes from a Pearl product title or image; "
+    "(3) the generated live product/use-scene has a material mismatch in size, style, function, use, or effect against the bound product; "
+    "and (4) at least two distinct trusted source labels support the decision. Pearl-only evidence cannot hit."
+)
+EXPECTED_CATEGORY_10_HIT_DEFINITION_ZH = (
+    "类别10仅在四项条件同时满足时命中：直播 Segment 画面、Segment ASR 或可见文字提供明确生成内容证据；"
+    "Pearl 商品标题或图片提供独立 bound_product 证据；生成的直播商品/使用场景与绑定商品在尺寸、款式、功能、用途或"
+    "效果上存在实质不一致；且至少有两个不同的可信来源标签。仅有 Pearl 证据不得命中。"
+)
+EXPECTED_CATEGORY_10_COMPACT_HIT = (
+    "Hit: all four conditions are required: (1) explicit generated-content evidence from a live Segment frame/ASR/visible-text source; "
+    "(2) independent bound_product evidence from a Pearl product title/image; "
+    "(3) a generated live-to-bound material mismatch in size/style/function/use/effect; "
+    "and (4) at least two distinct trusted source labels. Pearl-only evidence cannot hit."
 )
 EXPECTED_CATEGORY_12_HIT_DEFINITION_ZH = (
     "仅当直播画面或 ASR 中存在具体商品功能效果主张，且该主张有实质误导依据并达到现行覆盖度/强度阈值时命中；"
@@ -289,13 +318,16 @@ V3_CATEGORY_GUARD_TERMS = {
     ],
     9: [
         "ai-like style alone is insufficient",
-        "explicit generated-content evidence",
-        "authenticity misleading",
+        "concrete allowed-material evidence",
+        "authenticity deception",
+        "distinct from category 10",
     ],
     10: [
-        "ai-like style alone is insufficient",
-        "explicit generated product or use-scene",
-        "material mismatch",
+        "explicit generated-content evidence",
+        "independent bound_product evidence",
+        "live-to-bound material mismatch",
+        "at least two distinct trusted source labels",
+        "pearl-only evidence cannot hit",
     ],
     11: ["browser", "desktop", "obs", "card", "spin", "cursor", "weak signals"],
     12: [
@@ -1097,6 +1129,92 @@ class RuleCalibrationTest(unittest.TestCase):
 
         self.assertIn(EXPECTED_COMPACT_CATEGORY_11_HIT.lower(), category_11)
         self.assertNotIn("hit: any segment frame shows taskbar/cursor", category_11)
+
+    def test_category_9_and_10_exact_semantics_match_across_rule_assets(self):
+        rules = _load_structured_rules()
+        structured = {item["category_id"]: item for item in rules["categories"]}
+        fallback = {
+            item["category_id"]: item for item in FALLBACK_RULES["categories"]
+        }
+        with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
+            compact_sections = _compact_category_sections(f.read())
+
+        self.assertEqual(
+            structured[9]["allowed_materials"],
+            [
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            ],
+        )
+        self.assertEqual(
+            structured[9]["trigger_threshold"],
+            EXPECTED_CATEGORY_9_TRIGGER_THRESHOLD,
+        )
+        self.assertEqual(
+            fallback[9]["trigger_threshold"],
+            EXPECTED_CATEGORY_9_TRIGGER_THRESHOLD,
+        )
+        self.assertIn(EXPECTED_CATEGORY_9_COMPACT_HIT.lower(), compact_sections[9])
+
+        self.assertEqual(
+            structured[10]["trigger_threshold"],
+            EXPECTED_CATEGORY_10_TRIGGER_THRESHOLD,
+        )
+        self.assertEqual(
+            fallback[10]["trigger_threshold"],
+            EXPECTED_CATEGORY_10_TRIGGER_THRESHOLD,
+        )
+        self.assertEqual(
+            structured[10]["hit_definition_zh"],
+            EXPECTED_CATEGORY_10_HIT_DEFINITION_ZH,
+        )
+        self.assertIn(EXPECTED_CATEGORY_10_COMPACT_HIT.lower(), compact_sections[10])
+
+    def test_category_10_forbids_stale_broad_or_pearl_only_semantics(self):
+        structured_category = next(
+            item
+            for item in _load_structured_rules()["categories"]
+            if item["category_id"] == 10
+        )
+        fallback_category = next(
+            item
+            for item in FALLBACK_RULES["categories"]
+            if item["category_id"] == 10
+        )
+        with open(COMPACT_RULES_PATH, encoding="utf-8") as f:
+            compact_category = _compact_category_sections(f.read())[10]
+
+        stale_structured = (
+            "Hit only with explicit generated product or use-scene evidence plus a material mismatch"
+        )
+        stale_compact = (
+            "Hit: an explicit generated product or use-scene has a material mismatch"
+        )
+        for text in (
+            structured_category["trigger_threshold"],
+            fallback_category["trigger_threshold"],
+        ):
+            self.assertNotIn(stale_structured, text)
+            self.assertIn("Pearl-only evidence cannot hit", text)
+            self.assertIn("at least two distinct trusted source labels", text)
+        self.assertNotIn(stale_compact.lower(), compact_category)
+        self.assertIn("pearl-only evidence cannot hit", compact_category)
+
+    def test_category_9_remains_authenticity_path_distinct_from_category_10(self):
+        category = next(
+            item
+            for item in _load_structured_rules()["categories"]
+            if item["category_id"] == 9
+        )
+
+        self.assertEqual(category["hit_definition_zh"], EXPECTED_CATEGORY_9_HIT_DEFINITION_ZH)
+        self.assertIn("pearl product titles", category["trigger_threshold"].lower())
+        self.assertIn("authenticity deception", category["trigger_threshold"].lower())
+        self.assertIn("distinct from category 10", category["trigger_threshold"].lower())
+        self.assertNotIn("generated live-to-bound material mismatch", category["trigger_threshold"].lower())
 
     def test_structured_aigc_authenticity_definition_does_not_overlap_category_10(self):
         by_id = {

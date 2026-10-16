@@ -58,11 +58,11 @@ Do not use Pearl product images as evidence. Product mismatch, ethnic clothing s
 
 9 AIGC真实性低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, pearl_product_title, pearl_product_image.
-Hit: explicit generated-content evidence is used in product promotion and is authenticity misleading, such as fake AI voice/interview, fake before/after, or digital human presented as authentic product evidence. AI-like style alone is insufficient.
+Hit: concrete allowed-material evidence establishes both explicit generated content and authenticity deception in product promotion. Evidence may come from live Segment frames/ASR/visible text and/or Pearl product titles/images. AI-like style alone is insufficient. Category 9 is distinct from Category 10 generated live-to-bound product/use-scene mismatch.
 
 10 AIGC商品展示低质问题
 Allowed: segment_frame, segment_asr, segment_frame_visible_text, pearl_product_title, pearl_product_image.
-Hit: an explicit generated product or use-scene has a material mismatch in size, style, function, use, or effect against the bound real product. AI-like style alone is insufficient.
+Hit: all four conditions are required: (1) explicit generated-content evidence from a live Segment frame/ASR/visible-text source; (2) independent bound_product evidence from a Pearl product title/image; (3) a generated live-to-bound material mismatch in size/style/function/use/effect; and (4) at least two distinct trusted source labels. Pearl-only evidence cannot hit.
 
 11 录播回放低质问题
 Allowed: segment_frame, segment_asr. Pearl product image forbidden.

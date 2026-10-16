@@ -228,11 +228,12 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Hit only when explicit generated-content evidence is present and its use in product promotion is authenticity misleading. AI-like style alone is insufficient.",
-      "hit_definition_zh": "直播中使用有明确生成证据的 AIGC 内容进行商品推广，并对内容或展示主体的真实性造成误导。",
-      "judge_focus_en": "Require explicit generated-content evidence plus an authenticity misleading basis, such as a fake AI voice/interview, fake before/after, or digital human presented as authentic product evidence. AI-like style alone is insufficient.",
+      "trigger_threshold": "Hit only when concrete allowed-material evidence establishes both explicit generated content and authenticity deception in product promotion. Evidence may come from live Segment frames, Segment ASR, visible text, Pearl product titles, or Pearl product images. AI-like style alone is insufficient. Category 9 covers authenticity deception and must remain distinct from category 10 generated live-to-bound product/use-scene mismatch.",
+      "hit_definition_zh": "允许依据直播 Segment 画面、Segment ASR、可见文字或 Pearl 商品标题/图片等许可材料，确认明确的生成内容证据和商品推广中的真实性欺骗；必须有具体证据，不能仅凭 AI 风格，且不得与类别10的生成直播商品/使用场景对绑定商品不一致混淆。",
+      "judge_focus_en": "Require concrete explicit generated-content evidence plus an authenticity misleading basis. Any documented allowed material, including Pearl product title/image, may establish the authenticity-deception path. Keep category 9 distinct from category 10 generated live-to-bound product/use-scene mismatch. AI-like style alone is insufficient.",
       "exemptions": [
-        "AI-like visual or audio style alone is insufficient without explicit generated-content evidence and authenticity misleading use."
+        "AI-like visual or audio style alone is insufficient without explicit generated-content evidence and authenticity misleading use.",
+        "A generated live product/use-scene mismatch against a bound product belongs to category 10, not category 9, unless independent authenticity deception is also established."
       ]
     },
     {
@@ -247,11 +248,13 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Hit only with explicit generated product or use-scene evidence plus a material mismatch in product size, style, function, use, or effect against the bound real product. AI-like style alone is insufficient.",
-      "hit_definition_zh": "直播中通过 AIGC 生成商品或使用场景，存在渲染内容、与绑定真实商品夸张不符的问题。",
-      "judge_focus_en": "Distinguish from category 9: require an explicit generated product or use-scene and a material mismatch against the bound real product. AI-like style alone is insufficient.",
+      "trigger_threshold": "Hit only when all four conditions are met: (1) explicit generated-content evidence comes from a live Segment frame, Segment ASR, or visible-text source; (2) independent bound_product evidence comes from a Pearl product title or image; (3) the generated live product/use-scene has a material mismatch in size, style, function, use, or effect against the bound product; and (4) at least two distinct trusted source labels support the decision. Pearl-only evidence cannot hit.",
+      "hit_definition_zh": "类别10仅在四项条件同时满足时命中：直播 Segment 画面、Segment ASR 或可见文字提供明确生成内容证据；Pearl 商品标题或图片提供独立 bound_product 证据；生成的直播商品/使用场景与绑定商品在尺寸、款式、功能、用途或效果上存在实质不一致；且至少有两个不同的可信来源标签。仅有 Pearl 证据不得命中。",
+      "judge_focus_en": "Distinguish from category 9. Require explicit generated product or use-scene evidence from a live Segment frame/ASR/visible-text source, independent bound_product evidence from Pearl title/image, a generated live-to-bound material mismatch, and at least two distinct trusted source labels. AI-like style alone is insufficient and Pearl-only evidence cannot hit.",
       "exemptions": [
-        "AI-like style alone is insufficient without explicit generated product or use-scene evidence and material mismatch."
+        "AI-like style alone is insufficient without explicit generated product or use-scene evidence and material mismatch.",
+        "Pearl-only evidence cannot hit because category 10 requires both live generated-content evidence and independent bound_product evidence.",
+        "A single trusted source label cannot hit even if it mentions both generated content and mismatch."
       ]
     },
     {
