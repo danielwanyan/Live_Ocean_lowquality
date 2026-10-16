@@ -336,7 +336,7 @@ def _build_dynamic_metadata(params):
     }
 
 
-def _build_warnings(material_availability, rules_version):
+def _build_warnings(material_availability, rules_version, rules_warning):
     warnings = []
     if not material_availability["segment_frame"]:
         warnings.append("segment_frame_missing")
@@ -346,6 +346,8 @@ def _build_warnings(material_availability, rules_version):
         warnings.append("product_catalog_missing")
     if rules_version != BOUNDARY_CONTRACT_VERSION:
         warnings.append("rules_version_mismatch")
+    if type(rules_warning) is str and rules_warning.strip():
+        warnings.append("rules_warning:" + rules_warning.strip())
     return warnings
 
 
@@ -356,7 +358,11 @@ def build_boundary_gate_output(params):
     material_availability = _build_material_availability(params)
     allowed_source_labels = _build_allowed_source_labels(params)
     dynamic_metadata = _build_dynamic_metadata(params)
-    warnings = _build_warnings(material_availability, rules_version)
+    warnings = _build_warnings(
+        material_availability,
+        rules_version,
+        params.get("rules_warning"),
+    )
 
     boundary_gates = {
         "contract_version": BOUNDARY_CONTRACT_VERSION,
@@ -367,6 +373,7 @@ def build_boundary_gate_output(params):
         "observed_counts": dynamic_metadata["observed_counts"],
         "material_warnings": dynamic_metadata["material_warnings"],
         "material_reliability": dynamic_metadata["material_reliability"],
+        "builder_warnings": warnings,
         "required_facts": REQUIRED_FACTS,
         "gate_definitions": GATE_DEFINITIONS,
         "reroutes": REROUTES,

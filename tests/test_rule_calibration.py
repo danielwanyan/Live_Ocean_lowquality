@@ -494,7 +494,7 @@ def _valid_finalizer_payload():
     return payload
 
 
-def _finalizer_params(payload):
+def _finalizer_params(payload, rules_warning=""):
     material_summary = payload.get("material_summary", {})
     segment_count = material_summary.get("segment_count", 0)
     product_count = material_summary.get("product_count", 0)
@@ -535,6 +535,7 @@ def _finalizer_params(payload):
             "product_count": product_count,
             "material_quality_warning": material_quality_warning,
             "rules_version": BOUNDARY_CONTRACT_VERSION,
+            "rules_warning": rules_warning,
         }
     )
     return {
@@ -550,6 +551,8 @@ def _finalizer_params(payload):
         "product_catalog_json": product_catalog_json,
         "product_count": product_count,
         "material_quality_warning": material_quality_warning,
+        "rules_warning": rules_warning,
+        "boundary_builder_warnings": gate_output["boundary_builder_warnings"],
     }
 
 
@@ -1749,6 +1752,7 @@ class RuleCalibrationTest(unittest.TestCase):
                 "product_count": 1,
                 "material_quality_warning": material_quality_warning,
                 "rules_version": EXPECTED_V3_VERSION,
+                "rules_warning": "",
             }
         )
         result = finalize_judge_output(
@@ -1765,6 +1769,8 @@ class RuleCalibrationTest(unittest.TestCase):
                 "product_catalog_json": product_catalog_json,
                 "product_count": 1,
                 "material_quality_warning": material_quality_warning,
+                "rules_warning": "",
+                "boundary_builder_warnings": gate_output["boundary_builder_warnings"],
             }
         )
 
@@ -1999,6 +2005,28 @@ class RuleCalibrationTest(unittest.TestCase):
             "unable_to_judge_category_ids",
         ):
             self.assertEqual(json.loads(result[output_key]), finalized_payload[output_key])
+
+    def test_rules_brain_fallback_warning_reaches_gate_finalizer_and_validator(self):
+        rules_result = build_rules_brain_output({"rules_json": "{"})
+        self.assertTrue(rules_result["rules_warning"].strip())
+
+        finalized = finalize_judge_output(
+            _finalizer_params(
+                _valid_finalizer_payload(),
+                rules_warning=rules_result["rules_warning"],
+            )
+        )
+        result = validate_judge_output(_validator_params_from_finalizer(finalized))
+        finalized_payload = json.loads(finalized["finalized_final_json"])
+
+        self.assertEqual(finalized["finalization_status"], "warning")
+        self.assertEqual(result["validation_status"], "warning")
+        self.assertTrue(
+            any(
+                item["priority_rule_applied"] == "builder_warning"
+                for item in finalized_payload["boundary_overrides"]
+            )
+        )
 
     def test_finalizer_failure_output_is_rejected_without_parse_noise(self):
         payload = _valid_finalizer_payload()

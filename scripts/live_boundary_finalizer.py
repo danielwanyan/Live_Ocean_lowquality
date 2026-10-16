@@ -80,6 +80,23 @@ EXPECTED_MATERIAL_AVAILABILITY_KEYS = (
     "pearl_product_title",
     "pearl_product_image",
 )
+EXPECTED_GATE_ROOT_KEYS = frozenset(
+    (
+        "contract_version",
+        "rules_version",
+        "material_availability",
+        "allowed_source_labels",
+        "declared_counts",
+        "observed_counts",
+        "material_warnings",
+        "material_reliability",
+        "builder_warnings",
+        "required_facts",
+        "gate_definitions",
+        "reroutes",
+        "disabled_category_ids",
+    )
+)
 EXPECTED_CATEGORY_NAMES = MappingProxyType(
     {
         1: "色情低俗低质问题",
@@ -555,6 +572,22 @@ def _positive_exact_int(value):
     return type(value) is int and value > 0
 
 
+def _reconstruct_builder_warnings(material_availability, rules_warning):
+    warnings = []
+    if not material_availability["segment_frame"]:
+        warnings.append("segment_frame_missing")
+    if not material_availability["segment_asr"]:
+        warnings.append("segment_asr_missing")
+    if (
+        not material_availability["pearl_product_title"]
+        and not material_availability["pearl_product_image"]
+    ):
+        warnings.append("product_catalog_missing")
+    if rules_warning.strip():
+        warnings.append("rules_warning:" + rules_warning.strip())
+    return warnings
+
+
 def _reconstruct_trusted_context(params):
     errors = []
     segments = _parse_trusted_json_list(
@@ -584,6 +617,19 @@ def _reconstruct_trusted_context(params):
         if "material_quality_warning_invalid" not in errors:
             errors.append("material_quality_warning_invalid")
         warnings = []
+    boundary_builder_warnings = _parse_trusted_json_list(
+        params.get("boundary_builder_warnings"),
+        "boundary_builder_warnings_invalid",
+        errors,
+    )
+    if any(type(item) is not str for item in boundary_builder_warnings):
+        if "boundary_builder_warnings_invalid" not in errors:
+            errors.append("boundary_builder_warnings_invalid")
+        boundary_builder_warnings = []
+    rules_warning = params.get("rules_warning")
+    if type(rules_warning) is not str:
+        errors.append("rules_warning_invalid")
+        rules_warning = ""
 
     segment_count = _trusted_count(
         params.get("segment_count"),
@@ -672,6 +718,14 @@ def _reconstruct_trusted_context(params):
         ),
         "comment": True,
     }
+    builder_warnings = _reconstruct_builder_warnings(
+        material_availability,
+        rules_warning,
+    )
+    if boundary_builder_warnings != builder_warnings:
+        errors.append("boundary_builder_warnings_mismatch")
+    if errors:
+        return None, errors
     return {
         "segments": segments,
         "products": products,
@@ -682,11 +736,18 @@ def _reconstruct_trusted_context(params):
         "observed_counts": observed_counts,
         "material_warnings": warnings,
         "material_reliability": material_reliability,
+        "rules_warning": rules_warning,
+        "builder_warnings": builder_warnings,
     }, []
 
 
 def _validate_contract(payload, gates, trusted_context):
     errors = []
+
+    if set(gates) != EXPECTED_GATE_ROOT_KEYS:
+        errors.append("gate_root_keys_contract_mismatch")
+    if not _exact_contract_equal(gates.get("disabled_category_ids"), (19,)):
+        errors.append("gate_disabled_category_ids_contract_mismatch")
 
     gate_contract_version = gates.get("contract_version")
     if type(gate_contract_version) is not str or gate_contract_version != BOUNDARY_CONTRACT_VERSION:
@@ -744,6 +805,8 @@ def _validate_contract(payload, gates, trusted_context):
         for key in dynamic_metadata
     ):
         errors.append("gate_dynamic_metadata_mismatch")
+    if gates.get("builder_warnings") != trusted_context["builder_warnings"]:
+        errors.append("gate_builder_warnings_mismatch")
 
     boundary_checks = payload.get("boundary_checks")
     if not isinstance(boundary_checks, dict):
@@ -1380,22 +1443,20 @@ def _only_forbidden_evidence(
     definition,
     trusted_context,
 ):
-    raw_sources = []
-    authorized_source_found = False
+    forbidden_source_found = False
+    nonforbidden_source_found = False
     allowed_labels = set(trusted_context["allowed_source_labels"])
-    availability = trusted_context["material_availability"]
     for entry in item.get("evidence", []):
         source = entry.get("source") if type(entry) is dict else None
-        if type(source) is not str:
+        if type(source) is not str or not source.strip() or source not in allowed_labels:
             continue
-        raw_sources.append(source)
         material = _source_material(source)
-        if (
-            source in allowed_labels
-            and material in CATEGORY_ALLOWED_MATERIALS[category_id]
-            and _material_is_available(material, availability)
-        ):
-            authorized_source_found = True
+        if material is None:
+            continue
+        if material not in CATEGORY_ALLOWED_MATERIALS[category_id]:
+            forbidden_source_found = True
+        else:
+            nonforbidden_source_found = True
 
     fact_names = []
     if definition:
@@ -1407,16 +1468,19 @@ def _only_forbidden_evidence(
         if fact["value"] is not True:
             continue
         for source in fact["evidence_sources"]:
-            raw_sources.append(source)
+            if type(source) is not str or not source.strip() or source not in allowed_labels:
+                continue
             material = _source_material(source)
+            if material is None:
+                continue
             if (
-                source in allowed_labels
-                and material in CATEGORY_ALLOWED_MATERIALS[category_id]
-                and material in _fact_allowed_materials(category_id, fact_name)
-                and _material_is_available(material, availability)
+                material not in CATEGORY_ALLOWED_MATERIALS[category_id]
+                or material not in _fact_allowed_materials(category_id, fact_name)
             ):
-                authorized_source_found = True
-    return bool(raw_sources) and not authorized_source_found
+                forbidden_source_found = True
+            else:
+                nonforbidden_source_found = True
+    return forbidden_source_found and not nonforbidden_source_found
 
 
 def _apply_material_applicability(
@@ -1783,8 +1847,7 @@ def _apply_reroutes(
         overlapping_source_ids = [
             source_id
             for source_id in source_ids
-            if source_id == 19
-            or bool(original_hit_sources.get(source_id, set()) & target_sources)
+            if bool(original_hit_sources.get(source_id, set()) & target_sources)
         ]
         if not overlapping_source_ids:
             continue
@@ -1984,6 +2047,11 @@ def _finalize_payload(payload, gates, trusted_context):
     definitions = _mutable(EXPECTED_GATE_DEFINITIONS)
     material_availability = gates["material_availability"]
     allowed_source_labels = frozenset(gates["allowed_source_labels"])
+    reliable_source_labels = frozenset(
+        label
+        for label in allowed_source_labels
+        if _material_reliable(_source_material(label), trusted_context)
+    )
     threshold_warnings = _threshold_recheck_warnings(payload)
     results_by_id = _results_by_id(payload)
     original_hit_ids = {
@@ -2021,6 +2089,12 @@ def _finalize_payload(payload, gates, trusted_context):
             "threshold_recheck_warning",
             audit,
         )
+    if trusted_context["builder_warnings"]:
+        _append_context_audit(
+            "Gate Builder或Rules Brain存在上游警告，需要人工关注。",
+            "builder_warning",
+            audit,
+        )
 
     forbidden_only_by_category = {
         category_id: _only_forbidden_evidence(
@@ -2037,7 +2111,7 @@ def _finalize_payload(payload, gates, trusted_context):
         results_by_id,
         definitions,
         material_availability,
-        allowed_source_labels,
+        reliable_source_labels,
         audit,
     )
     original_hit_sources = {
@@ -2049,7 +2123,7 @@ def _finalize_payload(payload, gates, trusted_context):
         payload,
         definitions,
         material_availability,
-        allowed_source_labels,
+        reliable_source_labels,
         original_hit_sources,
     )
     _apply_general_gates(
@@ -2057,7 +2131,7 @@ def _finalize_payload(payload, gates, trusted_context):
         results_by_id,
         definitions,
         material_availability,
-        allowed_source_labels,
+        reliable_source_labels,
         deferred_source_ids,
         audit,
     )
@@ -2066,7 +2140,7 @@ def _finalize_payload(payload, gates, trusted_context):
         results_by_id,
         definitions,
         material_availability,
-        allowed_source_labels,
+        reliable_source_labels,
         original_hit_ids,
         original_hit_sources,
         audit,

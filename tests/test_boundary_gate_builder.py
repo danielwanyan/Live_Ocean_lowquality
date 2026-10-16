@@ -217,6 +217,55 @@ def thaw_immutable(value):
 
 
 class BoundaryGateBuilderTest(unittest.TestCase):
+    def test_rules_warning_is_included_in_gate_and_output_builder_warnings(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": json.dumps(
+                    [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": ["frame"]}]
+                ),
+                "segment_count": 1,
+                "comment_interaction": "comment",
+                "product_catalog_json": json.dumps(
+                    [{"product_index": 1, "title": "Product", "image_urls": ["image"]}]
+                ),
+                "product_count": 1,
+                "material_quality_warning": "[]",
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+                "rules_warning": "using fallback rules",
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+        output_warnings = json.loads(result["boundary_builder_warnings"])
+
+        self.assertEqual(gates["builder_warnings"], ["rules_warning:using fallback rules"])
+        self.assertEqual(output_warnings, gates["builder_warnings"])
+
+    def test_material_builder_warnings_match_gate_root_and_output(self):
+        result = build_boundary_gate_output(
+            {
+                "segments_json": "[]",
+                "segment_count": 0,
+                "comment_interaction": "",
+                "product_catalog_json": "[]",
+                "product_count": 0,
+                "material_quality_warning": "[]",
+                "rules_version": EXPECTED_CONTRACT_VERSION,
+                "rules_warning": "",
+            }
+        )
+
+        gates = json.loads(result["boundary_gates_json"])
+
+        self.assertEqual(
+            json.loads(result["boundary_builder_warnings"]),
+            gates["builder_warnings"],
+        )
+        self.assertEqual(
+            gates["builder_warnings"],
+            ["segment_frame_missing", "segment_asr_missing", "product_catalog_missing"],
+        )
+
     def test_publishes_declared_observed_counts_warnings_and_reliability(self):
         result = build_boundary_gate_output(
             {

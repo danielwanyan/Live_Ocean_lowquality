@@ -185,6 +185,7 @@ def build_params(payload=None, judge_output=None):
             "product_count": 1,
             "material_quality_warning": material_quality_warning,
             "rules_version": BOUNDARY_CONTRACT_VERSION,
+            "rules_warning": "",
         }
     )
     if judge_output is None:
@@ -201,6 +202,8 @@ def build_params(payload=None, judge_output=None):
         "product_catalog_json": product_catalog_json,
         "product_count": 1,
         "material_quality_warning": material_quality_warning,
+        "rules_warning": "",
+        "boundary_builder_warnings": gate_output["boundary_builder_warnings"],
     }
 
 
@@ -233,9 +236,11 @@ def build_params_with_availability(payload, **availability_overrides):
             "product_count": params["product_count"],
             "material_quality_warning": params["material_quality_warning"],
             "rules_version": params["rules_version"],
+            "rules_warning": params["rules_warning"],
         }
     )
     params["boundary_gates_json"] = gate_output["boundary_gates_json"]
+    params["boundary_builder_warnings"] = gate_output["boundary_builder_warnings"]
     return params
 
 
@@ -249,10 +254,12 @@ def rebuild_gate_from_trusted_params(params):
             "product_count": params["product_count"],
             "material_quality_warning": params["material_quality_warning"],
             "rules_version": params["rules_version"],
+            "rules_warning": params["rules_warning"],
         }
     )
     params["boundary_gates_json"] = gate_output["boundary_gates_json"]
     params["boundary_contract_version"] = gate_output["boundary_contract_version"]
+    params["boundary_builder_warnings"] = gate_output["boundary_builder_warnings"]
     return params
 
 
@@ -700,6 +707,8 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             "product_catalog_json": "product_catalog_json_invalid",
             "product_count": "product_count_invalid",
             "material_quality_warning": "material_quality_warning_invalid",
+            "rules_warning": "rules_warning_invalid",
+            "boundary_builder_warnings": "boundary_builder_warnings_invalid",
         }
 
         for field_name, expected_error in expected_errors.items():
@@ -708,6 +717,59 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 del params[field_name]
 
                 self.assert_failure(finalize_judge_output(params), expected_error)
+
+    def test_rules_and_builder_warnings_are_reconstructed_and_force_warning(self):
+        params = build_params()
+        params["rules_warning"] = "using fallback rules"
+        rebuild_gate_from_trusted_params(params)
+
+        result = finalize_judge_output(params)
+        finalized = finalized_payload(result)
+
+        self.assertEqual(result["finalization_status"], "warning")
+        self.assertTrue(
+            any(
+                item["priority_rule_applied"] == "builder_warning"
+                for item in finalized["boundary_overrides"]
+            )
+        )
+
+        tampered = build_params()
+        tampered["boundary_builder_warnings"] = json.dumps(["fabricated_warning"])
+        self.assert_failure(
+            finalize_judge_output(tampered),
+            "boundary_builder_warnings_mismatch",
+        )
+
+    def test_zero_material_builder_warnings_force_warning_without_decision_repairs(self):
+        payload = valid_payload()
+        for category_id in range(1, 19):
+            set_decision(payload, category_id, "unable_to_judge")
+        payload["material_summary"] = {
+            "segment_count": 0,
+            "product_count": 0,
+            "comment_interaction_available": False,
+            "material_quality_warning": [],
+        }
+        params = build_params_with_trusted_materials(
+            payload,
+            segments=[],
+            segment_count=0,
+            comment_interaction="",
+            products=[],
+            product_count=0,
+        )
+
+        result = finalize_judge_output(params)
+        finalized = finalized_payload(result)
+
+        self.assertEqual(result["finalization_status"], "warning")
+        self.assertTrue(
+            any(
+                item["priority_rule_applied"] == "builder_warning"
+                for item in finalized["boundary_overrides"]
+            )
+        )
 
     def test_all_trusted_inputs_absent_cannot_use_legacy_gate_manifest(self):
         payload = valid_payload()
@@ -1099,6 +1161,36 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 result = finalize_judge_output(params)
 
                 self.assert_failure(result, "gate_material_availability_contract_mismatch")
+
+    def test_gate_root_keys_and_disabled_category_ids_are_exact(self):
+        params = build_params()
+        gates = json.loads(params["boundary_gates_json"])
+        gates["unexpected_root_key"] = True
+        params["boundary_gates_json"] = gates
+        self.assert_failure(
+            finalize_judge_output(params),
+            "gate_root_keys_contract_mismatch",
+        )
+
+        params = build_params()
+        gates = json.loads(params["boundary_gates_json"])
+        del gates["builder_warnings"]
+        params["boundary_gates_json"] = gates
+        self.assert_failure(
+            finalize_judge_output(params),
+            "gate_root_keys_contract_mismatch",
+        )
+
+        for disabled_ids in ([], [19, 1], ["19"], [19, 19]):
+            with self.subTest(disabled_ids=disabled_ids):
+                params = build_params()
+                gates = json.loads(params["boundary_gates_json"])
+                gates["disabled_category_ids"] = disabled_ids
+                params["boundary_gates_json"] = gates
+                self.assert_failure(
+                    finalize_judge_output(params),
+                    "gate_disabled_category_ids_contract_mismatch",
+                )
 
     def test_gate_allowed_source_labels_contract_is_validated(self):
         def missing(gates):
@@ -1883,6 +1975,69 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         self.assertEqual(finalized["hit_category_ids"], [1])
         self.assert_decision(finalized, 19, "no_hit")
+        self.assertIn(
+            "priority_1_over_19",
+            category_result(finalized, 19)["priority_rule_applied"],
+        )
+
+    def test_disjoint_category_19_and_1_evidence_does_not_record_priority(self):
+        payload = valid_payload()
+        set_decision(payload, 19, "hit")
+        customize_hit(
+            payload,
+            19,
+            [
+                {
+                    "source": "Pearl product #1 image",
+                    "quote_or_visual_detail": "Independent category 19 evidence.",
+                    "reason": "Does not overlap category 1 evidence.",
+                }
+            ],
+            "Original category 19 hit.",
+            "medium",
+        )
+        set_fact(
+            payload,
+            "sexualized_exposure_or_behavior_found",
+            source="Segment #1 frame",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
+        self.assertEqual(finalized["hit_category_ids"], [1])
+        self.assertNotIn(
+            "priority_1_over_19",
+            category_result(finalized, 19)["priority_rule_applied"],
+        )
+        self.assertNotIn(
+            "priority_1_over_19",
+            finalized["policy_checks"]["exclusive_priority_applied"],
+        )
+
+    def test_same_source_category_19_and_1_records_priority(self):
+        payload = valid_payload()
+        set_decision(payload, 19, "hit")
+        customize_hit(
+            payload,
+            19,
+            [
+                {
+                    "source": "Segment #1 frame",
+                    "quote_or_visual_detail": "Shared sexualized evidence.",
+                    "reason": "Same source must associate priority 1 over 19.",
+                }
+            ],
+            "Original category 19 hit.",
+            "medium",
+        )
+        set_fact(
+            payload,
+            "sexualized_exposure_or_behavior_found",
+            source="Segment #1 frame",
+        )
+
+        finalized = finalized_payload(finalize_judge_output(build_params(payload)))
+
         self.assertIn(
             "priority_1_over_19",
             category_result(finalized, 19)["priority_rule_applied"],
@@ -2945,6 +3100,159 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         self.assertEqual(result["finalization_status"], "warning")
         self.assert_decision(finalized, 1, "unable_to_judge")
         self.assert_decision(finalized, 10, "unable_to_judge")
+
+    def test_unreliable_evidence_channels_cannot_preserve_or_promote_hits(self):
+        cases = []
+
+        payload = valid_payload()
+        set_fact(payload, "unrelated_content_dominates", source="Segment #1 ASR")
+        cases.append(
+            (
+                "category_3_unreliable_asr_with_reliable_comment",
+                payload,
+                3,
+                [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}],
+                "Reliable comment",
+                [],
+                ["segment_count_mismatch_expected_2_parsed_1"],
+                "no_hit",
+            )
+        )
+
+        payload = valid_payload()
+        set_fact(
+            payload,
+            "explicit_generated_content_evidence_found",
+            source="Segment #1 frame",
+        )
+        set_fact(
+            payload,
+            "authenticity_misleading_found",
+            source="Pearl product #1 title",
+        )
+        cases.append(
+            (
+                "category_9_unreliable_frame_with_reliable_pearl",
+                payload,
+                9,
+                [{"segment_index": 1, "asr_summary": "", "frame_urls": ["frame"]}],
+                "",
+                [{"product_index": 1, "title": "Product", "image_urls": []}],
+                ["segment_count_mismatch_expected_2_parsed_1"],
+                "no_hit",
+            )
+        )
+
+        payload = valid_payload()
+        set_fact(payload, "live_promoted_item_evidence_found", source="Segment #1 frame")
+        set_fact(payload, "bound_product_evidence_found", source="Pearl product #1 title")
+        set_fact(payload, "core_product_contradiction_found", source="Pearl product #1 image")
+        cases.append(
+            (
+                "category_15_unreliable_live_with_reliable_pearl",
+                payload,
+                15,
+                [{"segment_index": 1, "asr_summary": "", "frame_urls": ["frame"]}],
+                "",
+                [{"product_index": 1, "title": "Product", "image_urls": ["image"]}],
+                ["segment_count_mismatch_expected_2_parsed_1"],
+                "no_hit",
+            )
+        )
+
+        payload = valid_payload()
+        set_decision(payload, 16, "hit")
+        customize_hit(
+            payload,
+            16,
+            [
+                {
+                    "source": "Segment #1 frame",
+                    "quote_or_visual_detail": "Unreliable frame evidence.",
+                    "reason": "Must not preserve category 16.",
+                },
+                {
+                    "source": "Segment #1 ASR",
+                    "quote_or_visual_detail": "Unreliable ASR evidence.",
+                    "reason": "Must not preserve category 16.",
+                },
+            ],
+            "Original category 16 hit.",
+            "medium",
+        )
+        cases.append(
+            (
+                "ungated_category_16_unreliable_segment_with_reliable_pearl",
+                payload,
+                16,
+                [{"segment_index": 1, "asr_summary": "ASR", "frame_urls": ["frame"]}],
+                "",
+                [{"product_index": 1, "title": "Product", "image_urls": ["image"]}],
+                ["segment_count_mismatch_expected_2_parsed_1"],
+                "no_hit",
+            )
+        )
+
+        for (
+            case_name,
+            payload,
+            category_id,
+            segments,
+            comment,
+            products,
+            warnings,
+            expected_decision,
+        ) in cases:
+            with self.subTest(case_name=case_name):
+                params = build_params_with_trusted_materials(
+                    payload,
+                    segments=segments,
+                    segment_count=len(segments),
+                    comment_interaction=comment,
+                    products=products,
+                    product_count=len(products),
+                    warnings=warnings,
+                )
+
+                result = finalize_judge_output(params)
+                finalized = finalized_payload(result)
+
+                self.assertEqual(result["finalization_status"], "warning")
+                self.assert_decision(finalized, category_id, expected_decision)
+
+    def test_cat5_invalid_sources_do_not_suppress_unable_but_published_forbidden_does(self):
+        source_cases = (
+            ("blank", "", "", "unable_to_judge"),
+            ("invented", "invented source", "", "unable_to_judge"),
+            ("published_forbidden", "Comment Interaction", "Published comment", "no_hit"),
+        )
+
+        for case_name, source, comment_interaction, expected_decision in source_cases:
+            with self.subTest(case_name=case_name):
+                payload = valid_payload()
+                category_5 = category_result(payload, 5)
+                category_5["evidence"] = [
+                    {
+                        "source": source,
+                        "quote_or_visual_detail": "Model-authored evidence.",
+                        "reason": "Forbidden-only precedence regression.",
+                    }
+                ]
+                category_5["evidence_count"] = 1
+                params = build_params_with_trusted_materials(
+                    payload,
+                    segments=[
+                        {"segment_index": 1, "asr_summary": "ASR", "frame_urls": []}
+                    ],
+                    segment_count=1,
+                    comment_interaction=comment_interaction,
+                    products=[],
+                    product_count=0,
+                )
+
+                finalized = finalized_payload(finalize_judge_output(params))
+
+                self.assert_decision(finalized, 5, expected_decision)
 
     def test_gated_applicability_groups_align_with_required_fact_material_policies(self):
         expected_groups = {
