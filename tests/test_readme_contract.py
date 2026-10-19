@@ -57,8 +57,8 @@ class ReadmeContractTest(unittest.TestCase):
         )
         self.assertIn("builder warnings", section.lower())
 
-    def test_v3_rule_urls_use_published_live_lowquality_commit(self):
-        base = "https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/"
+    def test_v3_rule_urls_use_live_ocean_main(self):
+        base = "https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/main/rules/"
         self.assertIn(
             base + "live_ocean_lowquality_rules_structured_v1.json",
             self.readme,
@@ -68,7 +68,10 @@ class ReadmeContractTest(unittest.TestCase):
             self.readme,
         )
         self.assertNotIn("danielwanyan/Live_lowquality", self.readme)
+        self.assertNotIn("/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/", self.readme)
+        self.assertNotIn("pinned v3 SHA", self.readme)
         self.assertNotIn("remote 404 until", self.readme)
+        self.assertIn("main URL", self.readme)
 
     def test_rollout_uses_documented_contract_without_user_preflight(self):
         self.assertNotIn("Mandatory live-UI preflight", self.readme)

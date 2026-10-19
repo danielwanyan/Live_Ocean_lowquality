@@ -223,16 +223,16 @@ unable_to_judge_category_ids
 
 `End` continues to consume the Validator outputs. Declare every returned Code Node key in its Output Panel and map downstream variables explicitly; do not add extra canvas edges merely to make variables visible.
 
-## Commit-pinned rule URLs
+## Stable main rule URLs
 
-The published v3 rule pin is commit `27cbff1c51f3a71f40ce92a962446fa858cc2616` in `danielwanyan/Live_Ocean_lowquality`. Both immutable raw URLs were verified HTTP 200 and byte-identical to the locally tested assets on 2026-10-19:
+Per the maintained Aicolate contract, the workflow uses stable `main` URLs so future verified rule pushes do not require manual URL edits. Both main URLs were verified HTTP 200 and byte-identical to the locally tested v3 assets on 2026-10-19:
 
 ```text
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/live_ocean_lowquality_rules_structured_v1.json
-https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/main/rules/live_ocean_lowquality_rules_structured_v1.json
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/main/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
 ```
 
-Do not use mutable `main` raw URLs for the v3 rollout.
+Only push validated, synchronized rule assets to `main`. Rules_Brain version validation and downstream warning propagation block a mismatched update.
 
 Keep the retained v2 rollback path pinned to commit `eac91fbdee39f3f38e6a84c4b7932aa42184cdeb` in the same repository:
 
@@ -267,9 +267,9 @@ Durable project documentation and paste-ready mirrors are maintained under:
 Continue one node per manual message. v3 remains unreleased throughout preparation.
 
 0. Use the documented Start and Normalize contracts directly; no user screenshot is required. When configuring Finalizer, reuse the existing Judge raw-text mapping already selected by the retained v2 Validator.
-1. Use the two published `27cbff1c51f3a71f40ce92a962446fa858cc2616` URLs above; both are already verified HTTP 200 and content-matched.
+1. Use the two main URL values above; both are verified HTTP 200 and currently return the v3 contract.
 2. Retain or clone the complete active v2 path as rollback. Do not change `End`.
-3. Configure inactive v3 `Rules_JSON` and `Judge_Rules_Compact` HTTP nodes with the pinned v3 SHA URLs.
+3. Configure inactive v3 `Rules_JSON` and `Judge_Rules_Compact` HTTP nodes with the maintained main URL values.
 4. Paste/update v3 `Rules_Brain` on the inactive path; keep its Output Panel unchanged.
 5. Add `Live_Boundary_Gate_Builder` on the inactive path.
 6. Update or create the v3 `LowQuality_Judge` prompts and inputs on the inactive path.
@@ -279,7 +279,7 @@ Continue one node per manual message. v3 remains unreleased throughout preparati
 10. Make one cutover change: switch `End` from the retained v2 Validator to the verified v3 Validator.
 11. Rerun the 13 reviewed rooms before any metric claim or human approval.
 
-Stop immediately before cutover if either pinned v3 URL is not HTTP 200 or has the wrong content/version, the retained v2 rollback path is incomplete, any of the 13 Finalizer inputs or required Code Node outputs is missing, versions disagree, or the inactive smoke has any error/non-pass result. A nonempty `rules_warning`, `boundary_builder_warnings`, trusted `material_quality_warning`, material reliability warning, or `threshold_recheck_warnings` requires review and blocks cutover even when the Finalizer/Validator status is `warning` rather than `fail`.
+Stop immediately before cutover if either main URL is not HTTP 200 or has the wrong content/version, the retained v2 rollback path is incomplete, any of the 13 Finalizer inputs or required Code Node outputs is missing, versions disagree, or the inactive smoke has any error/non-pass result. A nonempty `rules_warning`, `boundary_builder_warnings`, trusted `material_quality_warning`, material reliability warning, or `threshold_recheck_warnings` requires review and blocks cutover even when the Finalizer/Validator status is `warning` rather than `fail`.
 
 Rollback is a single `End` switch back to the retained v2 Validator. The rollback path must continue using the v2 pinned URLs above, the prior v2 `Rules_Brain`, the prior Judge prompt, and the prior Validator mapping. Retain this complete v2 path until a human approves the 13-room v3 rerun.
 
