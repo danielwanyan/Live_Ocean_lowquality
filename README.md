@@ -225,16 +225,16 @@ unable_to_judge_category_ids
 
 ## Commit-pinned rule URLs
 
-The published v3 rule pin is commit `d8355c94be3bece9836a6d5a2e889b091208afc6` in `danielwanyan/Live_lowquality`. Both immutable raw URLs were verified HTTP 200 and byte-identical to the locally tested assets on 2026-10-19:
+The published v3 rule pin is commit `27cbff1c51f3a71f40ce92a962446fa858cc2616` in `danielwanyan/Live_Ocean_lowquality`. Both immutable raw URLs were verified HTTP 200 and byte-identical to the locally tested assets on 2026-10-19:
 
 ```text
-https://raw.githubusercontent.com/danielwanyan/Live_lowquality/d8355c94be3bece9836a6d5a2e889b091208afc6/rules/live_ocean_lowquality_rules_structured_v1.json
-https://raw.githubusercontent.com/danielwanyan/Live_lowquality/d8355c94be3bece9836a6d5a2e889b091208afc6/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/live_ocean_lowquality_rules_structured_v1.json
+https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/27cbff1c51f3a71f40ce92a962446fa858cc2616/rules/live_ocean_lowquality_judge_rules_compact_v1.txt
 ```
 
 Do not use mutable `main` raw URLs for the v3 rollout.
 
-Keep the retained v2 rollback path pinned to its existing legacy-repository commit `eac91fbdee39f3f38e6a84c4b7932aa42184cdeb`:
+Keep the retained v2 rollback path pinned to commit `eac91fbdee39f3f38e6a84c4b7932aa42184cdeb` in the same repository:
 
 ```text
 https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/eac91fbdee39f3f38e6a84c4b7932aa42184cdeb/rules/live_ocean_lowquality_rules_structured_v1.json
@@ -267,7 +267,7 @@ Durable project documentation and paste-ready mirrors are maintained under:
 Continue one node per manual message. v3 remains unreleased throughout preparation.
 
 0. Use the documented Start and Normalize contracts directly; no user screenshot is required. When configuring Finalizer, reuse the existing Judge raw-text mapping already selected by the retained v2 Validator.
-1. Use the two published `d8355c94be3bece9836a6d5a2e889b091208afc6` URLs above; both are already verified HTTP 200 and content-matched.
+1. Use the two published `27cbff1c51f3a71f40ce92a962446fa858cc2616` URLs above; both are already verified HTTP 200 and content-matched.
 2. Retain or clone the complete active v2 path as rollback. Do not change `End`.
 3. Configure inactive v3 `Rules_JSON` and `Judge_Rules_Compact` HTTP nodes with the pinned v3 SHA URLs.
 4. Paste/update v3 `Rules_Brain` on the inactive path; keep its Output Panel unchanged.
