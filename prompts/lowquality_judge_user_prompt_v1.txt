@@ -20,18 +20,6 @@ Rules version:
 Focused rules context:
 {{rules_context}}
 
-Category catalog:
-{{category_catalog}}
-
-Product image permission matrix:
-{{product_image_permission_matrix}}
-
-Priority rules:
-{{priority_rules_context}}
-
-Threshold rules:
-{{threshold_rules_context}}
-
 Compact judge rules:
 {{judge_rules_compact}}
 
@@ -66,12 +54,14 @@ Use the text JSON fields to understand which image URLs belong to which segment 
 
 ## Task
 
-Check all 19 live-room low-quality categories independently.
+Check all 19 live-room low-quality categories independently and in category_id order.
+Use all Ocean segments, not a reduced sample.
+Use Comment Interaction only as summary-derived interaction context.
+Use Pearl product titles/images only where the compact rules allow them; never use Pearl material for a forbidden category.
+Apply the compact rules and supplied v3 boundary contract before every decision.
+For every fact name listed in boundary_output_schema_json.required_facts, output one fact object using the exact name and allowed source labels.
+For every category_id from 1 through 19 in order, output one final_results object using the exact category name from the compact rules.
 
-Use all Ocean segments, not a 5-segment sample.
-Use Comment Interaction only for the summary-derived interaction context.
-Use Pearl products only according to product-image permission rules.
-Apply the supplied v3 boundary contract before every category decision.
 Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
 
 Category 10 evidence contract
@@ -85,17 +75,15 @@ Decision precedence
 2) If the required judging channel is present but valid evidence is weak or below threshold, return no_hit.
 3) If the category is disabled or evidence exists only in a forbidden source, return no_hit; this overrides the missing-material rule.
 
-For every hit, provide evidence as an array of concise Chinese evidence objects. Each evidence object must include source, quote_or_visual_detail, and reason, and all three fields must be nonblank.
-
-For no_hit and unable_to_judge, evidence may be empty, but judge_reason must explain why the category did not hit or could not be judged from available materials.
+For every hit, evidence must be an array of concise Chinese objects. Each object must contain nonblank source, quote_or_visual_detail, and reason.
+For no_hit and unable_to_judge, evidence may be empty, but judge_reason must explain the decision.
 
 ## Output Format
 
-Return the Chinese report first, then append FINAL_JSON: followed by valid JSON.
-
-Use this structure:
-
-The all-false boundary facts and all-no_hit category decisions in the example illustrate the required shape only; never copy them as defaults, and derive every fact and decision from the supplied evidence.
+Return the Chinese report first, then FINAL_JSON: followed by valid JSON.
+The JSON below is compact schema notation: it contains one fact object and one category result object only to show field shape.
+Expand them to all 31 required facts and all 19 ordered categories in the actual output.
+Schema placeholder keys and angle-bracket values must not appear in the actual output.
 
 识别到的低质问题：
 1. 识别到【类别名】
@@ -116,163 +104,13 @@ FINAL_JSON:
   "material_summary": {
     "segment_count": {{segment_count}},
     "product_count": {{product_count}},
-    "comment_interaction_available": true,
+    "comment_interaction_available": false,
     "material_quality_warning": {{material_quality_warning}}
   },
   "boundary_checks": {
     "contract_version": "{{boundary_contract_version}}",
     "facts": {
-      "sexualized_exposure_or_behavior_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "ordinary_tryon_or_public_context_only": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "disturbing_visual_dominates": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "cleaning_demo_context": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "novelty_or_product_art_context": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "sustained_product_promotion_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "unrelated_content_dominates": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "real_physical_product_display_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "core_buying_information_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "identifiable_product_and_core_purpose_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "extremely_low_information_across_relevant_segments": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "explicit_generated_content_evidence_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "authenticity_misleading_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "generated_product_material_mismatch_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "concrete_replay_indicator_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "replay_weak_signal_only": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "concrete_live_effect_claim_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "materially_misleading_basis_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "effect_claim_prevalence_or_strength_threshold_met": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "marketing_or_product_image_only": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "off_platform_destination_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "explicit_transaction_guidance_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "same_scene_transaction_requirement_met": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "live_promoted_item_evidence_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "bound_product_evidence_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "core_product_contradiction_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "minor_variant_or_background_only": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "category_15_non_ipp_illegal_basis_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "sustained_negative_emotion_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "hostile_shaming_fear_evidence_found": {
-        "value": false,
-        "evidence_sources": [],
-        "evidence_detail": ""
-      },
-      "routine_sales_or_knowledge_marketing_only": {
+      "<required_fact_name>": {
         "value": false,
         "evidence_sources": [],
         "evidence_detail": ""
@@ -282,246 +120,12 @@ FINAL_JSON:
   "final_results": [
     {
       "category_id": 1,
-      "category_name": "色情低俗低质问题",
+      "category_name": "<exact_category_name>",
       "decision": "no_hit",
       "confidence": "medium",
       "evidence_count": 0,
       "evidence": [],
-      "judge_reason": "未发现达到色情低俗低质问题阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 2,
-      "category_name": "恶心恐怖低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 3,
-      "category_name": "商品无关低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 4,
-      "category_name": "无互动低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 5,
-      "category_name": "无实物商品展示低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 6,
-      "category_name": "商品描述不详细低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 7,
-      "category_name": "静态帧遮挡低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 8,
-      "category_name": "非母语违规低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 9,
-      "category_name": "AIGC真实性低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 10,
-      "category_name": "AIGC商品展示低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 11,
-      "category_name": "录播回放低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 12,
-      "category_name": "功能效果虚假宣传低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 13,
-      "category_name": "危险行为低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 14,
-      "category_name": "站外引流交易低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 15,
-      "category_name": "违法违规商品低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 16,
-      "category_name": "政治敏感低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 17,
-      "category_name": "争议话题低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 18,
-      "category_name": "负面引导低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "未发现达到该类别阈值的有效证据。",
-      "materials_used": [],
-      "product_image_used": false,
-      "product_image_permission_ok": true,
-      "priority_rule_applied": []
-    },
-    {
-      "category_id": 19,
-      "category_name": "隐私敏感商品低质问题",
-      "decision": "no_hit",
-      "confidence": "medium",
-      "evidence_count": 0,
-      "evidence": [],
-      "judge_reason": "本工作流已禁用类别19，返回no_hit。",
+      "judge_reason": "<nonblank_chinese_reason>",
       "materials_used": [],
       "product_image_used": false,
       "product_image_permission_ok": true,
@@ -529,7 +133,7 @@ FINAL_JSON:
     }
   ],
   "hit_category_ids": [],
-  "no_hit_category_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "no_hit_category_ids": [],
   "unable_to_judge_category_ids": [],
   "coverage_check": {
     "expected_category_count": 19,
@@ -546,17 +150,20 @@ FINAL_JSON:
 }
 
 Requirements:
-The FINAL_JSON final_results array must contain exactly 19 objects ordered by category_id from 1 to 19.
-rules_version, room_id, and boundary_checks.contract_version must copy their exact runtime values and must not remain placeholders or blank.
-Finalizer deterministically rebuilds material_summary from trusted Normalize inputs.
-The model must copy segment_count, product_count, and material_quality_warning from their runtime values and must not use shape defaults.
-The model must set comment_interaction_available to true when comment_interaction is nonempty and false when it is empty.
-The FINAL_JSON boundary_checks object must contain contract_version and facts. contract_version must equal boundary_contract_version exactly for the supplied v3 contract.
-The facts object must include all 31 required fact names exactly. Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
-Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail. Copy that source label exactly; a false fact may use empty evidence_sources and empty evidence_detail.
+The FINAL_JSON final_results must contain exactly 19 objects ordered by category_id from 1 to 19.
+For every category_id from 1 through 19 in order, copy the exact category name from the compact rules.
+For every fact name listed in boundary_output_schema_json.required_facts, include exactly one fact object; the facts object must include all 31 required fact names.
+Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
+Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail; false facts may use empty evidence.
+Every hit must have evidence_count greater than 0 and non-empty evidence.
+Every evidence object must contain source, quote_or_visual_detail, and reason, and all three fields must be nonblank.
+Copy evidence source labels exactly from allowed_source_labels; do not invent or normalize them.
 Category 9 and Category 10 facts must remain separate and must never be merged into a combined authenticity/product-mismatch fact.
+rules_version, room_id, and boundary_checks.contract_version must copy their exact runtime values and must not remain placeholders or blank.
+The model must copy segment_count, product_count, and material_quality_warning from runtime values.
+The model must set comment_interaction_available to true when comment_interaction is nonempty and false when it is empty.
+Finalizer deterministically rebuilds material_summary from trusted Normalize inputs.
 hit_category_ids, no_hit_category_ids, and unable_to_judge_category_ids must cover all 19 categories with no overlap.
-Every final hit must have evidence_count greater than 0 and non-empty evidence.
-Every evidence object must contain nonblank source, quote_or_visual_detail, and reason. Its source must be copied exactly from allowed_source_labels; do not invent or normalize a label.
-Do not include markdown code fences in the actual output.
+Schema placeholder keys and angle-bracket values must not appear in the actual output.
+Do not include markdown code fences.
 Do not add any text after the JSON. There must be no text after the JSON.

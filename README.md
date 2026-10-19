@@ -118,7 +118,7 @@ The five-field Output Panel is unchanged. Inside `boundary_gates_json`, v3 now c
 
 ## LowQuality_Judge
 
-Keep every existing text input:
+Configure exactly these 13 Text Input Variables:
 
 ```text
 room_id
@@ -129,21 +129,12 @@ product_catalog_json
 product_count
 material_quality_warning
 rules_context
-category_catalog
-product_image_permission_matrix
-priority_rules_context
-threshold_rules_context
 rules_version
 judge_rules_compact             Judge_Rules_Compact.body
+boundary_gate_panel             Live_Boundary_Gate_Builder.boundary_gate_panel
+boundary_output_schema_json     Live_Boundary_Gate_Builder.boundary_output_schema_json
+boundary_contract_version       Live_Boundary_Gate_Builder.boundary_contract_version
 ```
-
-Add exactly these three flat `String` text inputs:
-
-| Input Variable | Type | Source |
-|---|---|---|
-| `boundary_gate_panel` | String | `Live_Boundary_Gate_Builder.boundary_gate_panel` |
-| `boundary_output_schema_json` | String | `Live_Boundary_Gate_Builder.boundary_output_schema_json` |
-| `boundary_contract_version` | String | `Live_Boundary_Gate_Builder.boundary_contract_version` |
 
 Vision inputs are unchanged:
 
@@ -152,7 +143,7 @@ all_frame_urls                  Normalize_Input.all_frame_urls
 all_product_image_urls          Normalize_Input.all_product_image_urls
 ```
 
-The System Prompt is plain text. The User Prompt contains the JSON contract and variable interpolation.
+The System Prompt is plain text. The compact User Prompt keeps `rules_context`, `judge_rules_compact`, and the boundary contract, while removing duplicate catalog/permission/priority/threshold injections and the expanded 31-fact/19-result all-false example.
 
 The Judge output envelope is a Chinese human-review report followed by `FINAL_JSON:` and valid JSON; `raw_json_only` is `false`. Decision precedence is fixed:
 

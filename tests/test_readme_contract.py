@@ -57,6 +57,38 @@ class ReadmeContractTest(unittest.TestCase):
         )
         self.assertIn("builder warnings", section.lower())
 
+    def test_judge_documents_exact_thirteen_text_inputs(self):
+        section = _section(
+            self.readme,
+            "## LowQuality_Judge",
+            "## Live_Boundary_Finalizer",
+        )
+        self.assertIn("13 Text Input Variables", section)
+        expected_inputs = (
+            "room_id",
+            "segments_json",
+            "segment_count",
+            "comment_interaction",
+            "product_catalog_json",
+            "product_count",
+            "material_quality_warning",
+            "rules_context",
+            "rules_version",
+            "judge_rules_compact",
+            "boundary_gate_panel",
+            "boundary_output_schema_json",
+            "boundary_contract_version",
+        )
+        for input_name in expected_inputs:
+            self.assertIn(input_name, section)
+        for removed_input in (
+            "category_catalog",
+            "product_image_permission_matrix",
+            "priority_rules_context",
+            "threshold_rules_context",
+        ):
+            self.assertNotIn(removed_input, section)
+
     def test_v3_rule_urls_use_live_ocean_main(self):
         base = "https://raw.githubusercontent.com/danielwanyan/Live_Ocean_lowquality/main/rules/"
         self.assertIn(
