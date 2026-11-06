@@ -1,6 +1,6 @@
 {
-  "version": "2026-11-06-v4-evidence-first-ipp",
-  "boundary_contract_version": "2026-11-06-v4-evidence-first-ipp",
+  "version": "2026-11-06-v5-ipp-any-match",
+  "boundary_contract_version": "2026-11-06-v5-ipp-any-match",
   "project": "Live Ocean Low Quality",
   "source_language": "zh-CN",
   "judge_instruction_language": "en",
@@ -451,19 +451,22 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "IPP requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction. Require at least 2 distinct trusted sources, including one live Segment and one Pearl source.",
-      "hit_definition_zh": "直播间实际推广商品与挂品在实体、类目、用途或关键规格上明确不一致，构成IPP错绑。",
-      "judge_focus_en": "Compare actual live promoted goods against the complete bound Pearl catalog. Minor variants or background differences are exempt. IPP is not illegal goods and is exclusively Category 20. Preserve the core quantity/spec contradiction boundary.",
+      "trigger_threshold": "Require confirmed live selling, a complete catalog check, zero reasonable live-to-catalog matches, a concrete core contradiction and at least two trusted sources including live and Pearl. An evidenced auction or any reasonable catalog match blocks IPP across the entire room. Requires live promoted item evidence and bound product evidence for an entity/category/use/quantity/spec contradiction.",
+      "hit_definition_zh": "仅在确认直播售卖对象、检查完整挂品且整场无任一合理匹配、并有实锤核心矛盾时命中IPP；任一匹配挂品或有证据的拍卖模式均免IPP。",
+      "judge_focus_en": "First find matches across every live segment and the complete Pearl catalog. Any shown/promoted item reasonably matching any bound product makes Category 20 no_hit, even if other items differ. Compare the closest plausible bound candidate, never cherry-pick an unrelated catalog entry. Actual images can resolve generic ASR product names. Hobbies, DIY or everyday sharing are not confirmed selling. Evidenced auction mode is exempt. Colors, ordinary styles, background, opened card versus pack, installation state and bundle members cannot alone prove a core contradiction. Return ipp_alignment with source-indexed matches and the complete checked product indexes.",
       "exemptions": [
-        "A minor variant in color, style, packaging, or quantity without a core contradiction is blocked from IPP.",
-        "A background difference without a core product contradiction is blocked from IPP.",
-        "A broad catalog where the currently shown product is plausibly one of the bound products."
+        "Any reasonable live-item to bound-product match anywhere in the room blocks IPP, including a broad/bundle/variant listing.",
+        "Evidence-backed auction mode blocks IPP.",
+        "Mixed catalog, other displayed goods, rotation and incomplete coverage of the entire assortment are not core contradictions.",
+        "Non-selling hobby/DIY/day-to-day content cannot establish an IPP promoted object.",
+        "Weak or uncertain identity, generic ASR product names or plausible variants do not establish a core contradiction.",
+        "A minor variant or background difference, including non-core quantity/spec details, is exempt; only an actual core quantity/spec contradiction after zero catalog matches can qualify."
       ]
     }
   ],
   "judge_output_requirements": {
     "raw_json_only": false,
-    "chinese_report_then_final_json": true,
+    "chinese_report_then_final_json": false,
     "final_json_anchor": "FINAL_JSON:",
     "final_results_count": 20,
     "hit_requires_non_empty_evidence": true,

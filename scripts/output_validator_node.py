@@ -1,4 +1,5 @@
 import json
+import re
 
 
 ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17, 20}
@@ -184,6 +185,78 @@ def _check_finalization_status(params, errors, warnings):
     return status
 
 
+def _ipp_output_errors(payload, segment_count, product_count):
+    results = payload.get("final_results", [])
+    hit = any(type(item) is dict and item.get("category_id") == 20 and item.get("decision") == "hit"
+              for item in results) if type(results) is list else False
+    boundary = payload.get("boundary_checks")
+    if type(boundary) is not dict:
+        return ["ipp_alignment_boundary_invalid"] if "boundary_checks" in payload or hit else []
+    alignment = boundary.get("ipp_alignment")
+    if alignment is None:
+        return ["ipp_alignment_missing_for_hit"] if hit else []
+    keys = {"sales_mode", "sales_mode_evidence", "live_selling_confirmed", "selling_evidence",
+            "checked_product_indexes", "matches", "unmatched_promoted_items"}
+    if type(alignment) is not dict or set(alignment) != keys:
+        return ["ipp_alignment_shape_invalid"]
+    errors = []
+
+    def valid_source(source, product=False):
+        if type(source) is not str:
+            return False
+        pattern = r"Pearl product #([1-9][0-9]*) (title|image)" if product else r"Segment #([1-9][0-9]*) (frame|ASR|visible text|frame visible text)"
+        match = re.fullmatch(pattern, source)
+        # Normalize preserves sparse Segment IDs; a count is not an upper ID bound.
+        # Finalizer already validates membership against the trusted live source labels.
+        return bool(match and (not product or int(match.group(1)) <= product_count))
+
+    def valid_entries(entries, auction=False):
+        keys = {"kind", "source", "detail"} if auction else {"source", "detail"}
+        return type(entries) is list and all(
+            type(e) is dict and set(e) == keys and valid_source(e.get("source"))
+            and type(e.get("detail")) is str and bool(e["detail"].strip())
+            and (not auction or e.get("kind") in ("auction_sign", "bidding_rules", "active_bidding", "auction_settlement"))
+            for e in entries
+        )
+
+    if alignment["sales_mode"] not in ("regular", "auction", "unclear") or type(alignment["live_selling_confirmed"]) is not bool:
+        errors.append("ipp_alignment_flags_invalid")
+    if not valid_entries(alignment["selling_evidence"]) or (alignment["live_selling_confirmed"] is True and not alignment["selling_evidence"]):
+        errors.append("ipp_alignment_selling_evidence_invalid")
+    if not valid_entries(alignment["sales_mode_evidence"], auction=True) or (alignment["sales_mode"] == "auction" and not alignment["sales_mode_evidence"]):
+        errors.append("ipp_alignment_auction_evidence_invalid")
+    checked = alignment["checked_product_indexes"]
+    indexes_valid = (type(checked) is list and all(type(i) is int and 1 <= i <= product_count for i in checked)
+                     and len(set(checked)) == len(checked))
+    if not indexes_valid or (hit and set(checked) != set(range(1, product_count + 1))):
+        errors.append("ipp_alignment_catalog_coverage_invalid")
+    matches = alignment["matches"]
+    if type(matches) is not list:
+        errors.append("ipp_alignment_matches_invalid")
+    else:
+        for match in matches:
+            if (type(match) is not dict or set(match) != {"segment_index", "product_index", "live_source", "product_source", "basis"}
+                    or type(match.get("segment_index")) is not int or type(match.get("product_index")) is not int
+                    or not valid_source(match.get("live_source")) or not valid_source(match.get("product_source"), product=True)
+                    or not match["live_source"].startswith("Segment #%d " % match["segment_index"])
+                    or not match["product_source"].startswith("Pearl product #%d " % match["product_index"])
+                    or type(match.get("basis")) is not str or not match["basis"].strip()):
+                errors.append("ipp_alignment_match_reference_invalid")
+    unmatched = alignment["unmatched_promoted_items"]
+    if type(unmatched) is not list:
+        errors.append("ipp_alignment_unmatched_invalid")
+    else:
+        for item in unmatched:
+            if (type(item) is not dict or set(item) != {"live_source", "product_source", "basis"}
+                    or not valid_source(item.get("live_source")) or not valid_source(item.get("product_source"), product=True)
+                    or type(item.get("basis")) is not str or not item["basis"].strip()):
+                errors.append("ipp_alignment_unmatched_reference_invalid")
+    if hit and (alignment["matches"] or alignment["sales_mode"] != "regular"
+                or alignment["live_selling_confirmed"] is not True or not alignment["unmatched_promoted_items"]):
+        errors.append("ipp_alignment_incompatible_with_hit")
+    return sorted(set(errors))
+
+
 def _validate_payload(payload, params):
     errors = []
     warnings = []
@@ -225,6 +298,7 @@ def _validate_payload(payload, params):
         material_summary = {}
     segment_count = _to_int(params.get("segment_count", material_summary.get("segment_count", 0)))
     product_count = _to_int(params.get("product_count", material_summary.get("product_count", 0)))
+    errors.extend(_ipp_output_errors(payload, segment_count, product_count))
     if segment_count == 0 and product_count == 0:
         warnings.append("empty_materials")
 

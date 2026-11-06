@@ -1,4 +1,5 @@
-Evidence-first v4: IPP is exclusively Category 20 挂品与直播间商品不一致低质问题; Category 15 requires independent illegal goods. Compare live goods with the complete bound catalog; variants/background are exempt. Categories 3/4 require reliable live segments: zero segments/missing data/short duration/summary-only comments cannot hit. Cat4 requires sustained_no_promotion_and_no_interaction_found from live ASR proving BOTH no promotion and no interaction. Cat1 excludes costume/bra/cup-size/lingerie/swimwear/mannequin product display without explicit sexual conduct; set ordinary_product_display_only true. Keep the empty-ID commerce fallback.
+IPP v5: Return source-indexed boundary_checks.ipp_alignment using the supplied boundary output schema. Any reasonable catalog match or evidenced auction makes Category20 no_hit. Confirm selling and check the entire catalog before a no-match hit. Frames can resolve generic ASR names.
+
 
 ## Room
 
@@ -60,7 +61,7 @@ Check all 20 live-room low-quality categories independently and in category_id o
 Use all Ocean segments, not a reduced sample.
 Use Comment Interaction only as summary-derived interaction context.
 Use Pearl product titles/images only where the compact rules allow them; never use Pearl material for a forbidden category.
-Apply the compact rules and supplied v4 boundary contract before every decision.
+Apply the compact rules and supplied v5 boundary contract before every decision.
 For every fact name listed in boundary_output_schema_json.required_facts, output one fact object using the exact name and allowed source labels.
 For every category_id from 1 through 20 in order, output one final_results object using the exact category name from the compact rules.
 
@@ -90,26 +91,14 @@ For no_hit and unable_to_judge, evidence may be empty, but judge_reason must exp
 
 ## Output Format
 
-Return the Chinese report first, then FINAL_JSON: followed by valid JSON.
+Return only FINAL_JSON: followed by compact valid JSON. The downstream Finalizer generates the Chinese report.
 The JSON below is compact schema notation: it contains one fact object and one category result object only to show field shape.
 Expand them to all 33 required facts and all 20 ordered categories in the actual output.
 Schema placeholder keys and angle-bracket values must not appear in the actual output.
-Keep the entire response concise and under 9000 characters.
+Keep the response compact without omitting or truncating required fields.
 The FINAL_JSON object must be minified on one line with no indentation or unnecessary whitespace.
 For no_hit and unable_to_judge, keep judge_reason to one short Chinese sentence; false facts must use empty evidence_sources and empty evidence_detail.
 For a hit, keep only the minimum concrete evidence required by the rule.
-
-识别到的低质问题：
-1. 识别到【类别名】
-相关佐证：
-证据1：中文说明，包含 Segment/Comment Interaction/Pearl source。
-裁判理由：中文说明为什么达到阈值。
-
-无低质问题：
-无【类别名】：简短说明未达到阈值或证据不足。
-
-无法判断：
-无法判断【类别名】：说明缺少哪些必要材料。
 
 FINAL_JSON:
 {
@@ -122,6 +111,15 @@ FINAL_JSON:
     "material_quality_warning": {{material_quality_warning}}
   },
   "boundary_checks": {
+    "ipp_alignment": {
+      "sales_mode": "unclear",
+      "sales_mode_evidence": [],
+      "live_selling_confirmed": false,
+      "selling_evidence": [],
+      "checked_product_indexes": [],
+      "matches": [],
+      "unmatched_promoted_items": []
+    },
     "contract_version": "{{boundary_contract_version}}",
     "facts": {
       "<required_fact_name>": {

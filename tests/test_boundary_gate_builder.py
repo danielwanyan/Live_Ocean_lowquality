@@ -27,7 +27,7 @@ from live_boundary_finalizer import (
 )
 
 
-EXPECTED_CONTRACT_VERSION = "2026-11-06-v4-evidence-first-ipp"
+EXPECTED_CONTRACT_VERSION = "2026-11-06-v5-ipp-any-match"
 EXPECTED_REQUIRED_FACTS = ['sexualized_exposure_or_behavior_found',
  'ordinary_tryon_or_public_context_only',
  'disturbing_visual_dominates',

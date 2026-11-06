@@ -24,6 +24,20 @@ def run_case(case):
         payload["final_results"].append(item)
         payload["no_hit_category_ids"].append(20)
     n = case["normalized"]
+    # Explicit schema upgrade for legacy replay fixtures, not a new model observation.
+    segments = json.loads(n["segments_json"])
+    products = json.loads(n["product_catalog_json"])
+    if segments and products:
+        live_asr = next((s for s in segments if s.get("asr_summary")), None)
+        live_frame = next((s for s in segments if s.get("frame_urls")), None)
+        product = next((p for p in products if p.get("title")), None)
+        if live_asr and live_frame and product:
+            payload["boundary_checks"]["ipp_alignment"] = {
+                "sales_mode":"regular", "sales_mode_evidence":[], "live_selling_confirmed":True,
+                "selling_evidence":[{"source":"Segment #%d ASR" % live_asr["segment_index"], "detail":"Legacy fixture selling evidence."}],
+                "checked_product_indexes":[p["product_index"] for p in products], "matches":[],
+                "unmatched_promoted_items":[{"live_source":"Segment #%d frame" % live_frame["segment_index"], "product_source":"Pearl product #%d title" % product["product_index"], "basis":"Legacy fixture core mismatch."}],
+            }
     g = builder.build_boundary_gate_output(dict(n, rules_version=builder.BOUNDARY_CONTRACT_VERSION, rules_warning=""))
     p = dict(n, **g, rules_version=builder.BOUNDARY_CONTRACT_VERSION, rules_warning="", judge_output="FINAL_JSON:" + json.dumps(payload, ensure_ascii=False))
     result = finalizer.finalize_judge_output(p)

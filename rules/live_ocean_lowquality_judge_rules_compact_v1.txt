@@ -1,7 +1,7 @@
 Live Ocean Low Quality Single-Judge Compact Rules v4
 
 Global
-Boundary contract version: 2026-11-06-v4-evidence-first-ipp
+Boundary contract version: 2026-11-06-v5-ipp-any-match
 Check all 20 categories independently and in order. Use all available Ocean segments, not a reduced sample. Hit requires concrete evidence from allowed materials and the category threshold.
 Decision precedence:
 1) If a category's required judging channel or material is absent, return unable_to_judge.
@@ -120,3 +120,5 @@ Focus: Compare actual live promoted goods against the complete bound Pearl catal
 Exempt: A minor variant in color, style, packaging, or quantity without a core contradiction is blocked from IPP.; A background difference without a core product contradiction is blocked from IPP.; A broad catalog where the currently shown product is plausibly one of the bound products.
 
 Evidence-first: Categories 3/4 require reliable live Segment evidence; zero segments/missing data means unable_to_judge. Comment summaries, missing statistics/features, short duration or absent capture cannot establish low quality. Category 4 requires sustained evidence of both no promotion and no interaction. Category 1: normal costumes, bras/cup sizes/lingerie, mannequins and product display alone are not pornography. Require actual explicit sexual content. Return all 20 category results and all 33 boundary facts.
+
+IPP any-match override: Any reasonable match between any live segment and any bound product makes Category20 no_hit. Evidenced auction mode is exempt. First establish actual selling, then examine the complete catalog; other unrelated bound goods, variant names, bundles or ASR generic wording cannot establish a mismatch. Emit source-indexed ipp_alignment and do not infer a promoted product from hobby or DIY display.

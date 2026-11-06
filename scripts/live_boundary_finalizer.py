@@ -3,7 +3,7 @@ import re
 from types import MappingProxyType
 
 
-BOUNDARY_CONTRACT_VERSION = "2026-11-06-v4-evidence-first-ipp"
+BOUNDARY_CONTRACT_VERSION = "2026-11-06-v5-ipp-any-match"
 
 
 def _immutable(value):
@@ -1329,6 +1329,122 @@ def _results_by_id(payload):
     }
 
 
+def _ipp_alignment_errors(payload, trusted_context):
+    alignment = payload.get("boundary_checks", {}).get("ipp_alignment")
+    if alignment is None:
+        return []  # Older outputs may be inspected, but cannot qualify for an IPP hit.
+    keys = {"sales_mode", "sales_mode_evidence", "live_selling_confirmed", "selling_evidence",
+            "checked_product_indexes", "matches", "unmatched_promoted_items"}
+    if type(alignment) is not dict or set(alignment) != keys:
+        return ["ipp_alignment_shape_invalid"]
+    errors = []
+    labels = set(trusted_context["allowed_source_labels"])
+    products = {p["product_index"] for p in trusted_context["products"]}
+    live_materials = {"segment_frame", "segment_asr", "segment_frame_visible_text"}
+    product_materials = {"pearl_product_title", "pearl_product_image"}
+
+    def source_valid(source, materials):
+        return type(source) is str and source in labels and _source_material(source) in materials
+
+    def entries_valid(entries, materials, auction=False):
+        keys = {"source", "detail", "kind"} if auction else {"source", "detail"}
+        return type(entries) is list and all(
+            type(e) is dict and set(e) == keys
+            and source_valid(e.get("source"), materials)
+            and type(e.get("detail")) is str and bool(e["detail"].strip())
+            and (not auction or e.get("kind") in ("auction_sign", "bidding_rules", "active_bidding", "auction_settlement"))
+            for e in entries
+        )
+
+    if type(alignment["sales_mode"]) is not str or alignment["sales_mode"] not in {"regular", "auction", "unclear"}:
+        errors.append("ipp_alignment_sales_mode_invalid")
+    if type(alignment["live_selling_confirmed"]) is not bool:
+        errors.append("ipp_alignment_selling_flag_invalid")
+    for name in ("sales_mode_evidence", "selling_evidence"):
+        if not entries_valid(alignment[name], live_materials, auction=name == "sales_mode_evidence"):
+            errors.append("ipp_alignment_%s_invalid" % name)
+    if alignment["live_selling_confirmed"] is True and not alignment["selling_evidence"]:
+        errors.append("ipp_alignment_selling_evidence_missing")
+    if alignment["sales_mode"] == "auction":
+        auction_evidence = alignment["sales_mode_evidence"]
+        if not auction_evidence or not entries_valid(auction_evidence, live_materials, auction=True):
+            errors.append("ipp_alignment_auction_evidence_missing")
+    checked = alignment["checked_product_indexes"]
+    if (type(checked) is not list or any(type(i) is not int or i not in products for i in checked)
+            or len(checked) != len(set(checked))):
+        errors.append("ipp_alignment_checked_indexes_invalid")
+    matches = alignment["matches"]
+    if type(matches) is not list:
+        errors.append("ipp_alignment_matches_invalid")
+    else:
+        for match in matches:
+            match_keys = {"segment_index", "product_index", "live_source", "product_source", "basis"}
+            if type(match) is not dict or set(match) != match_keys:
+                errors.append("ipp_alignment_match_shape_invalid")
+                continue
+            live_source, product_source = match["live_source"], match["product_source"]
+            if (not source_valid(live_source, live_materials) or not source_valid(product_source, product_materials)
+                    or type(match["segment_index"]) is not int or type(match["product_index"]) is not int
+                    or match["product_index"] not in products
+                    or not live_source.startswith("Segment #%d " % match["segment_index"])
+                    or not product_source.startswith("Pearl product #%d " % match["product_index"])
+                    or type(match["basis"]) is not str or not match["basis"].strip()):
+                errors.append("ipp_alignment_match_reference_invalid")
+    unmatched = alignment["unmatched_promoted_items"]
+    if type(unmatched) is not list:
+        errors.append("ipp_alignment_unmatched_invalid")
+    else:
+        for item in unmatched:
+            if (type(item) is not dict or set(item) != {"live_source", "product_source", "basis"}
+                    or not source_valid(item.get("live_source"), live_materials)
+                    or not source_valid(item.get("product_source"), product_materials)
+                    or type(item.get("basis")) is not str or not item["basis"].strip()):
+                errors.append("ipp_alignment_unmatched_reference_invalid")
+    return sorted(set(errors))
+
+
+def _ipp_catalog_identity_missing(trusted_context):
+    return any(not (type(p.get("title")) is str and p["title"].strip())
+               and not _has_nonempty_string_list(p.get("image_urls"))
+               for p in trusted_context["products"])
+
+
+def _ipp_block_reason(payload, trusted_context):
+    alignment = payload["boundary_checks"].get("ipp_alignment")
+    if alignment is None:
+        return "缺少完整挂品匹配审计，不能仅凭核心矛盾布尔值命中IPP。"
+    if alignment["sales_mode"] == "auction":
+        return "存在有直播来源支持的拍卖模式，按业务边界不命中IPP。"
+    if alignment["matches"]:
+        return "直播中至少一款商品与挂品匹配；其他挂品或展示范围不同不构成IPP。"
+    if _ipp_catalog_identity_missing(trusted_context):
+        return "至少一条挂品缺少可用标题和商品图，无法排除合理匹配。"
+    if alignment["live_selling_confirmed"] is not True:
+        return "未确认正在售卖另一件商品；日常分享或兴趣展示不能命中IPP。"
+    if alignment["sales_mode"] == "unclear":
+        return "售卖模式仍不明确，现有证据不足以命中IPP。"
+    checked = set(alignment["checked_product_indexes"])
+    if checked != {p["product_index"] for p in trusted_context["products"]}:
+        return "未检查完整挂品目录，不能仅挑选一个不匹配挂品命中IPP。"
+    if not alignment["unmatched_promoted_items"]:
+        return "没有具体的直播与挂品核心矛盾对照，不能命中IPP。"
+    return ""
+
+
+def _enforce_ipp_alignment(payload, results_by_id, trusted_context, audit):
+    reason = _ipp_block_reason(payload, trusted_context)
+    item = results_by_id[20]
+    candidate = item["decision"] == "hit" or any(
+        _fact(payload, name)["value"] is True for name in (
+            "live_promoted_item_evidence_found", "core_product_contradiction_found")
+    )
+    if reason and candidate:
+        alignment = payload["boundary_checks"].get("ipp_alignment") or {}
+        missing_identity = (_ipp_catalog_identity_missing(trusted_context)
+                            and not alignment.get("matches") and alignment.get("sales_mode") != "auction")
+        _set_decision(item, "unable_to_judge" if missing_identity else "no_hit", reason, [], "ipp_alignment_priority", audit)
+
+
 def _material_reliable(material, trusted_context):
     if not _material_is_available(material, trusted_context["material_availability"]):
         return False
@@ -1706,9 +1822,12 @@ def _deferred_reroute_sources(
     material_availability,
     allowed_source_labels,
     original_hit_sources,
+    ipp_allowed=True,
 ):
     deferred = set()
     for reroute in _mutable(EXPECTED_REROUTES):
+        if reroute["to"] == 20 and not ipp_allowed:
+            continue
         target_evidence = _reroute_target_evidence(
             payload,
             definitions,
@@ -1739,9 +1858,12 @@ def _apply_reroutes(
     original_hit_ids,
     original_hit_sources,
     audit,
+    ipp_allowed=True,
 ):
     applied_rules = []
     for reroute in _mutable(EXPECTED_REROUTES):
+        if reroute["to"] == 20 and not ipp_allowed:
+            continue
         source_ids = [
             category_id
             for category_id in reroute["from"]
@@ -2043,6 +2165,7 @@ def _finalize_payload(payload, gates, trusted_context):
         material_availability,
         reliable_source_labels,
         original_hit_sources,
+        ipp_allowed=not _ipp_block_reason(payload, trusted_context),
     )
     _apply_general_gates(
         payload,
@@ -2062,7 +2185,9 @@ def _finalize_payload(payload, gates, trusted_context):
         original_hit_ids,
         original_hit_sources,
         audit,
+        ipp_allowed=not _ipp_block_reason(payload, trusted_context),
     )
+    _enforce_ipp_alignment(payload, results_by_id, trusted_context, audit)
     _apply_material_applicability(
         payload,
         results_by_id,
@@ -2141,6 +2266,7 @@ def finalize_judge_output(params):
 
     try:
         structure_errors = _validate_final_results_structure(payload)
+        structure_errors.extend(_ipp_alignment_errors(payload, trusted_context))
         if structure_errors:
             return _failure(structure_errors)
         contradiction_errors = _validate_supported_contradictions(

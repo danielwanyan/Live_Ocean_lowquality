@@ -27,7 +27,7 @@ RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_rules_str
 COMPACT_RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_judge_rules_compact_v1.txt")
 SYSTEM_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_system_prompt_v1.txt")
 USER_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_user_prompt_v1.txt")
-EXPECTED_V3_VERSION = "2026-11-06-v4-evidence-first-ipp"
+EXPECTED_V3_VERSION = "2026-11-06-v5-ipp-any-match"
 EXPECTED_PROMPT_BOUNDARY_FACTS = {
     "sexualized_exposure_or_behavior_found",
     "ordinary_tryon_or_public_context_only",
@@ -440,7 +440,7 @@ def _valid_payload(hit_ids=(), evidence_by_id=None):
             }
         )
 
-    return {
+    payload = {
         "room_id": "fixture-room",
         "material_summary": {"segment_count": 1, "product_count": 0},
         "final_results": final_results,
@@ -450,6 +450,16 @@ def _valid_payload(hit_ids=(), evidence_by_id=None):
         ],
         "unable_to_judge_category_ids": [],
     }
+
+
+    if 20 in hit_ids:
+        payload["material_summary"]["product_count"] = 1
+        payload["boundary_checks"] = {"ipp_alignment": {
+            "sales_mode":"regular", "sales_mode_evidence":[], "live_selling_confirmed":True,
+            "selling_evidence":[{"source":"Segment #1 ASR", "detail":"Valid unit fixture selling."}],
+            "checked_product_indexes":[1], "matches":[],
+            "unmatched_promoted_items":[{"live_source":"Segment #1 frame", "product_source":"Pearl product #1 title", "basis":"Valid unit fixture mismatch."}]}}
+    return payload
 
 
 def _valid_finalizer_payload():
@@ -795,7 +805,7 @@ class RuleCalibrationTest(unittest.TestCase):
             requirements,
             {
                 "raw_json_only": False,
-                "chinese_report_then_final_json": True,
+                "chinese_report_then_final_json": False,
                 "final_json_anchor": "FINAL_JSON:",
                 "final_results_count": 20,
                 "hit_requires_non_empty_evidence": True,
@@ -826,7 +836,7 @@ class RuleCalibrationTest(unittest.TestCase):
         rules = _load_structured_rules()
         expected_envelope_fields = {
             "raw_json_only": False,
-            "chinese_report_then_final_json": True,
+            "chinese_report_then_final_json": False,
             "final_json_anchor": "FINAL_JSON:",
         }
         for field, canonical_value in expected_envelope_fields.items():
@@ -1407,7 +1417,7 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("80%", system_prompt)
         self.assertIn("occlusion", lower_prompt)
         self.assertIn("a still frame alone is not a category 7 low-quality hit", lower_prompt)
-        self.assertIn("v4", lower_prompt)
+        self.assertIn("v5", lower_prompt)
 
     def test_system_prompt_priority_section_has_exact_five_ordered_rules(self):
         system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
@@ -1555,7 +1565,7 @@ class RuleCalibrationTest(unittest.TestCase):
         )
         self.assertEqual(
             set(payload["boundary_checks"]),
-            {"contract_version", "facts"},
+            {"contract_version", "facts", "ipp_alignment"},
         )
         self.assertEqual(
             set(payload["boundary_checks"]["facts"]),
@@ -1610,7 +1620,7 @@ class RuleCalibrationTest(unittest.TestCase):
     def test_user_prompt_requires_a_bounded_minified_final_json(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
         for required_text in (
-            "Keep the entire response concise and under 9000 characters.",
+            "Keep the response compact without omitting or truncating required fields.",
             "The FINAL_JSON object must be minified on one line with no indentation or unnecessary whitespace.",
             "For no_hit and unable_to_judge, keep judge_reason to one short Chinese sentence; false facts must use empty evidence_sources and empty evidence_detail.",
             "For a hit, keep only the minimum concrete evidence required by the rule.",

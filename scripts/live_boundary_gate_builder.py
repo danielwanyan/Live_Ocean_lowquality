@@ -1,7 +1,7 @@
 import json
 
 
-BOUNDARY_CONTRACT_VERSION = "2026-11-06-v4-evidence-first-ipp"
+BOUNDARY_CONTRACT_VERSION = "2026-11-06-v5-ipp-any-match"
 
 REQUIRED_FACTS = ['sexualized_exposure_or_behavior_found',
  'ordinary_tryon_or_public_context_only',
@@ -123,9 +123,10 @@ BOUNDARY_GATE_PANEL_LINES = ['Boundary facts are LLM observations. The builder o
  'Category 18: require sustained negative emotion plus hostile, shaming, or fear evidence; block '
  'routine sales or knowledge marketing only.',
  'Category 19: disabled; sexualized evidence reroutes to Category 1.',
- 'Category 20: require live promoted item plus bound product evidence and a core contradiction; '
- 'minor variants, background differences or a plausibly matching catalog block IPP. Require at '
- 'least two distinct sources including live and Pearl.']
+ 'Category 20: emit ipp_alignment first. Any reasonable live-to-catalog match or evidence-backed '
+ 'auction blocks IPP. Confirm actual selling, check every bound product, and require zero matches '
+ 'plus a concrete core contradiction with live and Pearl sources before hit. Other catalog goods, '
+ 'ordinary variants, background, bundle members and generic ASR names do not establish mismatch.']
 
 
 def _text(value):
@@ -353,6 +354,15 @@ def build_boundary_gate_output(params):
     }
     output_schema = {
         "contract_version": BOUNDARY_CONTRACT_VERSION,
+        "ipp_alignment": {
+            "sales_mode": "regular|auction|unclear",
+            "sales_mode_evidence": [{"kind": "auction_sign|bidding_rules|active_bidding|auction_settlement", "source": "exact live label", "detail": "specific sign/rules/bids/settlement, never incidental auction mention"}],
+            "live_selling_confirmed": "Boolean",
+            "selling_evidence": [{"source": "exact live label", "detail": "actual selling and ordering evidence"}],
+            "checked_product_indexes": "Array<Integer>; complete actual catalog required for hit",
+            "matches": [{"segment_index": "Integer", "product_index": "Integer", "live_source": "exact Segment label", "product_source": "exact Pearl label", "basis": "specific reasonable identity/shape/function match"}],
+            "unmatched_promoted_items": [{"live_source": "exact Segment label", "product_source": "exact Pearl label", "basis": "concrete core contradiction after complete catalog check"}],
+        },
         "required_facts": REQUIRED_FACTS,
         "fact_shape": {
             "value": "Boolean",

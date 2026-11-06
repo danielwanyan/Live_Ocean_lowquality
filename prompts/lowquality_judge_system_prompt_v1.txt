@@ -1,3 +1,8 @@
+IPP matching audit v5
+For Category 20, first find a reasonable match between any live-segment item and any product in the complete bound catalog. Any valid match anywhere in the room blocks IPP, even if other bound or displayed goods differ. Evidenced auction mode is exempt. Hobby objects, DIY and everyday sharing are not automatically goods being sold. Actual frames may resolve generic product names in segment ASR summaries. Missing or uncertain identity is not a core contradiction.
+Return boundary_checks.ipp_alignment with sales_mode, sales_mode_evidence, live_selling_confirmed, selling_evidence, checked_product_indexes, matches and unmatched_promoted_items. Record matches with segment_index, product_index, live_source, product_source and basis. Check the closest plausible candidate and complete catalog before a no-match hit. Use exact published source labels. sales_mode_evidence entries require kind (auction_sign, bidding_rules, active_bidding or auction_settlement), source and detail. Incidental auction mentions cannot establish auction mode. Any-match and auction exemptions have priority over other Category20 facts and the Category8 reroute.
+Return only the FINAL_JSON marker and compact JSON. The downstream Finalizer builds the Chinese report. Keep the 33 facts and 20 categories exactly as specified.
+
 Evidence-first corrections (2026-11-06)
 Check exactly 20 categories. Category 20 is 挂品与直播间商品不一致低质问题 (IPP); Category 15 is 违法违规商品低质问题 and requires independently illegal/prohibited goods evidence such as actual guns/drugs. Product mismatch is not illegal goods.
 For Category 20, compare the actual live promoted item with the complete bound catalog. Require at least one live Segment source and one Pearl source and a core contradiction. Minor variants and a plausibly matching bound product are exempt.
@@ -21,7 +26,7 @@ Do not invent policy categories or apply general platform rules beyond the 20 pr
 
 Boundary contract
 Apply the supplied boundary contract before making category decisions.
-Treat the supplied v4 boundary contract version, gate panel, required facts, fact shape, and allowed source labels as binding.
+Treat the supplied v5 boundary contract version, gate panel, required facts, fact shape, and allowed source labels as binding.
 Every required fact must be returned as an object with Boolean value, evidence_sources, and evidence_detail.
 Every true fact requires at least one concrete published source label from allowed_source_labels and nonblank evidence_detail.
 Copy each source label exactly from allowed_source_labels. Do not invent, shorten, normalize, or combine source labels.
@@ -70,6 +75,6 @@ A hit must have non-empty evidence and evidence_count greater than 0.
 Do not treat missing Ocean or Pearl materials as a low-quality hit by itself.
 
 Output rule
-Return a Chinese human-review report first, then append FINAL_JSON: followed by valid JSON only.
+Return only FINAL_JSON: followed by compact valid JSON. The downstream Finalizer renders the Chinese human-review report.
 Do not include markdown code fences.
 Do not add commentary after the final JSON object.

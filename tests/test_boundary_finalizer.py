@@ -148,6 +148,14 @@ def valid_payload():
     }
 
 
+def valid_ipp_alignment():
+    # Valid new-contract audit for positive legacy unit fixtures only.
+    return {"sales_mode":"regular", "sales_mode_evidence":[], "live_selling_confirmed":True,
+            "selling_evidence":[{"source":"Segment #1 ASR", "detail":"Fixture host explains ordering."}],
+            "checked_product_indexes":[1], "matches":[],
+            "unmatched_promoted_items":[{"live_source":"Segment #1 frame", "product_source":"Pearl product #1 title", "basis":"Fixture core-use contradiction."}]}
+
+
 def build_params(payload=None, judge_output=None):
     payload = valid_payload() if payload is None else payload
     segments_json = json.dumps(
@@ -1862,6 +1870,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
     def test_full_ipp_facts_reroute_original_category_8_to_20(self):
         payload = valid_payload()
+        payload["boundary_checks"]["ipp_alignment"] = valid_ipp_alignment()
         set_decision(payload, 8, "hit")
         customize_hit(
             payload,
@@ -1892,6 +1901,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
     def test_independent_category_8_and_20_evidence_can_coexist(self):
         payload = valid_payload()
+        payload["boundary_checks"]["ipp_alignment"] = valid_ipp_alignment()
         set_decision(payload, 8, "hit")
         customize_hit(
             payload,
@@ -1944,6 +1954,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
     def test_same_source_category_8_and_20_evidence_reroutes_to_20(self):
         payload = valid_payload()
+        payload["boundary_checks"]["ipp_alignment"] = valid_ipp_alignment()
         set_decision(payload, 8, "hit")
         customize_hit(
             payload,
@@ -2198,6 +2209,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
     def test_category_20_full_ipp_path_wins_when_alternative_has_one_unit(self):
         payload = valid_payload()
+        payload["boundary_checks"]["ipp_alignment"] = valid_ipp_alignment()
         set_fact(
             payload,
             "category_15_non_ipp_illegal_basis_found",
@@ -2243,6 +2255,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
     def test_category_20_same_source_with_different_details_counts_as_one_unit(self):
         payload = valid_payload()
+        payload["boundary_checks"]["ipp_alignment"] = valid_ipp_alignment()
         set_decision(payload, 20, "hit")
         original_evidence = [
             {
