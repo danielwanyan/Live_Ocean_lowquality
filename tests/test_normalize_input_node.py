@@ -1,19 +1,49 @@
+import asyncio
 import json
-import os
-import sys
+import pathlib
 import unittest
 
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPTS_DIR = os.path.join(PROJECT_DIR, "scripts")
-sys.path.insert(0, SCRIPTS_DIR)
+NODE_PATH = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "scripts"
+    / "normalize_input_node.py"
+)
 
-from normalize_input_node import build_normalized_output
+
+class Args:
+    def __init__(self, params):
+        self.params = params
+
+
+def load_node_namespace():
+    source = NODE_PATH.read_text(encoding="utf-8")
+    namespace = {"Args": Args, "Output": dict}
+    exec(compile(source, str(NODE_PATH), "exec"), namespace)
+    return source, namespace
 
 
 class NormalizeInputNodeTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.source, cls.namespace = load_node_namespace()
+        cls.build_normalized_output = staticmethod(
+            cls.namespace["build_normalized_output"]
+        )
+
+    def test_aicolate_editor_compatibility_and_async_main(self):
+        self.assertNotIn("from __future__", self.source)
+        self.assertNotIn("from typing import", self.source)
+        self.assertNotIn("class Args", self.source)
+        self.assertNotIn("Output =", self.source)
+        self.assertIn("main", self.namespace)
+
+        result = asyncio.run(self.namespace["main"](Args({"room_id": "1"})))
+
+        self.assertEqual(result["room_id"], "1")
+
     def test_parses_all_segments_without_sampling(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "7680904568477125398",
                 "ocean_segment_count": "3",
@@ -48,7 +78,7 @@ class NormalizeInputNodeTest(unittest.TestCase):
         )
 
     def test_extracts_chinese_comment_interaction_only(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "1",
                 "ocean_summary": "内容总结\n不要传入\n评论互动\n只保留这里\n数据变化\n不要传入",
@@ -58,7 +88,7 @@ class NormalizeInputNodeTest(unittest.TestCase):
         self.assertEqual(result["comment_interaction"], "只保留这里")
 
     def test_extracts_english_comment_interaction_only(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "1",
                 "ocean_summary": "Content Summary\ndo not use\nComment Interaction\nkeep this section\nData Analysis\ndo not use",
@@ -68,7 +98,7 @@ class NormalizeInputNodeTest(unittest.TestCase):
         self.assertEqual(result["comment_interaction"], "keep this section")
 
     def test_groups_pearl_images_by_product_line(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "1",
                 "pearl_product_count": "2",
@@ -85,11 +115,17 @@ class NormalizeInputNodeTest(unittest.TestCase):
         self.assertEqual(result["product_count"], 2)
         self.assertEqual(products[0]["product_id"], "p1")
         self.assertEqual(products[0]["title"], "Product One")
-        self.assertEqual(products[0]["image_urls"], ["https://example.com/p1-a.jpg", "https://example.com/p1-b.jpg"])
-        self.assertEqual(products[1]["image_urls"], ["https://example.com/p2-a.jpg"])
+        self.assertEqual(
+            products[0]["image_urls"],
+            ["https://example.com/p1-a.jpg", "https://example.com/p1-b.jpg"],
+        )
+        self.assertEqual(
+            products[1]["image_urls"],
+            ["https://example.com/p2-a.jpg"],
+        )
 
     def test_outputs_flat_visual_url_arrays_for_aicolate_vision_inputs(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "1",
                 "ocean_segment_ASR": "Segment #1 [00:00:00-00:05:00]:\nASR",
@@ -99,21 +135,30 @@ class NormalizeInputNodeTest(unittest.TestCase):
                 ),
                 "pearl_product_ids": "p1",
                 "pearl_product_titles": "Product One",
-                "pearl_product_images": "https://example.com/product-1.jpg?sig=c; https://example.com/product-2.jpg?sig=d",
+                "pearl_product_images": (
+                    "https://example.com/product-1.jpg?sig=c; "
+                    "https://example.com/product-2.jpg?sig=d"
+                ),
             }
         )
 
         self.assertEqual(
             result["all_frame_urls"],
-            ["https://example.com/frame-1.jpg?sig=a", "https://example.com/frame-2.jpg?sig=b"],
+            [
+                "https://example.com/frame-1.jpg?sig=a",
+                "https://example.com/frame-2.jpg?sig=b",
+            ],
         )
         self.assertEqual(
             result["all_product_image_urls"],
-            ["https://example.com/product-1.jpg?sig=c", "https://example.com/product-2.jpg?sig=d"],
+            [
+                "https://example.com/product-1.jpg?sig=c",
+                "https://example.com/product-2.jpg?sig=d",
+            ],
         )
 
     def test_warns_for_missing_materials_and_segment_mismatch(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "1",
                 "ocean_segment_count": "2",
@@ -131,11 +176,14 @@ class NormalizeInputNodeTest(unittest.TestCase):
         self.assertIn("product_catalog_missing", warnings)
 
     def test_missing_count_fields_do_not_create_mismatch_warnings(self):
-        result = build_normalized_output(
+        result = self.build_normalized_output(
             {
                 "room_id": "1",
                 "ocean_segment_ASR": "Segment #1 [00:00:00-00:05:00]:\nASR",
-                "ocean_segment_frame_urls": "Segment #1 [00:00:00-00:05:00]: https://example.com/1.jpg?x=1",
+                "ocean_segment_frame_urls": (
+                    "Segment #1 [00:00:00-00:05:00]: "
+                    "https://example.com/1.jpg?x=1"
+                ),
                 "ocean_summary": "",
                 "pearl_product_ids": "",
                 "pearl_product_titles": "",

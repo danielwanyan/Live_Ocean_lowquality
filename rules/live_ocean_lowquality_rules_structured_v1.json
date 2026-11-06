@@ -1,15 +1,15 @@
 {
-  "version": "2026-10-15-v3-cross-project-boundary-gates",
-  "boundary_contract_version": "2026-10-15-v3-cross-project-boundary-gates",
+  "version": "2026-11-06-v4-evidence-first-ipp",
+  "boundary_contract_version": "2026-11-06-v4-evidence-first-ipp",
   "project": "Live Ocean Low Quality",
   "source_language": "zh-CN",
   "judge_instruction_language": "en",
   "final_report_language": "zh-CN",
-  "fixed_category_count": 19,
+  "fixed_category_count": 20,
   "global_rules": {
-    "full_coverage_required": "All 19 categories must be checked. Do not omit, merge, rename, skip, or reorder categories.",
+    "full_coverage_required": "All 20 categories must be checked. Do not omit, merge, rename, skip, or reorder categories.",
     "input_material_contract": "Evidence is organized by all available Ocean segments, not a reduced sample. Use segment_frame for images from ocean_segment_frame_urls, segment_asr for text from ocean_segment_ASR, comment_interaction for the extracted comment section, and pearl_product_title/pearl_product_image for bound products.",
-    "evidence_required_for_hit": "Every hit must have concrete evidence from allowed materials and must identify the source segment/material.",
+    "evidence_required_for_hit": "Every hit must have concrete evidence from allowed materials and must identify the source segment/material. Missing data is never low-quality evidence; summary descriptions alone cannot prove Category 3 or 4.",
     "no_extra_policy": "Only the listed category definitions and thresholds may be used. Do not invent new policy categories.",
     "foreign_language_handling": "Understand segment ASR and text visible in segment frames in the original language. Final evidence explanation must be Chinese; direct quotes may remain in original language.",
     "product_image_permission": "Pearl product images may only be used by categories listed in product_image_allowed_category_ids.",
@@ -24,7 +24,8 @@
     12,
     15,
     16,
-    17
+    17,
+    20
   ],
   "exclusive_priority_rules": [
     {
@@ -49,11 +50,11 @@
       "rule_en": "Sexual exposure or sexualized implication belongs to category 1, not category 19."
     },
     {
-      "id": "priority_15_over_8_for_product_mismatch",
-      "higher_priority_category_id": 15,
+      "id": "priority_20_over_8_for_product_mismatch",
+      "higher_priority_category_id": 20,
       "lower_priority_category_id": 8,
-      "rule_zh": "若问题本质是直播展示商品与挂车商品/商品图在实体、类目、用途上明显不一致，优先按【违法违规商品低质问题】中的货不对板/IPP 边界判断，不得因为商品图语言、异域服饰、OCR 文本或标题语言而判为【非母语违规低质问题】。",
-      "rule_en": "When the core issue is a clear entity/category/use-case mismatch between the live displayed item and bound Pearl product, route it to category 15 product-mismatch/IPP boundary, not category 8 language violation."
+      "rule_zh": "挂品与直播间实际推广商品不一致归第20类IPP，不得归为第8类语言违规或第15类违法违规商品。",
+      "rule_en": "Product mismatch / IPP belongs exclusively to Category 20, never Category 8 language or Category 15 illegal goods."
     },
     {
       "id": "priority_5_over_6_for_no_physical_display",
@@ -75,11 +76,12 @@
       "product_image_allowed": false,
       "trigger_threshold": "Any segment frame or segment ASR evidence hits the listed visual or speech scenario.",
       "hit_definition_zh": "直播画面或语音中出现明确列出的性暗示、性挑逗、低俗暴露类内容。",
-      "judge_focus_en": "Only flag listed sexualized exposure or sexualized behavior with explicit sexual framing. Ordinary try-on, gym activity, swimwear, and shapewear without explicit sexual framing are clean.",
+      "judge_focus_en": "Only flag listed sexualized exposure or sexualized behavior with explicit sexual framing. Ordinary try-on, gym activity, swimwear, and shapewear without explicit sexual framing are clean. Ordinary costumes, bras, cup sizes, swimwear, underwear, mannequins, and normal product descriptions/display are exempt unless actual explicit sexual exposure, behavior or speech is independently shown.",
       "exemptions": [
         "Non-deliberate cleavage exposure is not enough.",
         "Normal bikini in beach context is generally public-appropriate.",
-        "Ordinary try-on, gym activity, swimwear, or shapewear without explicit sexual framing is exempt."
+        "Ordinary try-on, gym activity, swimwear, or shapewear without explicit sexual framing is exempt.",
+        "Costume/lingerie product display, mannequin display, bra/cup-size descriptions and sexy product style alone are not sexual live content."
       ]
     },
     {
@@ -114,10 +116,11 @@
       "product_image_allowed": true,
       "trigger_threshold": "Hit only when a sustained unrelated core dominates across available segments and there is no sustained promotion of bound products. A short opening or off-topic passage followed by a later substantive product demonstration is clean.",
       "hit_definition_zh": "直播核心内容与直播间绑定商品的电商推广无任何关联，或长时间不挂品、不讲品，只直播比赛/活动/聊天/个人生活等非商品内容。",
-      "judge_focus_en": "Use bound product image category/function/use-case as reference. Require a sustained unrelated core with no sustained promotion. Category 3 has priority over categories 5 and 6 for unrelated dominance. If the room later provides substantive product demonstration, a short opening or off-topic passage is clean. If live item and bound product are mismatched, check category 15 product-mismatch/IPP.",
+      "judge_focus_en": "Use bound product image category/function/use-case as reference. Require a sustained unrelated core with no sustained promotion. Category 3 has priority over categories 5 and 6 for unrelated dominance. If the room later provides substantive product demonstration, a short opening or off-topic passage is clean. If live item and bound product are mismatched, check category 20 product-mismatch/IPP. Reliable live Segment frame/ASR is required; summary-only comments and missing data cannot establish unrelated dominance.",
       "exemptions": [
         "Auction, lottery, card-opening, or fast-selling rooms are not product-unrelated when the host is clearly selling or opening the bound product type.",
-        "A short opening or off-topic chat is exempt when later substantive product demonstration establishes sustained promotion."
+        "A short opening or off-topic chat is exempt when later substantive product demonstration establishes sustained promotion.",
+        "No live segments or unavailable live content requires unable_to_judge; comment summary alone cannot trigger product-unrelated."
       ]
     },
     {
@@ -131,10 +134,13 @@
         "comment_interaction"
       ],
       "product_image_allowed": false,
-      "trigger_threshold": "Hit when most available segment ASR evidence, supported by comment_interaction when available, shows both no product promotion and no host-audience interaction. Do not use a fixed ratio threshold from the old workflow.",
+      "trigger_threshold": "Require reliable live Segment ASR and sustained affirmative evidence of BOTH no product promotion and no host-audience interaction across available relevant segments. Missing comments/statistics/features, absent segments, short duration or failed collection cannot establish a hit.",
       "hit_definition_zh": "直播内容既无商品推广行为，也无主播与观众的互动行为。",
-      "judge_focus_en": "Evaluate all available segments. A single quiet or unrelated segment is not enough; require a sustained lack of both promotion and interaction.",
-      "exemptions": []
+      "judge_focus_en": "Evaluate actual live segments. Comment Interaction is supplementary context only. Zero segments or no reliable live ASR requires unable_to_judge; a nonempty generated summary is not collected live evidence. Quiet periods and unavailable comments/statistics/features are not proof of no interaction.",
+      "exemptions": [
+        "Sustained product promotion or actual host-audience response blocks no-interaction.",
+        "Missing data, short stream duration, zero comments, no gifts/PK/Goody Bag/Treasure Box by themselves cannot hit."
+      ]
     },
     {
       "category_id": 5,
@@ -150,7 +156,7 @@
       "product_image_allowed": true,
       "trigger_threshold": "Hit when most available segment frame groups show no real physical video display of the bound product: only sticker/cutout/photo/screenshot/static image, product card, small product thumbnail/overlay, no product, or only unrecognizable partial product. A real package, wearing, installation, operation, or application/use counts as physical display.",
       "hit_definition_zh": "主播虽可能围绕商品讲解，但直播画面长期没有以真实视频画面展示绑定实物商品，只出现贴图/截图/商品卡/静态照片/角标或不可识别局部。",
-      "judge_focus_en": "Main judgment is live visual physical display, not whether the host verbally mentions the product. A real package, wearing, installation, operation, and application/use count as physical display. Product cards, Pearl photos, overlays, and screenshots do not. Unrelated dominance routes to category 3; live-versus-bound mismatch routes to category 15.",
+      "judge_focus_en": "Main judgment is live visual physical display, not whether the host verbally mentions the product. A real package, wearing, installation, operation, and application/use count as physical display. Product cards, Pearl photos, overlays, and screenshots do not. Unrelated dominance routes to category 3; live-versus-bound mismatch routes to category 20.",
       "exemptions": [
         "A product is visible as a real physical object in most relevant live frames, even if the explanation is brief.",
         "A real package, wearing, installation, operation, or application/use is a physical display.",
@@ -172,7 +178,7 @@
       "product_image_allowed": true,
       "trigger_threshold": "Hit only when clear product promotion exists and most relevant promotion remains extremely low-information after considering all available segments. An identifiable product or package plus its core purpose, or any core buying fact, blocks category 6. Do not require deep ingredient detail or mechanism explanation.",
       "hit_definition_zh": "主播有明确商品推广、讲解、演示意图和持续行为，但大多数相关时段几乎没有提供有效购买信息，或讲解长期跑题到无法帮助理解商品。",
-      "judge_focus_en": "This category is conservative. An identifiable product or package plus its core purpose blocks category 6, as does any core buying fact such as category, function, use, size, color, price, discount, brand, quantity, condition, ingredients, material, scent/flavor, compatibility, or delivery/return terms. No deep ingredient analysis or mechanism explanation is required. Auction identifiers and bid rules can be valid commerce facts. Use category 3 for no promotion, category 5 for no physical display, and category 15 for product mismatch.",
+      "judge_focus_en": "This category is conservative. An identifiable product or package plus its core purpose blocks category 6, as does any core buying fact such as category, function, use, size, color, price, discount, brand, quantity, condition, ingredients, material, scent/flavor, compatibility, or delivery/return terms. No deep ingredient analysis or mechanism explanation is required. Auction identifiers and bid rules can be valid commerce facts. Use category 3 for no promotion, category 5 for no physical display, and category 20 for product mismatch.",
       "exemptions": [
         "An identifiable product or package plus its core purpose blocks category 6.",
         "Clear product display plus any core function/category/use/size/price/brand/condition/quantity/bundle information is enough to avoid this category, even if the explanation is brief.",
@@ -206,7 +212,7 @@
       "product_image_allowed": false,
       "trigger_threshold": "Hit only when segment ASR or visible text in segment frames uses a language that is not acceptable for the target market, Chinese/CJK in product promotion, Chinglish, incomprehensible English, or severely broken English, and this prevents normal product understanding across the live. Product mismatch, ethnic clothing style, non-English product titles, or OCR noise alone is not a language hit.",
       "hit_definition_zh": "直播语音或画面推广文字使用非目标市场可接受语言、中文/中日韩文字，或英语严重不可理解，导致无法正常理解商品。",
-      "judge_focus_en": "Judge language itself from segment ASR and visible frame text only. Do not use Pearl product images as evidence. Romanian or another non-target language can hit only if it is used in ASR or promotional on-screen text for product selling and blocks normal product understanding. If the real issue is live product vs bound product mismatch, use category 15 instead. If evidence is only OCR noise, product brand/title text, fashion design text, usernames, or non-English labels on product images, return no_hit.",
+      "judge_focus_en": "Judge language itself from segment ASR and visible frame text only. Do not use Pearl product images as evidence. Romanian or another non-target language can hit only if it is used in ASR or promotional on-screen text for product selling and blocks normal product understanding. If the real issue is live product vs bound product mismatch, use category 20 instead. If evidence is only OCR noise, product brand/title text, fashion design text, usernames, or non-English labels on product images, return no_hit.",
       "exemptions": [
         "Coworker daily Chinese conversation unrelated to product promotion.",
         "Minor accent that is easy to understand.",
@@ -346,14 +352,12 @@
         "pearl_product_image"
       ],
       "product_image_allowed": true,
-      "trigger_threshold": "Independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other non-IPP subtypes retain their cumulative at least 2 evidence threshold. IPP specifically requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction.",
-      "hit_definition_zh": "直播中销售法律法规禁止商品、假冒仿冒伪劣商品，或直播推广商品与绑定商品/商品图在实体、类目、用途、核心数量或关键规格上存在明确矛盾，构成货不对板/IPP。",
-      "judge_focus_en": "For IPP/product mismatch, require live promoted item evidence, bound product evidence, and a core entity/category/use/quantity/spec contradiction. A minor variant or background difference is blocked from IPP. Preserve independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other non-IPP subtypes. Do not route product mismatch to category 8 language.",
+      "trigger_threshold": "Independent prohibited, counterfeit/imitation/inferior, jailbreak/device-modification, qualification, and other illegal goods subtypes require cumulative at least 2 distinct evidence sources. IPP/product mismatch cannot satisfy Category 15.",
+      "hit_definition_zh": "直播中销售法律法规禁止商品，例如真实枪支、毒品，或有独立明确的假冒仿冒伪劣等违法违规商品证据；挂品错绑不属于本类。",
+      "judge_focus_en": "Require independently illegal/prohibited goods evidence. Ordinary legal costumes are clean. IPP/product mismatch belongs exclusively to Category 20, never Category 15.",
       "exemptions": [
         "Normal legal goods, regular brand goods, and ordinary product demonstrations.",
-        "A minor variant in color, style, packaging, or quantity without a core contradiction is blocked from IPP.",
-        "A background difference without a core product contradiction is blocked from IPP.",
-        "A broad catalog where the currently shown product is plausibly one of the bound products."
+        "IPP/product mismatch alone is not illegal goods."
       ]
     },
     {
@@ -428,11 +432,32 @@
       "product_image_allowed": false,
       "trigger_threshold": "Disabled for current Live Ocean Low Quality calibration. Always return no_hit for this category unless future policy explicitly re-enables it. Do not identify sanitary products, underwear, gender-specific care, or private-use non-pornographic products under category 19 in this workflow version.",
       "hit_definition_zh": "当前工作流版本不识别隐私敏感商品低质问题；该类别保留用于 19 类覆盖，但默认不命中。",
-      "judge_focus_en": "Category disabled by the 2026-10-15 v3 reviewed baseline. Always return no_hit even if Pearl product title/image or ASR mentions sanitary pads, underwear, nipple covers, intimate care, gender-specific care, or private body-use products. If sexual exposure/sexual implication appears, evaluate category 1 instead. If the issue is illegal/prohibited goods or product mismatch, evaluate category 15 instead.",
+      "judge_focus_en": "Category disabled by the 2026-10-15 v3 reviewed baseline. Always return no_hit even if Pearl product title/image or ASR mentions sanitary pads, underwear, nipple covers, intimate care, gender-specific care, or private body-use products. If sexual exposure/sexual implication appears, evaluate category 1 instead. If the issue is illegal/prohibited goods, evaluate category 15; for product mismatch, evaluate category 20 instead.",
       "exemptions": [
         "All non-pornographic privacy-sensitive products are exempt in this workflow version because the category is disabled.",
         "Normal shaver display in non-private context.",
         "Sexual exposure/implication belongs to category 1, not category 19."
+      ]
+    },
+    {
+      "category_id": 20,
+      "category_name": "挂品与直播间商品不一致低质问题",
+      "english_key": "live_bound_product_mismatch",
+      "allowed_materials": [
+        "segment_frame",
+        "segment_asr",
+        "segment_frame_visible_text",
+        "pearl_product_title",
+        "pearl_product_image"
+      ],
+      "product_image_allowed": true,
+      "trigger_threshold": "IPP requires live promoted item evidence plus bound product evidence and a core entity/category/use/quantity/spec contradiction. Require at least 2 distinct trusted sources, including one live Segment and one Pearl source.",
+      "hit_definition_zh": "直播间实际推广商品与挂品在实体、类目、用途或关键规格上明确不一致，构成IPP错绑。",
+      "judge_focus_en": "Compare actual live promoted goods against the complete bound Pearl catalog. Minor variants or background differences are exempt. IPP is not illegal goods and is exclusively Category 20. Preserve the core quantity/spec contradiction boundary.",
+      "exemptions": [
+        "A minor variant in color, style, packaging, or quantity without a core contradiction is blocked from IPP.",
+        "A background difference without a core product contradiction is blocked from IPP.",
+        "A broad catalog where the currently shown product is plausibly one of the bound products."
       ]
     }
   ],
@@ -440,7 +465,7 @@
     "raw_json_only": false,
     "chinese_report_then_final_json": true,
     "final_json_anchor": "FINAL_JSON:",
-    "final_results_count": 19,
+    "final_results_count": 20,
     "hit_requires_non_empty_evidence": true,
     "allowed_decisions": [
       "hit",
@@ -466,6 +491,6 @@
     "second_section": "无低质问题：",
     "third_section": "无法判断：",
     "append_final_json_anchor": "FINAL_JSON:",
-    "must_cover_all_19_categories": true
+    "must_cover_all_20_categories": true
   }
 }

@@ -20,60 +20,59 @@ from live_boundary_finalizer import finalize_judge_output, main
 from normalize_input_node import build_normalized_output
 
 
-EXPECTED_REQUIRED_FACTS = (
-    "sexualized_exposure_or_behavior_found",
-    "ordinary_tryon_or_public_context_only",
-    "disturbing_visual_dominates",
-    "cleaning_demo_context",
-    "novelty_or_product_art_context",
-    "sustained_product_promotion_found",
-    "unrelated_content_dominates",
-    "real_physical_product_display_found",
-    "core_buying_information_found",
-    "identifiable_product_and_core_purpose_found",
-    "extremely_low_information_across_relevant_segments",
-    "explicit_generated_content_evidence_found",
-    "authenticity_misleading_found",
-    "generated_product_material_mismatch_found",
-    "concrete_replay_indicator_found",
-    "replay_weak_signal_only",
-    "concrete_live_effect_claim_found",
-    "materially_misleading_basis_found",
-    "effect_claim_prevalence_or_strength_threshold_met",
-    "marketing_or_product_image_only",
-    "off_platform_destination_found",
-    "explicit_transaction_guidance_found",
-    "same_scene_transaction_requirement_met",
-    "live_promoted_item_evidence_found",
-    "bound_product_evidence_found",
-    "core_product_contradiction_found",
-    "minor_variant_or_background_only",
-    "category_15_non_ipp_illegal_basis_found",
-    "sustained_negative_emotion_found",
-    "hostile_shaming_fear_evidence_found",
-    "routine_sales_or_knowledge_marketing_only",
-)
-CATEGORY_NAMES = [
-    "色情低俗低质问题",
-    "恶心恐怖低质问题",
-    "商品无关低质问题",
-    "无互动低质问题",
-    "无实物商品展示低质问题",
-    "商品描述不详细低质问题",
-    "静态帧遮挡低质问题",
-    "非母语违规低质问题",
-    "AIGC真实性低质问题",
-    "AIGC商品展示低质问题",
-    "录播回放低质问题",
-    "功能效果虚假宣传低质问题",
-    "危险行为低质问题",
-    "站外引流交易低质问题",
-    "违法违规商品低质问题",
-    "政治敏感低质问题",
-    "争议话题低质问题",
-    "负面引导低质问题",
-    "隐私敏感商品低质问题",
-]
+EXPECTED_REQUIRED_FACTS = ('sexualized_exposure_or_behavior_found',
+ 'ordinary_tryon_or_public_context_only',
+ 'disturbing_visual_dominates',
+ 'cleaning_demo_context',
+ 'novelty_or_product_art_context',
+ 'sustained_product_promotion_found',
+ 'unrelated_content_dominates',
+ 'real_physical_product_display_found',
+ 'core_buying_information_found',
+ 'identifiable_product_and_core_purpose_found',
+ 'extremely_low_information_across_relevant_segments',
+ 'explicit_generated_content_evidence_found',
+ 'authenticity_misleading_found',
+ 'generated_product_material_mismatch_found',
+ 'concrete_replay_indicator_found',
+ 'replay_weak_signal_only',
+ 'concrete_live_effect_claim_found',
+ 'materially_misleading_basis_found',
+ 'effect_claim_prevalence_or_strength_threshold_met',
+ 'marketing_or_product_image_only',
+ 'off_platform_destination_found',
+ 'explicit_transaction_guidance_found',
+ 'same_scene_transaction_requirement_met',
+ 'live_promoted_item_evidence_found',
+ 'bound_product_evidence_found',
+ 'core_product_contradiction_found',
+ 'minor_variant_or_background_only',
+ 'category_15_non_ipp_illegal_basis_found',
+ 'sustained_negative_emotion_found',
+ 'hostile_shaming_fear_evidence_found',
+ 'routine_sales_or_knowledge_marketing_only',
+ 'sustained_no_promotion_and_no_interaction_found',
+ 'ordinary_product_display_only')
+CATEGORY_NAMES = ['色情低俗低质问题',
+ '恶心恐怖低质问题',
+ '商品无关低质问题',
+ '无互动低质问题',
+ '无实物商品展示低质问题',
+ '商品描述不详细低质问题',
+ '静态帧遮挡低质问题',
+ '非母语违规低质问题',
+ 'AIGC真实性低质问题',
+ 'AIGC商品展示低质问题',
+ '录播回放低质问题',
+ '功能效果虚假宣传低质问题',
+ '危险行为低质问题',
+ '站外引流交易低质问题',
+ '违法违规商品低质问题',
+ '政治敏感低质问题',
+ '争议话题低质问题',
+ '负面引导低质问题',
+ '隐私敏感商品低质问题',
+ '挂品与直播间商品不一致低质问题']
 EXPECTED_RETURN_KEYS = {
     "finalized_judge_output",
     "finalized_final_json",
@@ -132,11 +131,11 @@ def valid_payload():
         },
         "final_results": final_results,
         "hit_category_ids": [],
-        "no_hit_category_ids": list(range(1, 20)),
+        "no_hit_category_ids": list(range(1, 21)),
         "unable_to_judge_category_ids": [],
         "coverage_check": {
-            "expected_category_count": 19,
-            "actual_category_count": 19,
+            "expected_category_count": 20,
+            "actual_category_count": 20,
             "missing_category_ids": [],
             "extra_category_ids": [],
             "hit_no_hit_overlap_category_ids": [],
@@ -936,8 +935,8 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             cases.append((payload, "final_result_category_id_not_exact_int:index_0"))
 
         payload = valid_payload()
-        payload["final_results"][0]["category_id"] = 20
-        cases.append((payload, "final_result_category_id_out_of_range:20"))
+        payload["final_results"][0]["category_id"] = 21
+        cases.append((payload, "final_result_category_id_out_of_range:21"))
 
         payload = valid_payload()
         payload["final_results"][1]["category_id"] = 1
@@ -1861,7 +1860,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
             )
         )
 
-    def test_full_ipp_facts_reroute_original_category_8_to_15(self):
+    def test_full_ipp_facts_reroute_original_category_8_to_20(self):
         payload = valid_payload()
         set_decision(payload, 8, "hit")
         customize_hit(
@@ -1883,14 +1882,15 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
-        self.assertEqual(finalized["hit_category_ids"], [15])
+        self.assertEqual(finalized["hit_category_ids"], [20])
         self.assert_decision(finalized, 8, "no_hit")
         self.assertIn(
-            "priority_15_over_8_for_product_mismatch",
+            "priority_20_over_8_for_product_mismatch",
             category_result(finalized, 8)["priority_rule_applied"],
         )
 
-    def test_independent_category_8_and_15_evidence_can_coexist(self):
+
+    def test_independent_category_8_and_20_evidence_can_coexist(self):
         payload = valid_payload()
         set_decision(payload, 8, "hit")
         customize_hit(
@@ -1912,11 +1912,12 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
-        self.assertEqual(finalized["hit_category_ids"], [8, 15])
+        self.assertEqual(finalized["hit_category_ids"], [8, 20])
         self.assertNotIn(
-            "priority_15_over_8_for_product_mismatch",
+            "priority_20_over_8_for_product_mismatch",
             category_result(finalized, 8)["priority_rule_applied"],
         )
+
 
     def test_disjoint_category_5_does_not_escape_its_own_gate_for_category_3(self):
         payload = valid_payload()
@@ -1941,7 +1942,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         self.assertEqual(finalized["hit_category_ids"], [3])
         self.assert_decision(finalized, 5, "no_hit")
 
-    def test_same_source_category_8_and_15_evidence_reroutes_to_15(self):
+    def test_same_source_category_8_and_20_evidence_reroutes_to_20(self):
         payload = valid_payload()
         set_decision(payload, 8, "hit")
         customize_hit(
@@ -1963,8 +1964,9 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
-        self.assertEqual(finalized["hit_category_ids"], [15])
+        self.assertEqual(finalized["hit_category_ids"], [20])
         self.assert_decision(finalized, 8, "no_hit")
+
 
     def test_sexual_fact_reroutes_original_category_19_to_1(self):
         payload = valid_payload()
@@ -2194,7 +2196,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         self.assertEqual(category_15["decision"], "hit")
         self.assertEqual(category_15["evidence_count"], 2)
 
-    def test_category_15_full_ipp_path_wins_when_alternative_has_one_unit(self):
+    def test_category_20_full_ipp_path_wins_when_alternative_has_one_unit(self):
         payload = valid_payload()
         set_fact(
             payload,
@@ -2206,16 +2208,17 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         set_fact(payload, "core_product_contradiction_found", source="Segment #1 ASR")
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
-        category_15 = category_result(finalized, 15)
+        category_20 = category_result(finalized, 20)
 
-        self.assertEqual(category_15["decision"], "hit")
-        self.assertEqual(category_15["evidence_count"], 3)
+        self.assertEqual(category_20["decision"], "hit")
+        self.assertEqual(category_20["evidence_count"], 3)
         self.assertNotIn(
             "Pearl product #1 title",
-            [item["source"] for item in category_15["evidence"]],
+            [item["source"] for item in category_20["evidence"]],
         )
 
-    def test_category_15_rejects_asr_as_bound_product_evidence(self):
+
+    def test_category_20_rejects_asr_as_bound_product_evidence(self):
         payload = valid_payload()
         set_fact(payload, "live_promoted_item_evidence_found", source="Segment #1 frame")
         set_fact(payload, "bound_product_evidence_found", source="Segment #1 ASR")
@@ -2223,7 +2226,8 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
-        self.assert_decision(finalized, 15, "no_hit")
+        self.assert_decision(finalized, 20, "no_hit")
+
 
     def test_unpublished_pearl_identities_cannot_promote_category_15(self):
         payload = valid_payload()
@@ -2237,9 +2241,9 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         self.assert_decision(finalized, 15, "no_hit")
 
-    def test_category_15_same_source_with_different_details_counts_as_one_unit(self):
+    def test_category_20_same_source_with_different_details_counts_as_one_unit(self):
         payload = valid_payload()
-        set_decision(payload, 15, "hit")
+        set_decision(payload, 20, "hit")
         original_evidence = [
             {
                 "source": "Segment #1 frame",
@@ -2254,9 +2258,9 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         ]
         customize_hit(
             payload,
-            15,
+            20,
             original_evidence,
-            "Original category 15 hit.",
+            "Original category 20 hit.",
             "medium",
         )
         set_fact(payload, "live_promoted_item_evidence_found", source="Segment #1 frame")
@@ -2264,18 +2268,19 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         set_fact(payload, "core_product_contradiction_found", source="Segment #1 ASR")
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
-        category_15 = category_result(finalized, 15)
+        category_20 = category_result(finalized, 20)
 
-        self.assertEqual(category_15["decision"], "hit")
-        self.assertNotEqual(category_15["evidence"], original_evidence)
-        self.assertEqual(category_15["evidence_count"], 3)
+        self.assertEqual(category_20["decision"], "hit")
+        self.assertNotEqual(category_20["evidence"], original_evidence)
+        self.assertEqual(category_20["evidence_count"], 3)
         self.assertTrue(
             any(
-                item["category_id"] == 15
-                and item["priority_rule_applied"] == "boundary_evidence_repair_category_15"
+                item["category_id"] == 20
+                and item["priority_rule_applied"] == "boundary_evidence_repair_category_20"
                 for item in finalized["boundary_overrides"]
             )
         )
+
 
     def test_non_ipp_category_15_fact_does_not_reroute_category_8(self):
         payload = valid_payload()
@@ -2304,7 +2309,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
         self.assertEqual(finalized["hit_category_ids"], [8, 15])
         self.assert_decision(finalized, 8, "hit")
         self.assertNotIn(
-            "priority_15_over_8_for_product_mismatch",
+            "priority_20_over_8_for_product_mismatch",
             category_result(finalized, 8)["priority_rule_applied"],
         )
 
@@ -2775,7 +2780,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         self.assertEqual(json.loads(serialized), finalized)
         self.assertEqual(finalized["hit_category_ids"], [1])
-        self.assertEqual(finalized["no_hit_category_ids"], list(range(2, 20)))
+        self.assertEqual(finalized["no_hit_category_ids"], list(range(2, 21)))
         self.assertEqual(finalized["unable_to_judge_category_ids"], [])
         self.assertIn("识别到的低质问题：", report)
         self.assertIn("识别到【色情低俗低质问题】", report)
@@ -2803,8 +2808,8 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 self.assertEqual(
                     finalized["coverage_check"],
                     {
-                        "expected_category_count": 19,
-                        "actual_category_count": 19,
+                        "expected_category_count": 20,
+                        "actual_category_count": 20,
                         "missing_category_ids": [],
                         "extra_category_ids": [],
                         "hit_no_hit_overlap_category_ids": [],
@@ -2836,7 +2841,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         finalized = finalized_payload(finalize_judge_output(build_params(payload)))
 
-        self.assertEqual(finalized["coverage_check"]["actual_category_count"], 19)
+        self.assertEqual(finalized["coverage_check"]["actual_category_count"], 20)
         self.assertEqual(finalized["coverage_check"]["missing_category_ids"], [])
         self.assertEqual(finalized["coverage_check"]["extra_category_ids"], [])
         self.assertEqual(
@@ -2924,7 +2929,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
 
         finalized = finalized_payload(finalize_judge_output(params))
 
-        self.assertEqual(finalized["unable_to_judge_category_ids"], list(range(1, 19)))
+        self.assertEqual(finalized["unable_to_judge_category_ids"], list(range(1, 19)) + [20])
         self.assertEqual(category_result(finalized, 19)["decision"], "no_hit")
 
     def test_required_channel_groups_control_category_applicability(self):
@@ -3115,7 +3120,7 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 "Reliable comment",
                 [],
                 ["segment_count_mismatch_expected_2_parsed_1"],
-                "no_hit",
+                "unable_to_judge",
             )
         )
 
@@ -3255,21 +3260,27 @@ class LiveBoundaryFinalizerTest(unittest.TestCase):
                 self.assert_decision(finalized, 5, expected_decision)
 
     def test_gated_applicability_groups_align_with_required_fact_material_policies(self):
-        expected_groups = {
-            1: (("segment_frame", "segment_asr"),),
-            2: (("segment_frame", "segment_asr"),),
-            3: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
-            5: (("segment_frame",),),
-            6: (("segment_frame",),),
-            9: (("segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"),),
-            10: (("segment_frame", "segment_asr", "segment_frame_visible_text"), ("pearl_product_title", "pearl_product_image")),
-            11: (("segment_frame", "segment_asr"),),
-            12: (("segment_frame", "segment_asr"),),
-            14: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
-            15: (("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"),),
-            18: (("segment_frame", "segment_asr", "comment_interaction"),),
-            19: (),
-        }
+        expected_groups = {1: (('segment_frame', 'segment_asr'),),
+         2: (('segment_frame', 'segment_asr'),),
+         3: (('segment_frame', 'segment_asr', 'segment_frame_visible_text'),),
+         5: (('segment_frame',),),
+         6: (('segment_frame',),),
+         9: (('segment_frame',
+              'segment_asr',
+              'segment_frame_visible_text',
+              'pearl_product_title',
+              'pearl_product_image'),),
+         10: (('segment_frame', 'segment_asr', 'segment_frame_visible_text'),
+              ('pearl_product_title', 'pearl_product_image')),
+         11: (('segment_frame', 'segment_asr'),),
+         12: (('segment_frame', 'segment_asr'),),
+         14: (('segment_frame', 'segment_asr', 'segment_frame_visible_text', 'comment_interaction'),),
+         15: (('segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'),),
+         18: (('segment_frame', 'segment_asr', 'comment_interaction'),),
+         19: (),
+         4: (('segment_asr',),),
+         20: (('segment_frame', 'segment_asr', 'segment_frame_visible_text'),
+              ('pearl_product_title', 'pearl_product_image'))}
         actual_groups = {
             category_id: tuple(tuple(group) for group in groups)
             for category_id, groups in finalizer_module.CATEGORY_REQUIRED_CHANNEL_GROUPS.items()
