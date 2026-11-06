@@ -1,5 +1,15 @@
+from __future__ import annotations
+
 import json
 import re
+from typing import Any, Dict, List
+
+
+Output = Dict[str, Any]
+
+
+class Args:
+    params: Dict[str, Any]
 
 
 SEGMENT_HEADER_RE = re.compile(r"Segment\s*#(\d+)\s*\[([^\]]+)\]:\s*", re.IGNORECASE)
@@ -10,13 +20,13 @@ SUMMARY_MARKERS = {
 }
 
 
-def _text(value):
+def _text(value: Any) -> str:
     if value is None:
         return ""
     return str(value)
 
 
-def _parse_int(value):
+def _parse_int(value: Any) -> int | None:
     text = _text(value).strip()
     if not text:
         return None
@@ -26,18 +36,18 @@ def _parse_int(value):
         return None
 
 
-def _non_empty_lines(value):
+def _non_empty_lines(value: Any) -> List[str]:
     return [line.strip() for line in _text(value).splitlines() if line.strip()]
 
 
-def _split_semicolon_urls(value):
+def _split_semicolon_urls(value: str) -> List[str]:
     return [item.strip() for item in URL_RE.findall(value)]
 
 
-def _parse_segment_blocks(value):
+def _parse_segment_blocks(value: Any) -> Dict[int, Dict[str, Any]]:
     text = _text(value)
     matches = list(SEGMENT_HEADER_RE.finditer(text))
-    blocks = {}
+    blocks: Dict[int, Dict[str, Any]] = {}
 
     for position, match in enumerate(matches):
         next_start = matches[position + 1].start() if position + 1 < len(matches) else len(text)
@@ -51,7 +61,7 @@ def _parse_segment_blocks(value):
     return blocks
 
 
-def _extract_comment_interaction(summary):
+def _extract_comment_interaction(summary: Any) -> str:
     lines = _text(summary).splitlines()
 
     for start_marker, end_markers in SUMMARY_MARKERS.items():
@@ -59,7 +69,7 @@ def _extract_comment_interaction(summary):
             if line.strip() != start_marker:
                 continue
 
-            section_lines = []
+            section_lines: List[str] = []
             for candidate in lines[index + 1 :]:
                 stripped = candidate.strip()
                 if stripped in end_markers:
@@ -71,12 +81,12 @@ def _extract_comment_interaction(summary):
     return ""
 
 
-def _build_segments(params):
+def _build_segments(params: Dict[str, Any]) -> List[Dict[str, Any]]:
     asr_blocks = _parse_segment_blocks(params.get("ocean_segment_ASR", ""))
     frame_blocks = _parse_segment_blocks(params.get("ocean_segment_frame_urls", ""))
     segment_indexes = sorted(set(asr_blocks) | set(frame_blocks))
 
-    segments = []
+    segments: List[Dict[str, Any]] = []
     for segment_index in segment_indexes:
         asr_block = asr_blocks.get(segment_index, {})
         frame_block = frame_blocks.get(segment_index, {})
@@ -94,13 +104,13 @@ def _build_segments(params):
     return segments
 
 
-def _build_product_catalog(params):
+def _build_product_catalog(params: Dict[str, Any]) -> List[Dict[str, Any]]:
     product_ids = _non_empty_lines(params.get("pearl_product_ids", ""))
     product_titles = _non_empty_lines(params.get("pearl_product_titles", ""))
     image_lines = _non_empty_lines(params.get("pearl_product_images", ""))
     product_total = max(len(product_ids), len(product_titles), len(image_lines))
 
-    products = []
+    products: List[Dict[str, Any]] = []
     for index in range(product_total):
         products.append(
             {
@@ -114,8 +124,13 @@ def _build_product_catalog(params):
     return products
 
 
-def _build_warnings(params, segments, products, comment_interaction):
-    warnings = []
+def _build_warnings(
+    params: Dict[str, Any],
+    segments: List[Dict[str, Any]],
+    products: List[Dict[str, Any]],
+    comment_interaction: str,
+) -> List[str]:
+    warnings: List[str] = []
     expected_segment_count = _parse_int(params.get("ocean_segment_count", ""))
     expected_product_count = _parse_int(params.get("pearl_product_count", ""))
 
@@ -140,8 +155,8 @@ def _build_warnings(params, segments, products, comment_interaction):
     return warnings
 
 
-def _flatten_frame_urls(segments):
-    urls = []
+def _flatten_frame_urls(segments: List[Dict[str, Any]]) -> List[str]:
+    urls: List[str] = []
     for segment in segments:
         for url in segment.get("frame_urls", []):
             if isinstance(url, str) and url.strip():
@@ -149,8 +164,8 @@ def _flatten_frame_urls(segments):
     return urls
 
 
-def _flatten_product_image_urls(products):
-    urls = []
+def _flatten_product_image_urls(products: List[Dict[str, Any]]) -> List[str]:
+    urls: List[str] = []
     for product in products:
         for url in product.get("image_urls", []):
             if isinstance(url, str) and url.strip():
@@ -158,14 +173,14 @@ def _flatten_product_image_urls(products):
     return urls
 
 
-def _debug_input_shape(params):
+def _debug_input_shape(params: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "keys": sorted(params.keys()),
         "field_lengths": {key: len(_text(value)) for key, value in sorted(params.items())},
     }
 
 
-def build_normalized_output(params):
+def build_normalized_output(params: Dict[str, Any]) -> Output:
     segments = _build_segments(params)
     products = _build_product_catalog(params)
     comment_interaction = _extract_comment_interaction(params.get("ocean_summary", ""))
@@ -186,6 +201,4 @@ def build_normalized_output(params):
 
 
 async def main(args: Args) -> Output:
-    params = args.params
-    ret = build_normalized_output(params)
-    return ret
+    return build_normalized_output(args.params)

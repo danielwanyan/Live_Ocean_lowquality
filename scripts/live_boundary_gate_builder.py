@@ -1,131 +1,159 @@
 import json
 
 
-BOUNDARY_CONTRACT_VERSION = "2026-11-06-v4-evidence-first-ipp"
+BOUNDARY_CONTRACT_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
 
-REQUIRED_FACTS = ['sexualized_exposure_or_behavior_found',
- 'ordinary_tryon_or_public_context_only',
- 'disturbing_visual_dominates',
- 'cleaning_demo_context',
- 'novelty_or_product_art_context',
- 'sustained_product_promotion_found',
- 'unrelated_content_dominates',
- 'real_physical_product_display_found',
- 'core_buying_information_found',
- 'identifiable_product_and_core_purpose_found',
- 'extremely_low_information_across_relevant_segments',
- 'explicit_generated_content_evidence_found',
- 'authenticity_misleading_found',
- 'generated_product_material_mismatch_found',
- 'concrete_replay_indicator_found',
- 'replay_weak_signal_only',
- 'concrete_live_effect_claim_found',
- 'materially_misleading_basis_found',
- 'effect_claim_prevalence_or_strength_threshold_met',
- 'marketing_or_product_image_only',
- 'off_platform_destination_found',
- 'explicit_transaction_guidance_found',
- 'same_scene_transaction_requirement_met',
- 'live_promoted_item_evidence_found',
- 'bound_product_evidence_found',
- 'core_product_contradiction_found',
- 'minor_variant_or_background_only',
- 'category_15_non_ipp_illegal_basis_found',
- 'sustained_negative_emotion_found',
- 'hostile_shaming_fear_evidence_found',
- 'routine_sales_or_knowledge_marketing_only',
- 'sustained_no_promotion_and_no_interaction_found',
- 'ordinary_product_display_only']
+REQUIRED_FACTS = [
+    "sexualized_exposure_or_behavior_found",
+    "ordinary_tryon_or_public_context_only",
+    "disturbing_visual_dominates",
+    "cleaning_demo_context",
+    "novelty_or_product_art_context",
+    "sustained_product_promotion_found",
+    "unrelated_content_dominates",
+    "real_physical_product_display_found",
+    "core_buying_information_found",
+    "identifiable_product_and_core_purpose_found",
+    "extremely_low_information_across_relevant_segments",
+    "explicit_generated_content_evidence_found",
+    "authenticity_misleading_found",
+    "generated_product_material_mismatch_found",
+    "concrete_replay_indicator_found",
+    "replay_weak_signal_only",
+    "concrete_live_effect_claim_found",
+    "materially_misleading_basis_found",
+    "effect_claim_prevalence_or_strength_threshold_met",
+    "marketing_or_product_image_only",
+    "off_platform_destination_found",
+    "explicit_transaction_guidance_found",
+    "same_scene_transaction_requirement_met",
+    "live_promoted_item_evidence_found",
+    "bound_product_evidence_found",
+    "core_product_contradiction_found",
+    "minor_variant_or_background_only",
+    "category_15_non_ipp_illegal_basis_found",
+    "sustained_negative_emotion_found",
+    "hostile_shaming_fear_evidence_found",
+    "routine_sales_or_knowledge_marketing_only",
+]
 
-GATE_DEFINITIONS = {'1': {'required_true': ['sexualized_exposure_or_behavior_found'],
-       'blocked_true': ['ordinary_tryon_or_public_context_only', 'ordinary_product_display_only']},
- '2': {'required_true': ['disturbing_visual_dominates'],
-       'blocked_true': ['cleaning_demo_context', 'novelty_or_product_art_context']},
- '3': {'required_true': ['unrelated_content_dominates'],
-       'blocked_true': ['sustained_product_promotion_found']},
- '5': {'required_true': ['sustained_product_promotion_found'],
-       'blocked_true': ['real_physical_product_display_found', 'unrelated_content_dominates']},
- '6': {'required_true': ['sustained_product_promotion_found',
-                         'real_physical_product_display_found',
-                         'extremely_low_information_across_relevant_segments'],
-       'blocked_true': ['core_buying_information_found',
-                        'identifiable_product_and_core_purpose_found',
-                        'unrelated_content_dominates']},
- '9': {'required_true': ['explicit_generated_content_evidence_found',
-                         'authenticity_misleading_found'],
-       'blocked_true': []},
- '10': {'required_true': ['explicit_generated_content_evidence_found',
-                          'generated_product_material_mismatch_found',
-                          'bound_product_evidence_found'],
-        'blocked_true': []},
- '11': {'required_true': ['concrete_replay_indicator_found'],
-        'blocked_true': ['replay_weak_signal_only']},
- '12': {'required_true': ['concrete_live_effect_claim_found',
-                          'materially_misleading_basis_found',
-                          'effect_claim_prevalence_or_strength_threshold_met'],
-        'blocked_true': ['marketing_or_product_image_only']},
- '14': {'required_true': ['off_platform_destination_found',
-                          'explicit_transaction_guidance_found',
-                          'same_scene_transaction_requirement_met'],
-        'blocked_true': []},
- '15': {'required_true': ['category_15_non_ipp_illegal_basis_found'], 'blocked_true': []},
- '18': {'required_true': ['sustained_negative_emotion_found',
-                          'hostile_shaming_fear_evidence_found'],
-        'blocked_true': ['routine_sales_or_knowledge_marketing_only']},
- '19': {'required_true': [], 'blocked_true': [], 'disabled': True},
- '20': {'required_true': ['live_promoted_item_evidence_found',
-                          'bound_product_evidence_found',
-                          'core_product_contradiction_found'],
-        'blocked_true': ['minor_variant_or_background_only']},
- '4': {'required_true': ['sustained_no_promotion_and_no_interaction_found'],
-       'blocked_true': ['sustained_product_promotion_found']}}
+GATE_DEFINITIONS = {
+    "1": {
+        "required_true": ["sexualized_exposure_or_behavior_found"],
+        "blocked_true": ["ordinary_tryon_or_public_context_only"],
+    },
+    "2": {
+        "required_true": ["disturbing_visual_dominates"],
+        "blocked_true": ["cleaning_demo_context", "novelty_or_product_art_context"],
+    },
+    "3": {
+        "required_true": ["unrelated_content_dominates"],
+        "blocked_true": ["sustained_product_promotion_found"],
+    },
+    "5": {
+        "required_true": ["sustained_product_promotion_found"],
+        "blocked_true": ["real_physical_product_display_found", "unrelated_content_dominates"],
+    },
+    "6": {
+        "required_true": [
+            "sustained_product_promotion_found",
+            "real_physical_product_display_found",
+            "extremely_low_information_across_relevant_segments",
+        ],
+        "blocked_true": [
+            "core_buying_information_found",
+            "identifiable_product_and_core_purpose_found",
+            "unrelated_content_dominates",
+        ],
+    },
+    "9": {
+        "required_true": [
+            "explicit_generated_content_evidence_found",
+            "authenticity_misleading_found",
+        ],
+        "blocked_true": [],
+    },
+    "10": {
+        "required_true": [
+            "explicit_generated_content_evidence_found",
+            "generated_product_material_mismatch_found",
+            "bound_product_evidence_found",
+        ],
+        "blocked_true": [],
+    },
+    "11": {
+        "required_true": ["concrete_replay_indicator_found"],
+        "blocked_true": ["replay_weak_signal_only"],
+    },
+    "12": {
+        "required_true": [
+            "concrete_live_effect_claim_found",
+            "materially_misleading_basis_found",
+            "effect_claim_prevalence_or_strength_threshold_met",
+        ],
+        "blocked_true": ["marketing_or_product_image_only"],
+    },
+    "14": {
+        "required_true": [
+            "off_platform_destination_found",
+            "explicit_transaction_guidance_found",
+            "same_scene_transaction_requirement_met",
+        ],
+        "blocked_true": [],
+    },
+    "15": {
+        "required_true": [
+            "live_promoted_item_evidence_found",
+            "bound_product_evidence_found",
+            "core_product_contradiction_found",
+        ],
+        "blocked_true": ["minor_variant_or_background_only"],
+        "alternative_true": ["category_15_non_ipp_illegal_basis_found"],
+    },
+    "18": {
+        "required_true": [
+            "sustained_negative_emotion_found",
+            "hostile_shaming_fear_evidence_found",
+        ],
+        "blocked_true": ["routine_sales_or_knowledge_marketing_only"],
+    },
+    "19": {
+        "required_true": [],
+        "blocked_true": [],
+        "disabled": True,
+    },
+}
 
-REROUTES = [{'from': [5], 'to': 3, 'rule': 'priority_3_over_5_for_unrelated_content'},
- {'from': [6], 'to': 3, 'rule': 'priority_3_over_6'},
- {'from': [6], 'to': 5, 'rule': 'priority_5_over_6_for_no_physical_display'},
- {'from': [8], 'to': 20, 'rule': 'priority_20_over_8_for_product_mismatch'},
- {'from': [19], 'to': 1, 'rule': 'priority_1_over_19'}]
+REROUTES = [
+    {"from": [5], "to": 3, "rule": "priority_3_over_5_for_unrelated_content"},
+    {"from": [6], "to": 3, "rule": "priority_3_over_6"},
+    {"from": [6], "to": 5, "rule": "priority_5_over_6_for_no_physical_display"},
+    {"from": [8], "to": 15, "rule": "priority_15_over_8_for_product_mismatch"},
+    {"from": [19], "to": 1, "rule": "priority_1_over_19"},
+]
 
-BOUNDARY_GATE_PANEL_LINES = ['Boundary facts are LLM observations. The builder only publishes gates and material availability.',
- 'Category 1: require actual explicit sexual exposure, behavior or speech. Ordinary costumes, '
- 'bras, cup sizes, underwear, swimwear, mannequins and normal product display are exempt; product '
- 'style alone is never sexual content.',
- 'Category 2: require disturbing visuals to dominate; block cleaning demonstrations and novelty or '
- 'product-art context.',
- 'Category 3: require reliable live segments proving sustained unrelated content dominates; '
- 'Comment Interaction alone and missing data cannot establish unrelated dominance. Block sustained '
- 'commerce intent.',
- 'Category 4: require reliable live segment ASR and affirmative sustained evidence of BOTH no '
- 'promotion and no host-audience interaction. Missing comments/statistics/features, short '
- 'duration, failed collection and zero segments are not evidence; return unable_to_judge when '
- 'judging materials are absent.',
- 'Category 5: require sustained product promotion; block real physical display and '
- 'unrelated-dominant content.',
- 'Category 6: require sustained promotion, real physical display, and extremely low information; '
- 'block core buying information, identifiable purpose, or unrelated-dominant content.',
- 'Category 7: require an interruption or layer with 80%+ occlusion of the live screen.',
- 'Category 8: apply the language rule only; product mismatch reroutes to Category 20.',
- 'Category 9: require explicit generated-content evidence plus authenticity misleading evidence.',
- 'Category 10: require explicit generated-content evidence, generated-product material mismatch, '
- 'and bound-product evidence.',
- 'Category 11: require a concrete replay indicator; weak replay signals alone block the gate.',
- 'Category 12: require a concrete live effect claim, a materially misleading basis, and prevalence '
- 'or strength threshold; block marketing or product-image-only evidence.',
- 'Category 13: apply the dangerous-behavior evidence threshold; no additional machine fact gate.',
- 'Category 14: require an off-platform destination, explicit transaction guidance, and the '
- 'same-scene requirement.',
- 'Category 15: require independently illegal/prohibited goods evidence, such as actual guns or '
- 'drugs, with at least two distinct sources. IPP is exclusively Category 20 and cannot satisfy '
- 'Category 15.',
- 'Category 16: apply the political-sensitivity evidence threshold; no additional machine fact '
- 'gate.',
- 'Category 17: apply the controversial-topic evidence threshold; no additional machine fact gate.',
- 'Category 18: require sustained negative emotion plus hostile, shaming, or fear evidence; block '
- 'routine sales or knowledge marketing only.',
- 'Category 19: disabled; sexualized evidence reroutes to Category 1.',
- 'Category 20: require live promoted item plus bound product evidence and a core contradiction; '
- 'minor variants, background differences or a plausibly matching catalog block IPP. Require at '
- 'least two distinct sources including live and Pearl.']
+BOUNDARY_GATE_PANEL_LINES = [
+    "Boundary facts are LLM observations. The builder only publishes gates and material availability.",
+    "Category 1: require sexualized exposure or behavior; block ordinary try-on or public-context-only evidence.",
+    "Category 2: require disturbing visuals to dominate; block cleaning demonstrations and novelty or product-art context.",
+    "Category 3: require unrelated content to dominate; block when sustained product promotion is found.",
+    "Category 4: apply the interaction rule to available ASR and comment evidence; no additional machine fact gate.",
+    "Category 5: require sustained product promotion; block real physical display and unrelated-dominant content.",
+    "Category 6: require sustained promotion, real physical display, and extremely low information; block core buying information, identifiable purpose, or unrelated-dominant content.",
+    "Category 7: require an interruption or layer with 80%+ occlusion of the live screen.",
+    "Category 8: apply the language rule only; product mismatch reroutes to Category 15.",
+    "Category 9: require explicit generated-content evidence plus authenticity misleading evidence.",
+    "Category 10: require explicit generated-content evidence, generated-product material mismatch, and bound-product evidence.",
+    "Category 11: require a concrete replay indicator; weak replay signals alone block the gate.",
+    "Category 12: require a concrete live effect claim, a materially misleading basis, and prevalence or strength threshold; block marketing or product-image-only evidence.",
+    "Category 13: apply the dangerous-behavior evidence threshold; no additional machine fact gate.",
+    "Category 14: require an off-platform destination, explicit transaction guidance, and the same-scene requirement.",
+    "Category 15: require live and bound product evidence plus a core contradiction, or a non-IPP illegal basis; block minor variants or background-only differences for the mismatch path.",
+    "Category 16: apply the political-sensitivity evidence threshold; no additional machine fact gate.",
+    "Category 17: apply the controversial-topic evidence threshold; no additional machine fact gate.",
+    "Category 18: require sustained negative emotion plus hostile, shaming, or fear evidence; block routine sales or knowledge marketing only.",
+    "Category 19: disabled; sexualized evidence reroutes to Category 1.",
+]
 
 
 def _text(value):

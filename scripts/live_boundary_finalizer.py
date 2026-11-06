@@ -3,7 +3,7 @@ import re
 from types import MappingProxyType
 
 
-BOUNDARY_CONTRACT_VERSION = "2026-11-06-v4-evidence-first-ipp"
+BOUNDARY_CONTRACT_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
 
 
 def _immutable(value):
@@ -39,39 +39,39 @@ def _exact_contract_equal(actual, expected):
     return type(actual) is type(expected) and actual == expected
 
 
-EXPECTED_REQUIRED_FACTS = ('sexualized_exposure_or_behavior_found',
- 'ordinary_tryon_or_public_context_only',
- 'disturbing_visual_dominates',
- 'cleaning_demo_context',
- 'novelty_or_product_art_context',
- 'sustained_product_promotion_found',
- 'unrelated_content_dominates',
- 'real_physical_product_display_found',
- 'core_buying_information_found',
- 'identifiable_product_and_core_purpose_found',
- 'extremely_low_information_across_relevant_segments',
- 'explicit_generated_content_evidence_found',
- 'authenticity_misleading_found',
- 'generated_product_material_mismatch_found',
- 'concrete_replay_indicator_found',
- 'replay_weak_signal_only',
- 'concrete_live_effect_claim_found',
- 'materially_misleading_basis_found',
- 'effect_claim_prevalence_or_strength_threshold_met',
- 'marketing_or_product_image_only',
- 'off_platform_destination_found',
- 'explicit_transaction_guidance_found',
- 'same_scene_transaction_requirement_met',
- 'live_promoted_item_evidence_found',
- 'bound_product_evidence_found',
- 'core_product_contradiction_found',
- 'minor_variant_or_background_only',
- 'category_15_non_ipp_illegal_basis_found',
- 'sustained_negative_emotion_found',
- 'hostile_shaming_fear_evidence_found',
- 'routine_sales_or_knowledge_marketing_only',
- 'sustained_no_promotion_and_no_interaction_found',
- 'ordinary_product_display_only')
+EXPECTED_REQUIRED_FACTS = (
+    "sexualized_exposure_or_behavior_found",
+    "ordinary_tryon_or_public_context_only",
+    "disturbing_visual_dominates",
+    "cleaning_demo_context",
+    "novelty_or_product_art_context",
+    "sustained_product_promotion_found",
+    "unrelated_content_dominates",
+    "real_physical_product_display_found",
+    "core_buying_information_found",
+    "identifiable_product_and_core_purpose_found",
+    "extremely_low_information_across_relevant_segments",
+    "explicit_generated_content_evidence_found",
+    "authenticity_misleading_found",
+    "generated_product_material_mismatch_found",
+    "concrete_replay_indicator_found",
+    "replay_weak_signal_only",
+    "concrete_live_effect_claim_found",
+    "materially_misleading_basis_found",
+    "effect_claim_prevalence_or_strength_threshold_met",
+    "marketing_or_product_image_only",
+    "off_platform_destination_found",
+    "explicit_transaction_guidance_found",
+    "same_scene_transaction_requirement_met",
+    "live_promoted_item_evidence_found",
+    "bound_product_evidence_found",
+    "core_product_contradiction_found",
+    "minor_variant_or_background_only",
+    "category_15_non_ipp_illegal_basis_found",
+    "sustained_negative_emotion_found",
+    "hostile_shaming_fear_evidence_found",
+    "routine_sales_or_knowledge_marketing_only",
+)
 EXPECTED_FACT_KEYS = ("value", "evidence_sources", "evidence_detail")
 EXPECTED_MATERIAL_AVAILABILITY_KEYS = (
     "segment_frame",
@@ -97,290 +97,389 @@ EXPECTED_GATE_ROOT_KEYS = frozenset(
         "disabled_category_ids",
     )
 )
-EXPECTED_CATEGORY_NAMES = MappingProxyType({1: '色情低俗低质问题',
- 2: '恶心恐怖低质问题',
- 3: '商品无关低质问题',
- 4: '无互动低质问题',
- 5: '无实物商品展示低质问题',
- 6: '商品描述不详细低质问题',
- 7: '静态帧遮挡低质问题',
- 8: '非母语违规低质问题',
- 9: 'AIGC真实性低质问题',
- 10: 'AIGC商品展示低质问题',
- 11: '录播回放低质问题',
- 12: '功能效果虚假宣传低质问题',
- 13: '危险行为低质问题',
- 14: '站外引流交易低质问题',
- 15: '违法违规商品低质问题',
- 16: '政治敏感低质问题',
- 17: '争议话题低质问题',
- 18: '负面引导低质问题',
- 19: '隐私敏感商品低质问题',
- 20: '挂品与直播间商品不一致低质问题'})
-PRODUCT_IMAGE_ALLOWED_CATEGORY_IDS = frozenset((3, 5, 6, 9, 10, 12, 15, 16, 17, 20))
-CATEGORY_REQUIRED_CHANNEL_GROUPS = MappingProxyType({1: (('segment_frame', 'segment_asr'),),
- 2: (('segment_frame', 'segment_asr'),),
- 3: (('segment_frame', 'segment_asr', 'segment_frame_visible_text'),),
- 4: (('segment_asr',),),
- 5: (('segment_frame',),),
- 6: (('segment_frame',),),
- 7: (('segment_frame',),),
- 8: (('segment_asr', 'segment_frame_visible_text'),),
- 9: (('segment_frame',
-      'segment_asr',
-      'segment_frame_visible_text',
-      'pearl_product_title',
-      'pearl_product_image'),),
- 10: (('segment_frame', 'segment_asr', 'segment_frame_visible_text'),
-      ('pearl_product_title', 'pearl_product_image')),
- 11: (('segment_frame', 'segment_asr'),),
- 12: (('segment_frame', 'segment_asr'),),
- 13: (('segment_frame', 'segment_asr'),),
- 14: (('segment_frame', 'segment_asr', 'segment_frame_visible_text', 'comment_interaction'),),
- 15: (('segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'),),
- 16: (('segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'),),
- 17: (('segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'),),
- 18: (('segment_frame', 'segment_asr', 'comment_interaction'),),
- 19: (),
- 20: (('segment_frame', 'segment_asr', 'segment_frame_visible_text'),
-      ('pearl_product_title', 'pearl_product_image'))})
-EXPECTED_GATE_DEFINITIONS = _immutable({'1': {'required_true': ['sexualized_exposure_or_behavior_found'],
-       'blocked_true': ['ordinary_tryon_or_public_context_only', 'ordinary_product_display_only']},
- '2': {'required_true': ['disturbing_visual_dominates'],
-       'blocked_true': ['cleaning_demo_context', 'novelty_or_product_art_context']},
- '3': {'required_true': ['unrelated_content_dominates'],
-       'blocked_true': ['sustained_product_promotion_found']},
- '5': {'required_true': ['sustained_product_promotion_found'],
-       'blocked_true': ['real_physical_product_display_found', 'unrelated_content_dominates']},
- '6': {'required_true': ['sustained_product_promotion_found',
-                         'real_physical_product_display_found',
-                         'extremely_low_information_across_relevant_segments'],
-       'blocked_true': ['core_buying_information_found',
-                        'identifiable_product_and_core_purpose_found',
-                        'unrelated_content_dominates']},
- '9': {'required_true': ['explicit_generated_content_evidence_found',
-                         'authenticity_misleading_found'],
-       'blocked_true': []},
- '10': {'required_true': ['explicit_generated_content_evidence_found',
-                          'generated_product_material_mismatch_found',
-                          'bound_product_evidence_found'],
-        'blocked_true': []},
- '11': {'required_true': ['concrete_replay_indicator_found'],
-        'blocked_true': ['replay_weak_signal_only']},
- '12': {'required_true': ['concrete_live_effect_claim_found',
-                          'materially_misleading_basis_found',
-                          'effect_claim_prevalence_or_strength_threshold_met'],
-        'blocked_true': ['marketing_or_product_image_only']},
- '14': {'required_true': ['off_platform_destination_found',
-                          'explicit_transaction_guidance_found',
-                          'same_scene_transaction_requirement_met'],
-        'blocked_true': []},
- '15': {'required_true': ['category_15_non_ipp_illegal_basis_found'], 'blocked_true': []},
- '18': {'required_true': ['sustained_negative_emotion_found',
-                          'hostile_shaming_fear_evidence_found'],
-        'blocked_true': ['routine_sales_or_knowledge_marketing_only']},
- '19': {'required_true': [], 'blocked_true': [], 'disabled': True},
- '20': {'required_true': ['live_promoted_item_evidence_found',
-                          'bound_product_evidence_found',
-                          'core_product_contradiction_found'],
-        'blocked_true': ['minor_variant_or_background_only']},
- '4': {'required_true': ['sustained_no_promotion_and_no_interaction_found'],
-       'blocked_true': ['sustained_product_promotion_found']}})
-EXPECTED_REROUTES = _immutable([{'from': [5], 'to': 3, 'rule': 'priority_3_over_5_for_unrelated_content'},
- {'from': [6], 'to': 3, 'rule': 'priority_3_over_6'},
- {'from': [6], 'to': 5, 'rule': 'priority_5_over_6_for_no_physical_display'},
- {'from': [8], 'to': 20, 'rule': 'priority_20_over_8_for_product_mismatch'},
- {'from': [19], 'to': 1, 'rule': 'priority_1_over_19'}])
-CATEGORY_ALLOWED_MATERIALS = MappingProxyType({1: frozenset({'segment_frame', 'segment_asr'}),
- 2: frozenset({'segment_frame', 'segment_asr'}),
- 3: frozenset({'comment_interaction',
-               'pearl_product_image',
-               'pearl_product_title',
-               'segment_asr',
-               'segment_frame',
-               'segment_frame_visible_text'}),
- 4: frozenset({'comment_interaction',
-               'segment_asr',
-               'segment_frame',
-               'segment_frame_visible_text'}),
- 5: frozenset({'pearl_product_image',
-               'pearl_product_title',
-               'segment_asr',
-               'segment_frame',
-               'segment_frame_visible_text'}),
- 6: frozenset({'comment_interaction',
-               'pearl_product_image',
-               'pearl_product_title',
-               'segment_asr',
-               'segment_frame',
-               'segment_frame_visible_text'}),
- 7: frozenset({'segment_frame'}),
- 8: frozenset({'segment_frame_visible_text', 'segment_asr'}),
- 9: frozenset({'pearl_product_image',
-               'pearl_product_title',
-               'segment_asr',
-               'segment_frame',
-               'segment_frame_visible_text'}),
- 10: frozenset({'pearl_product_image',
-                'pearl_product_title',
-                'segment_asr',
-                'segment_frame',
-                'segment_frame_visible_text'}),
- 11: frozenset({'segment_frame', 'segment_asr'}),
- 12: frozenset({'segment_frame', 'pearl_product_image', 'segment_asr', 'pearl_product_title'}),
- 13: frozenset({'segment_frame', 'segment_asr'}),
- 14: frozenset({'comment_interaction',
-                'segment_asr',
-                'segment_frame',
-                'segment_frame_visible_text'}),
- 15: frozenset({'segment_frame', 'pearl_product_image', 'segment_asr', 'pearl_product_title'}),
- 16: frozenset({'segment_frame', 'pearl_product_image', 'segment_asr', 'pearl_product_title'}),
- 17: frozenset({'segment_frame', 'pearl_product_image', 'segment_asr', 'pearl_product_title'}),
- 18: frozenset({'segment_frame', 'comment_interaction', 'segment_asr'}),
- 19: frozenset({'segment_frame', 'pearl_product_image', 'segment_asr', 'pearl_product_title'}),
- 20: frozenset({'pearl_product_image',
-                'pearl_product_title',
-                'segment_asr',
-                'segment_frame',
-                'segment_frame_visible_text'})})
-MINIMUM_DISTINCT_EVIDENCE_UNITS = MappingProxyType({1: 1,
- 2: 1,
- 3: 1,
- 4: 1,
- 5: 1,
- 6: 1,
- 7: 1,
- 8: 1,
- 9: 1,
- 10: 2,
- 11: 1,
- 12: 1,
- 13: 2,
- 14: 1,
- 15: 2,
- 16: 2,
- 17: 2,
- 18: 2,
- 19: 1,
- 20: 2})
-FACT_ALLOWED_MATERIALS = MappingProxyType({'sexualized_exposure_or_behavior_found': frozenset({'segment_frame', 'segment_asr'}),
- 'ordinary_tryon_or_public_context_only': frozenset({'segment_frame', 'segment_asr'}),
- 'disturbing_visual_dominates': frozenset({'segment_frame', 'segment_asr'}),
- 'cleaning_demo_context': frozenset({'segment_frame', 'segment_asr'}),
- 'novelty_or_product_art_context': frozenset({'segment_frame', 'segment_asr'}),
- 'sustained_product_promotion_found': frozenset({'comment_interaction',
-                                                 'segment_asr',
-                                                 'segment_frame',
-                                                 'segment_frame_visible_text'}),
- 'unrelated_content_dominates': frozenset({'comment_interaction',
-                                           'segment_asr',
-                                           'segment_frame',
-                                           'segment_frame_visible_text'}),
- 'real_physical_product_display_found': frozenset({'segment_frame'}),
- 'core_buying_information_found': frozenset({'comment_interaction',
-                                             'segment_asr',
-                                             'segment_frame',
-                                             'segment_frame_visible_text'}),
- 'identifiable_product_and_core_purpose_found': frozenset({'comment_interaction',
-                                                           'segment_asr',
-                                                           'segment_frame',
-                                                           'segment_frame_visible_text'}),
- 'extremely_low_information_across_relevant_segments': frozenset({'comment_interaction',
-                                                                  'segment_asr',
-                                                                  'segment_frame',
-                                                                  'segment_frame_visible_text'}),
- 'explicit_generated_content_evidence_found': frozenset({'segment_asr',
-                                                         'segment_frame',
-                                                         'segment_frame_visible_text'}),
- 'authenticity_misleading_found': frozenset({'pearl_product_image',
-                                             'pearl_product_title',
-                                             'segment_asr',
-                                             'segment_frame',
-                                             'segment_frame_visible_text'}),
- 'generated_product_material_mismatch_found': frozenset({'pearl_product_image',
-                                                         'pearl_product_title',
-                                                         'segment_asr',
-                                                         'segment_frame',
-                                                         'segment_frame_visible_text'}),
- 'concrete_replay_indicator_found': frozenset({'segment_frame', 'segment_asr'}),
- 'replay_weak_signal_only': frozenset({'segment_frame', 'segment_asr'}),
- 'concrete_live_effect_claim_found': frozenset({'segment_frame', 'segment_asr'}),
- 'materially_misleading_basis_found': frozenset({'pearl_product_image',
-                                                 'pearl_product_title',
-                                                 'segment_asr',
-                                                 'segment_frame'}),
- 'effect_claim_prevalence_or_strength_threshold_met': frozenset({'pearl_product_image',
-                                                                 'pearl_product_title',
-                                                                 'segment_asr',
-                                                                 'segment_frame'}),
- 'marketing_or_product_image_only': frozenset({'pearl_product_image',
-                                               'pearl_product_title',
-                                               'segment_asr',
-                                               'segment_frame'}),
- 'off_platform_destination_found': frozenset({'comment_interaction',
-                                              'segment_asr',
-                                              'segment_frame',
-                                              'segment_frame_visible_text'}),
- 'explicit_transaction_guidance_found': frozenset({'comment_interaction',
-                                                   'segment_asr',
-                                                   'segment_frame',
-                                                   'segment_frame_visible_text'}),
- 'same_scene_transaction_requirement_met': frozenset({'comment_interaction',
-                                                      'segment_asr',
-                                                      'segment_frame',
-                                                      'segment_frame_visible_text'}),
- 'live_promoted_item_evidence_found': frozenset({'segment_asr',
-                                                 'segment_frame',
-                                                 'segment_frame_visible_text'}),
- 'bound_product_evidence_found': frozenset({'pearl_product_image', 'pearl_product_title'}),
- 'core_product_contradiction_found': frozenset({'pearl_product_image',
-                                                'pearl_product_title',
-                                                'segment_asr',
-                                                'segment_frame'}),
- 'minor_variant_or_background_only': frozenset({'pearl_product_image',
-                                                'pearl_product_title',
-                                                'segment_asr',
-                                                'segment_frame'}),
- 'category_15_non_ipp_illegal_basis_found': frozenset({'pearl_product_image',
-                                                       'pearl_product_title',
-                                                       'segment_asr',
-                                                       'segment_frame'}),
- 'sustained_negative_emotion_found': frozenset({'comment_interaction',
-                                                'segment_asr',
-                                                'segment_frame'}),
- 'hostile_shaming_fear_evidence_found': frozenset({'comment_interaction',
-                                                   'segment_asr',
-                                                   'segment_frame'}),
- 'routine_sales_or_knowledge_marketing_only': frozenset({'comment_interaction',
-                                                         'segment_asr',
-                                                         'segment_frame'}),
- 'sustained_no_promotion_and_no_interaction_found': frozenset({'segment_asr'}),
- 'ordinary_product_display_only': frozenset({'segment_frame', 'segment_asr'})})
-CATEGORY_FACT_ALLOWED_MATERIAL_OVERRIDES = MappingProxyType({(9, 'explicit_generated_content_evidence_found'): frozenset({'pearl_product_image',
-                                                              'pearl_product_title',
-                                                              'segment_asr',
-                                                              'segment_frame',
-                                                              'segment_frame_visible_text'}),
- (9, 'authenticity_misleading_found'): frozenset({'pearl_product_image',
-                                                  'pearl_product_title',
-                                                  'segment_asr',
-                                                  'segment_frame',
-                                                  'segment_frame_visible_text'}),
- (3, 'unrelated_content_dominates'): frozenset({'segment_asr',
-                                                'segment_frame',
-                                                'segment_frame_visible_text'})})
-CONTRADICTORY_FACT_PAIRS = ((1, 'sexualized_exposure_or_behavior_found', 'ordinary_tryon_or_public_context_only'),
- (3, 'unrelated_content_dominates', 'sustained_product_promotion_found'),
- (6, 'extremely_low_information_across_relevant_segments', 'core_buying_information_found'),
- (6,
-  'extremely_low_information_across_relevant_segments',
-  'identifiable_product_and_core_purpose_found'),
- (11, 'concrete_replay_indicator_found', 'replay_weak_signal_only'),
- (12, 'concrete_live_effect_claim_found', 'marketing_or_product_image_only'),
- (12, 'materially_misleading_basis_found', 'marketing_or_product_image_only'),
- (20, 'core_product_contradiction_found', 'minor_variant_or_background_only'),
- (18, 'sustained_negative_emotion_found', 'routine_sales_or_knowledge_marketing_only'),
- (18, 'hostile_shaming_fear_evidence_found', 'routine_sales_or_knowledge_marketing_only'))
+EXPECTED_CATEGORY_NAMES = MappingProxyType(
+    {
+        1: "色情低俗低质问题",
+        2: "恶心恐怖低质问题",
+        3: "商品无关低质问题",
+        4: "无互动低质问题",
+        5: "无实物商品展示低质问题",
+        6: "商品描述不详细低质问题",
+        7: "静态帧遮挡低质问题",
+        8: "非母语违规低质问题",
+        9: "AIGC真实性低质问题",
+        10: "AIGC商品展示低质问题",
+        11: "录播回放低质问题",
+        12: "功能效果虚假宣传低质问题",
+        13: "危险行为低质问题",
+        14: "站外引流交易低质问题",
+        15: "违法违规商品低质问题",
+        16: "政治敏感低质问题",
+        17: "争议话题低质问题",
+        18: "负面引导低质问题",
+        19: "隐私敏感商品低质问题",
+    }
+)
+PRODUCT_IMAGE_ALLOWED_CATEGORY_IDS = frozenset((3, 5, 6, 9, 10, 12, 15, 16, 17))
+CATEGORY_REQUIRED_CHANNEL_GROUPS = MappingProxyType(
+    {
+        1: (("segment_frame", "segment_asr"),),
+        2: (("segment_frame", "segment_asr"),),
+        3: (
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "comment_interaction",
+            ),
+        ),
+        4: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
+        5: (("segment_frame",),),
+        6: (("segment_frame",),),
+        7: (("segment_frame",),),
+        8: (("segment_asr", "segment_frame_visible_text"),),
+        9: (("segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"),),
+        10: (
+            ("segment_frame", "segment_asr", "segment_frame_visible_text"),
+            ("pearl_product_title", "pearl_product_image"),
+        ),
+        11: (("segment_frame", "segment_asr"),),
+        12: (("segment_frame", "segment_asr"),),
+        13: (("segment_frame", "segment_asr"),),
+        14: (("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"),),
+        15: (("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"),),
+        16: (("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"),),
+        17: (("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"),),
+        18: (("segment_frame", "segment_asr", "comment_interaction"),),
+        19: (),
+    }
+)
+EXPECTED_GATE_DEFINITIONS = _immutable(
+    {
+        "1": {
+            "required_true": ["sexualized_exposure_or_behavior_found"],
+            "blocked_true": ["ordinary_tryon_or_public_context_only"],
+        },
+        "2": {
+            "required_true": ["disturbing_visual_dominates"],
+            "blocked_true": ["cleaning_demo_context", "novelty_or_product_art_context"],
+        },
+        "3": {
+            "required_true": ["unrelated_content_dominates"],
+            "blocked_true": ["sustained_product_promotion_found"],
+        },
+        "5": {
+            "required_true": ["sustained_product_promotion_found"],
+            "blocked_true": ["real_physical_product_display_found", "unrelated_content_dominates"],
+        },
+        "6": {
+            "required_true": [
+                "sustained_product_promotion_found",
+                "real_physical_product_display_found",
+                "extremely_low_information_across_relevant_segments",
+            ],
+            "blocked_true": [
+                "core_buying_information_found",
+                "identifiable_product_and_core_purpose_found",
+                "unrelated_content_dominates",
+            ],
+        },
+        "9": {
+            "required_true": [
+                "explicit_generated_content_evidence_found",
+                "authenticity_misleading_found",
+            ],
+            "blocked_true": [],
+        },
+        "10": {
+            "required_true": [
+                "explicit_generated_content_evidence_found",
+                "generated_product_material_mismatch_found",
+                "bound_product_evidence_found",
+            ],
+            "blocked_true": [],
+        },
+        "11": {
+            "required_true": ["concrete_replay_indicator_found"],
+            "blocked_true": ["replay_weak_signal_only"],
+        },
+        "12": {
+            "required_true": [
+                "concrete_live_effect_claim_found",
+                "materially_misleading_basis_found",
+                "effect_claim_prevalence_or_strength_threshold_met",
+            ],
+            "blocked_true": ["marketing_or_product_image_only"],
+        },
+        "14": {
+            "required_true": [
+                "off_platform_destination_found",
+                "explicit_transaction_guidance_found",
+                "same_scene_transaction_requirement_met",
+            ],
+            "blocked_true": [],
+        },
+        "15": {
+            "required_true": [
+                "live_promoted_item_evidence_found",
+                "bound_product_evidence_found",
+                "core_product_contradiction_found",
+            ],
+            "blocked_true": ["minor_variant_or_background_only"],
+            "alternative_true": ["category_15_non_ipp_illegal_basis_found"],
+        },
+        "18": {
+            "required_true": [
+                "sustained_negative_emotion_found",
+                "hostile_shaming_fear_evidence_found",
+            ],
+            "blocked_true": ["routine_sales_or_knowledge_marketing_only"],
+        },
+        "19": {
+            "required_true": [],
+            "blocked_true": [],
+            "disabled": True,
+        },
+    }
+)
+EXPECTED_REROUTES = _immutable(
+    [
+        {"from": [5], "to": 3, "rule": "priority_3_over_5_for_unrelated_content"},
+        {"from": [6], "to": 3, "rule": "priority_3_over_6"},
+        {"from": [6], "to": 5, "rule": "priority_5_over_6_for_no_physical_display"},
+        {"from": [8], "to": 15, "rule": "priority_15_over_8_for_product_mismatch"},
+        {"from": [19], "to": 1, "rule": "priority_1_over_19"},
+    ]
+)
+CATEGORY_ALLOWED_MATERIALS = MappingProxyType(
+    {
+        1: frozenset(("segment_frame", "segment_asr")),
+        2: frozenset(("segment_frame", "segment_asr")),
+        3: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "comment_interaction",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        4: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "comment_interaction",
+            )
+        ),
+        5: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        6: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "comment_interaction",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        7: frozenset(("segment_frame",)),
+        8: frozenset(("segment_asr", "segment_frame_visible_text")),
+        9: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        10: frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        11: frozenset(("segment_frame", "segment_asr")),
+        12: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        13: frozenset(("segment_frame", "segment_asr")),
+        14: frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        15: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        16: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        17: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        18: frozenset(("segment_frame", "segment_asr", "comment_interaction")),
+        19: frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+    }
+)
+MINIMUM_DISTINCT_EVIDENCE_UNITS = MappingProxyType(
+    {
+        category_id: 2 if category_id in {10, 13, 15, 16, 17, 18} else 1
+        for category_id in range(1, 20)
+    }
+)
+FACT_ALLOWED_MATERIALS = MappingProxyType(
+    {
+        "sexualized_exposure_or_behavior_found": frozenset(("segment_frame", "segment_asr")),
+        "ordinary_tryon_or_public_context_only": frozenset(("segment_frame", "segment_asr")),
+        "disturbing_visual_dominates": frozenset(("segment_frame", "segment_asr")),
+        "cleaning_demo_context": frozenset(("segment_frame", "segment_asr")),
+        "novelty_or_product_art_context": frozenset(("segment_frame", "segment_asr")),
+        "sustained_product_promotion_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "unrelated_content_dominates": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "real_physical_product_display_found": frozenset(("segment_frame",)),
+        "core_buying_information_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "identifiable_product_and_core_purpose_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "extremely_low_information_across_relevant_segments": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "explicit_generated_content_evidence_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+            )
+        ),
+        "authenticity_misleading_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "generated_product_material_mismatch_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "concrete_replay_indicator_found": frozenset(("segment_frame", "segment_asr")),
+        "replay_weak_signal_only": frozenset(("segment_frame", "segment_asr")),
+        "concrete_live_effect_claim_found": frozenset(("segment_frame", "segment_asr")),
+        "materially_misleading_basis_found": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "effect_claim_prevalence_or_strength_threshold_met": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "marketing_or_product_image_only": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "off_platform_destination_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "explicit_transaction_guidance_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "same_scene_transaction_requirement_met": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction")
+        ),
+        "live_promoted_item_evidence_found": frozenset(
+            ("segment_frame", "segment_asr", "segment_frame_visible_text")
+        ),
+        "bound_product_evidence_found": frozenset(
+            ("pearl_product_title", "pearl_product_image")
+        ),
+        "core_product_contradiction_found": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "minor_variant_or_background_only": frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        "category_15_non_ipp_illegal_basis_found": frozenset(
+            ("segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image")
+        ),
+        "sustained_negative_emotion_found": frozenset(
+            ("segment_frame", "segment_asr", "comment_interaction")
+        ),
+        "hostile_shaming_fear_evidence_found": frozenset(
+            ("segment_frame", "segment_asr", "comment_interaction")
+        ),
+        "routine_sales_or_knowledge_marketing_only": frozenset(
+            ("segment_frame", "segment_asr", "comment_interaction")
+        ),
+    }
+)
+CATEGORY_FACT_ALLOWED_MATERIAL_OVERRIDES = MappingProxyType(
+    {
+        (9, "explicit_generated_content_evidence_found"): frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+        (9, "authenticity_misleading_found"): frozenset(
+            (
+                "segment_frame",
+                "segment_asr",
+                "segment_frame_visible_text",
+                "pearl_product_title",
+                "pearl_product_image",
+            )
+        ),
+    }
+)
+CONTRADICTORY_FACT_PAIRS = (
+    (1, "sexualized_exposure_or_behavior_found", "ordinary_tryon_or_public_context_only"),
+    (3, "unrelated_content_dominates", "sustained_product_promotion_found"),
+    (6, "extremely_low_information_across_relevant_segments", "core_buying_information_found"),
+    (6, "extremely_low_information_across_relevant_segments", "identifiable_product_and_core_purpose_found"),
+    (11, "concrete_replay_indicator_found", "replay_weak_signal_only"),
+    (12, "concrete_live_effect_claim_found", "marketing_or_product_image_only"),
+    (12, "materially_misleading_basis_found", "marketing_or_product_image_only"),
+    (15, "core_product_contradiction_found", "minor_variant_or_background_only"),
+    (18, "sustained_negative_emotion_found", "routine_sales_or_knowledge_marketing_only"),
+    (18, "hostile_shaming_fear_evidence_found", "routine_sales_or_knowledge_marketing_only"),
+)
 
 
 def _text(value):
@@ -764,7 +863,7 @@ def _validate_final_results_structure(payload):
     results = payload.get("final_results")
     if type(results) is not list:
         return ["final_results_missing_or_not_list"]
-    if len(results) != 20:
+    if len(results) != 19:
         errors.append("final_results_count_mismatch")
 
     valid_ids = set()
@@ -778,7 +877,7 @@ def _validate_final_results_structure(payload):
         if type(category_id) is not int:
             errors.append("final_result_category_id_not_exact_int:index_%d" % index)
             continue
-        if category_id < 1 or category_id > 20:
+        if category_id < 1 or category_id > 19:
             errors.append("final_result_category_id_out_of_range:%d" % category_id)
         elif category_id in seen_ids:
             errors.append("duplicate_final_result_category_id:%d" % category_id)
@@ -855,7 +954,7 @@ def _validate_final_results_structure(payload):
                         % (category_id, rule_index)
                     )
 
-    if valid_ids != set(range(1, 21)):
+    if valid_ids != set(range(1, 20)):
         errors.append("final_result_category_ids_mismatch")
     policy_checks = payload.get("policy_checks")
     if type(policy_checks) is dict and "threshold_recheck_warnings" in policy_checks:
@@ -913,10 +1012,6 @@ def _material_is_available(material, material_availability):
 
 
 def _meets_evidence_threshold(category_id, evidence):
-    if category_id == 20:
-        materials = {_source_material(entry.get("source", "")) for entry in evidence}
-        if not (materials & {"segment_frame", "segment_asr", "segment_frame_visible_text"} and materials & {"pearl_product_title", "pearl_product_image"}):
-            return False
     return len(evidence) >= MINIMUM_DISTINCT_EVIDENCE_UNITS[category_id]
 
 
@@ -925,15 +1020,6 @@ def _fact_allowed_materials(category_id, fact_name):
         (category_id, fact_name),
         FACT_ALLOWED_MATERIALS[fact_name],
     )
-
-
-def _ordinary_product_descriptors_only(detail):
-    # This guard only covers plainly described merchandise with no person/action context.
-    # Clothing words must never exempt actual sexual speech or behavior by a person.
-    product = re.search(r"戏服|服饰|文胸|罩杯|流苏裙|内衣|泳衣|泳装|人偶|模特架|cosplay|costume|bra\b|cup size|underwear|swimwear|mannequin", detail, re.I)
-    display = re.search(r"提到|介绍|展示|陈列|商品|服饰|服装|罩杯|describe|display|mention|product|cup size|costume", detail, re.I)
-    person_or_action = re.search(r"主播|观众|身体|穿着|裸露|露出|性交|性行为|口交|生殖器|乳头|性邀约|挑逗|host|viewer|person|wearing|body|nude|naked|exposed|sex|oral|genitals|nipples|masturbat", detail, re.I)
-    return bool(product and display and not person_or_action)
 
 
 def _fact_evidence(
@@ -949,8 +1035,6 @@ def _fact_evidence(
 
     allowed_materials = CATEGORY_ALLOWED_MATERIALS.get(category_id, frozenset())
     detail = _text(fact["evidence_detail"])
-    if category_id == 1 and fact_name == "sexualized_exposure_or_behavior_found" and _ordinary_product_descriptors_only(detail):
-        return []
     evidence = []
     for source in fact["evidence_sources"]:
         if source not in allowed_source_labels:
@@ -1343,8 +1427,6 @@ def _material_reliable(material, trusted_context):
 
 
 def _category_is_applicable(category_id, trusted_context):
-    if category_id in {3, 4} and not trusted_context["segments"]:
-        return False
     groups = CATEGORY_REQUIRED_CHANNEL_GROUPS[category_id]
     if not groups:
         return True
@@ -1409,7 +1491,7 @@ def _apply_material_applicability(
     forbidden_only_by_category,
     audit,
 ):
-    for category_id in range(1, 21):
+    for category_id in range(1, 20):
         if category_id == 19 or _category_is_applicable(category_id, trusted_context):
             continue
         item = results_by_id[category_id]
@@ -1666,7 +1748,7 @@ def _reroute_target_evidence(
 ):
     target_id = reroute["to"]
     definition = definitions[str(target_id)]
-    if target_id == 20 and reroute["from"] == [8]:
+    if target_id == 15 and reroute["from"] == [8]:
         if not _required_path_passes(
             payload,
             target_id,
@@ -1857,10 +1939,10 @@ def _sync_decision_lists(payload):
         item.get("category_id") for item in results if type(item) is dict
     }
     payload["coverage_check"] = {
-        "expected_category_count": 20,
+        "expected_category_count": 19,
         "actual_category_count": len(results),
-        "missing_category_ids": sorted(set(range(1, 21)) - category_ids),
-        "extra_category_ids": sorted(category_ids - set(range(1, 21))),
+        "missing_category_ids": sorted(set(range(1, 20)) - category_ids),
+        "extra_category_ids": sorted(category_ids - set(range(1, 20))),
         "hit_no_hit_overlap_category_ids": sorted(
             (hit_ids & no_hit_ids) | (hit_ids & unable_ids) | (no_hit_ids & unable_ids)
         ),

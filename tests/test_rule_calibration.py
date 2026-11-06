@@ -27,7 +27,7 @@ RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_rules_str
 COMPACT_RULES_PATH = os.path.join(PROJECT_DIR, "rules", "live_ocean_lowquality_judge_rules_compact_v1.txt")
 SYSTEM_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_system_prompt_v1.txt")
 USER_PROMPT_PATH = os.path.join(PROJECT_DIR, "prompts", "lowquality_judge_user_prompt_v1.txt")
-EXPECTED_V3_VERSION = "2026-11-06-v4-evidence-first-ipp"
+EXPECTED_V3_VERSION = "2026-10-15-v3-cross-project-boundary-gates"
 EXPECTED_PROMPT_BOUNDARY_FACTS = {
     "sexualized_exposure_or_behavior_found",
     "ordinary_tryon_or_public_context_only",
@@ -65,7 +65,7 @@ EXPECTED_PRIORITY_MAPPINGS = {
     "priority_3_over_5_for_unrelated_content": (3, 5),
     "priority_3_over_6": (3, 6),
     "priority_5_over_6_for_no_physical_display": (5, 6),
-    "priority_20_over_8_for_product_mismatch": (20, 8),
+    "priority_15_over_8_for_product_mismatch": (15, 8),
     "priority_1_over_19": (1, 19),
 }
 EXPECTED_CATEGORY_9_HIT_DEFINITION_ZH = (
@@ -104,7 +104,10 @@ EXPECTED_CATEGORY_12_HIT_DEFINITION_ZH = (
     "仅当直播画面或 ASR 中存在具体商品功能效果主张，且该主张有实质误导依据并达到现行覆盖度/强度阈值时命中；"
     "商品物料仅可佐证，不能单独构成命中。"
 )
-EXPECTED_CATEGORY_15_HIT_DEFINITION_ZH = '直播中销售法律法规禁止商品，例如真实枪支、毒品，或有独立明确的假冒仿冒伪劣等违法违规商品证据；挂品错绑不属于本类。'
+EXPECTED_CATEGORY_15_HIT_DEFINITION_ZH = (
+    "直播中销售法律法规禁止商品、假冒仿冒伪劣商品，或直播推广商品与绑定商品/商品图在实体、类目、用途、"
+    "核心数量或关键规格上存在明确矛盾，构成货不对板/IPP。"
+)
 EXPECTED_COMPACT_CATEGORY_11_HIT = (
     "Hit: a clear replay/loop/pre-recorded indicator is required, such as replay/loop labels, "
     "playback controls, video timeline, repeated sequence, abnormal jump, black/green screen, "
@@ -112,32 +115,33 @@ EXPECTED_COMPACT_CATEGORY_11_HIT = (
     "Taskbar, cursor, browser, desktop, or OBS alone cannot hit."
 )
 
-EXPECTED_CATEGORY_NAMES = ['色情低俗低质问题',
- '恶心恐怖低质问题',
- '商品无关低质问题',
- '无互动低质问题',
- '无实物商品展示低质问题',
- '商品描述不详细低质问题',
- '静态帧遮挡低质问题',
- '非母语违规低质问题',
- 'AIGC真实性低质问题',
- 'AIGC商品展示低质问题',
- '录播回放低质问题',
- '功能效果虚假宣传低质问题',
- '危险行为低质问题',
- '站外引流交易低质问题',
- '违法违规商品低质问题',
- '政治敏感低质问题',
- '争议话题低质问题',
- '负面引导低质问题',
- '隐私敏感商品低质问题',
- '挂品与直播间商品不一致低质问题']
+EXPECTED_CATEGORY_NAMES = [
+    "色情低俗低质问题",
+    "恶心恐怖低质问题",
+    "商品无关低质问题",
+    "无互动低质问题",
+    "无实物商品展示低质问题",
+    "商品描述不详细低质问题",
+    "静态帧遮挡低质问题",
+    "非母语违规低质问题",
+    "AIGC真实性低质问题",
+    "AIGC商品展示低质问题",
+    "录播回放低质问题",
+    "功能效果虚假宣传低质问题",
+    "危险行为低质问题",
+    "站外引流交易低质问题",
+    "违法违规商品低质问题",
+    "政治敏感低质问题",
+    "争议话题低质问题",
+    "负面引导低质问题",
+    "隐私敏感商品低质问题",
+]
 
 EXPECTED_SYSTEM_PRIORITY_LINES = [
     "Category 3 has priority over category 5. When unrelated content dominates, classify category 3 and do not classify category 5 on the same evidence.",
     "Category 3 has priority over category 6. If there is no clear sustained product promotion intent and live content is unrelated to bound products, classify category 3 and do not classify category 6 on the same evidence.",
     "Category 5 has priority over category 6 when product talk exists but most live frames do not show the real bound product.",
-    "Category 20 has priority over category 8 when the core issue is live product versus bound product mismatch / IPP rather than language itself.",
+    "Category 15 has priority over category 8 when the core issue is live product versus bound product mismatch / IPP rather than language itself.",
     "Category 1 has priority over category 19. Sexual exposure or sexualized implication belongs to category 1, not category 19.",
 ]
 
@@ -152,15 +156,6 @@ EXPECTED_CATEGORY_10_PROMPT_LINES = [
     "Category 10 independently requires bound_product_evidence_found from a Pearl product title or image source.",
     "Category 10 generated_product_material_mismatch_found must compare the live generated content with the bound product; Pearl-only evidence cannot hit Category 10.",
     "Category 10 requires at least two distinct trusted sources across its required facts.",
-]
-
-EXPECTED_EMPTY_PRODUCT_ID_CATEGORY_3_LINES = [
-    "Inspect product_catalog_json, not product_count, to determine whether product IDs are empty. The empty-ID path applies when every product_id in product_catalog_json is blank or when the catalog has no product rows.",
-    "On the empty-ID path, missing bound-product identity is not evidence of Category 3 and does not by itself make Category 3 unable_to_judge. Judge room-level commerce intent from live Segment frames, Segment ASR, visible text, and Comment Interaction across the whole room.",
-    "If those live materials show clear product explanation, product display or demonstration, price/order guidance, auction/card-opening/fast-selling activity, or other ecommerce selling intent, set sustained_product_promotion_found to true and Category 3 must be no_hit even without a bound product ID.",
-    "If the live core is pure chat, games/events, personal life, or other non-commerce content with no clear product explanation or ecommerce selling intent, set unrelated_content_dominates to true and Category 3 remains eligible for hit.",
-    "Pearl product titles or images alone cannot establish room-level commerce intent on the empty-ID path.",
-    "When any nonblank product_id exists, keep the existing bound-product relevance rules unchanged.",
 ]
 
 EXPECTED_USER_PROMPT_VARIABLE_NAMES = {
@@ -221,138 +216,149 @@ all_product_image_urls:
 
 Use the text JSON fields to understand which image URLs belong to which segment or product. Do not guess image roles by array position alone."""
 
-EXPECTED_ALLOWED_MATERIALS = {1: ['segment_frame', 'segment_asr'],
- 2: ['segment_frame', 'segment_asr'],
- 3: ['segment_frame',
-     'segment_asr',
-     'segment_frame_visible_text',
-     'comment_interaction',
-     'pearl_product_title',
-     'pearl_product_image'],
- 4: ['segment_frame', 'segment_asr', 'segment_frame_visible_text', 'comment_interaction'],
- 5: ['segment_frame',
-     'segment_asr',
-     'segment_frame_visible_text',
-     'pearl_product_title',
-     'pearl_product_image'],
- 6: ['segment_frame',
-     'segment_asr',
-     'segment_frame_visible_text',
-     'comment_interaction',
-     'pearl_product_title',
-     'pearl_product_image'],
- 7: ['segment_frame'],
- 8: ['segment_asr', 'segment_frame_visible_text'],
- 9: ['segment_frame',
-     'segment_asr',
-     'segment_frame_visible_text',
-     'pearl_product_title',
-     'pearl_product_image'],
- 10: ['segment_frame',
-      'segment_asr',
-      'segment_frame_visible_text',
-      'pearl_product_title',
-      'pearl_product_image'],
- 11: ['segment_frame', 'segment_asr'],
- 12: ['segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'],
- 13: ['segment_frame', 'segment_asr'],
- 14: ['segment_frame', 'segment_asr', 'segment_frame_visible_text', 'comment_interaction'],
- 15: ['segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'],
- 16: ['segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'],
- 17: ['segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'],
- 18: ['segment_frame', 'segment_asr', 'comment_interaction'],
- 19: ['segment_frame', 'segment_asr', 'pearl_product_title', 'pearl_product_image'],
- 20: ['segment_frame', 'segment_asr', 'segment_frame_visible_text', 'pearl_product_title', 'pearl_product_image']}
+EXPECTED_ALLOWED_MATERIALS = {
+    1: ["segment_frame", "segment_asr"],
+    2: ["segment_frame", "segment_asr"],
+    3: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"],
+    4: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"],
+    5: ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"],
+    6: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction", "pearl_product_title", "pearl_product_image"],
+    7: ["segment_frame"],
+    8: ["segment_asr", "segment_frame_visible_text"],
+    9: ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"],
+    10: ["segment_frame", "segment_asr", "segment_frame_visible_text", "pearl_product_title", "pearl_product_image"],
+    11: ["segment_frame", "segment_asr"],
+    12: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    13: ["segment_frame", "segment_asr"],
+    14: ["segment_frame", "segment_asr", "segment_frame_visible_text", "comment_interaction"],
+    15: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    16: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    17: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+    18: ["segment_frame", "segment_asr", "comment_interaction"],
+    19: ["segment_frame", "segment_asr", "pearl_product_title", "pearl_product_image"],
+}
 
-UNCHANGED_CATEGORY_SNAPSHOTS = {7: {'trigger_threshold': 'Any segment frame group shows an occlusion/interruption layer covering '
-                          'at least 80% of the live screen and seriously blocking viewing.',
-     'exemptions': []},
- 8: {'trigger_threshold': 'Hit only when segment ASR or visible text in segment frames uses a '
-                          'language that is not acceptable for the target market, Chinese/CJK in '
-                          'product promotion, Chinglish, incomprehensible English, or severely '
-                          'broken English, and this prevents normal product understanding across '
-                          'the live. Product mismatch, ethnic clothing style, non-English product '
-                          'titles, or OCR noise alone is not a language hit.',
-     'exemptions': ['Coworker daily Chinese conversation unrelated to product promotion.',
-                    'Minor accent that is easy to understand.',
-                    'Normal English/local EU-language mixing, including German, French, Spanish, '
-                    'Italian, Dutch, Polish, or other EU language words mixed with English.',
-                    'German "Englisch" as a local-language word.',
-                    'Isolated frame-text recognition noise, stylized labels, usernames, product '
-                    'names, or minor spelling mistakes unless overall promotion text becomes '
-                    'incomprehensible.',
-                    'Product mismatch or item/category difference is not a language violation.']},
- 13: {'trigger_threshold': 'Cumulative at least 2 segment frame or segment ASR evidence units show '
-                           'life-threatening violent behavior or dangerous goods demonstration, '
-                           'including heavy-smoke products creating fire illusion.',
-      'exemptions': ['Normal product demonstration, explanation, and safe behavior.']},
- 16: {'trigger_threshold': 'Cumulative at least 2 segment frame, segment ASR, Pearl product title, '
-                           'or Pearl product image evidence units show political controversy, '
-                           'sensitive political symbols/movements, political hate symbols, racial '
-                           'discrimination, or polarized political narratives.',
-      'exemptions': ['General non-political content unrelated to controversy or sensitive '
-                     'symbols.']},
- 17: {'trigger_threshold': 'Cumulative at least 2 segment frame, segment ASR, Pearl product title, '
-                           'or Pearl product image evidence units show sensitive topics related to '
-                           'religion, racial discrimination, moral boundary, LGBT, or similarly '
-                           'high-conflict socio-cultural themes.',
-      'exemptions': ['General non-sensitive content outside the specified topic scope.']}}
+UNCHANGED_CATEGORY_SNAPSHOTS = {
+    4: {
+        "trigger_threshold": "Hit when most available segment ASR evidence, supported by comment_interaction when available, shows both no product promotion and no host-audience interaction. Do not use a fixed ratio threshold from the old workflow.",
+        "exemptions": [],
+    },
+    7: {
+        "trigger_threshold": "Any segment frame group shows an occlusion/interruption layer covering at least 80% of the live screen and seriously blocking viewing.",
+        "exemptions": [],
+    },
+    8: {
+        "trigger_threshold": "Hit only when segment ASR or visible text in segment frames uses a language that is not acceptable for the target market, Chinese/CJK in product promotion, Chinglish, incomprehensible English, or severely broken English, and this prevents normal product understanding across the live. Product mismatch, ethnic clothing style, non-English product titles, or OCR noise alone is not a language hit.",
+        "exemptions": [
+            "Coworker daily Chinese conversation unrelated to product promotion.",
+            "Minor accent that is easy to understand.",
+            "Normal English/local EU-language mixing, including German, French, Spanish, Italian, Dutch, Polish, or other EU language words mixed with English.",
+            'German "Englisch" as a local-language word.',
+            "Isolated frame-text recognition noise, stylized labels, usernames, product names, or minor spelling mistakes unless overall promotion text becomes incomprehensible.",
+            "Product mismatch or item/category difference is not a language violation.",
+        ],
+    },
+    13: {
+        "trigger_threshold": "Cumulative at least 2 segment frame or segment ASR evidence units show life-threatening violent behavior or dangerous goods demonstration, including heavy-smoke products creating fire illusion.",
+        "exemptions": ["Normal product demonstration, explanation, and safe behavior."],
+    },
+    16: {
+        "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show political controversy, sensitive political symbols/movements, political hate symbols, racial discrimination, or polarized political narratives.",
+        "exemptions": ["General non-political content unrelated to controversy or sensitive symbols."],
+    },
+    17: {
+        "trigger_threshold": "Cumulative at least 2 segment frame, segment ASR, Pearl product title, or Pearl product image evidence units show sensitive topics related to religion, racial discrimination, moral boundary, LGBT, or similarly high-conflict socio-cultural themes.",
+        "exemptions": ["General non-sensitive content outside the specified topic scope."],
+    },
+}
 
-V3_CATEGORY_GUARD_TERMS = {1: ['ordinary try-on', 'gym', 'swimwear', 'shapewear', 'without explicit sexual framing'],
- 2: ['dominant',
-     'strong discomfort',
-     'cleaning',
-     'novelty/product art',
-     'calendar',
-     'packaging',
-     'hard-exempt'],
- 3: ['sustained unrelated core', 'short opening', 'later substantive product demonstration'],
- 5: ['real package',
-     'wearing',
-     'installation',
-     'operation',
-     'application/use',
-     'physical display',
-     'unrelated dominance',
-     'category 3'],
- 6: ['identifiable product or package',
-     'core purpose',
-     'core buying fact',
-     'blocks category 6',
-     'deep ingredient',
-     'mechanism'],
- 9: ['ai-like style alone is insufficient',
-     'concrete allowed-material evidence',
-     'authenticity deception',
-     'distinct from category 10'],
- 10: ['explicit generated-content evidence',
-      'independent bound_product evidence',
-      'live-to-bound material mismatch',
-      'at least two distinct trusted source labels',
-      'pearl-only evidence cannot hit'],
- 11: ['browser', 'desktop', 'obs', 'card', 'spin', 'cursor', 'weak signals'],
- 12: ['concrete live frame or asr claim',
-      'materially misleading basis',
-      'current prevalence/strength threshold',
-      'product image is corroborative only',
-      'product image copy',
-      'routine marketing',
-      'subjective praise alone cannot hit'],
- 14: ['same scene', 'off-platform destination', 'transaction guidance'],
- 15: ['independent', 'prohibited', 'ipp/product mismatch cannot'],
- 18: ['cumulative at least 2',
-      'routine sales pressure',
-      'knowledge marketing',
-      'normal risk explanation',
-      'hostile',
-      'shaming',
-      'fear'],
- 19: ['disabled', 'always return no_hit'],
- 20: ['live promoted item evidence',
-      'bound product evidence',
-      'entity/category/use/quantity/spec contradiction',
-      'minor variant',
-      'background difference']}
+V3_CATEGORY_GUARD_TERMS = {
+    1: [
+        "ordinary try-on",
+        "gym",
+        "swimwear",
+        "shapewear",
+        "without explicit sexual framing",
+    ],
+    2: [
+        "dominant",
+        "strong discomfort",
+        "cleaning",
+        "novelty/product art",
+        "calendar",
+        "packaging",
+        "hard-exempt",
+    ],
+    3: [
+        "sustained unrelated core",
+        "short opening",
+        "later substantive product demonstration",
+    ],
+    5: [
+        "real package",
+        "wearing",
+        "installation",
+        "operation",
+        "application/use",
+        "physical display",
+        "unrelated dominance",
+        "category 3",
+    ],
+    6: [
+        "identifiable product or package",
+        "core purpose",
+        "core buying fact",
+        "blocks category 6",
+        "deep ingredient",
+        "mechanism",
+    ],
+    9: [
+        "ai-like style alone is insufficient",
+        "concrete allowed-material evidence",
+        "authenticity deception",
+        "distinct from category 10",
+    ],
+    10: [
+        "explicit generated-content evidence",
+        "independent bound_product evidence",
+        "live-to-bound material mismatch",
+        "at least two distinct trusted source labels",
+        "pearl-only evidence cannot hit",
+    ],
+    11: ["browser", "desktop", "obs", "card", "spin", "cursor", "weak signals"],
+    12: [
+        "concrete live frame or asr claim",
+        "materially misleading basis",
+        "current prevalence/strength threshold",
+        "product image is corroborative only",
+        "product image copy",
+        "routine marketing",
+        "subjective praise alone cannot hit",
+    ],
+    14: ["same scene", "off-platform destination", "transaction guidance"],
+    15: [
+        "cumulative at least 2",
+        "live promoted item evidence",
+        "bound product evidence",
+        "entity/category/use/quantity/spec contradiction",
+        "minor variant",
+        "background difference",
+        "prohibited",
+        "counterfeit",
+        "jailbreak",
+        "non-ipp",
+    ],
+    18: [
+        "cumulative at least 2",
+        "routine sales pressure",
+        "knowledge marketing",
+        "normal risk explanation",
+        "hostile",
+        "shaming",
+        "fear",
+    ],
+    19: ["disabled", "always return no_hit"],
+}
 
 
 def _load_structured_rules():
@@ -422,7 +428,7 @@ def _valid_payload(hit_ids=(), evidence_by_id=None):
     hit_ids = set(hit_ids)
     evidence_by_id = evidence_by_id or {}
     final_results = []
-    for category_id in range(1, 21):
+    for category_id in range(1, 20):
         evidence = evidence_by_id.get(category_id, []) if category_id in hit_ids else []
         final_results.append(
             {
@@ -446,7 +452,7 @@ def _valid_payload(hit_ids=(), evidence_by_id=None):
         "final_results": final_results,
         "hit_category_ids": sorted(hit_ids),
         "no_hit_category_ids": [
-            category_id for category_id in range(1, 21) if category_id not in hit_ids
+            category_id for category_id in range(1, 20) if category_id not in hit_ids
         ],
         "unable_to_judge_category_ids": [],
     }
@@ -470,8 +476,8 @@ def _valid_finalizer_payload():
         },
     }
     payload["coverage_check"] = {
-        "expected_category_count": 20,
-        "actual_category_count": 20,
+        "expected_category_count": 19,
+        "actual_category_count": 19,
         "missing_category_ids": [],
         "extra_category_ids": [],
         "hit_no_hit_overlap_category_ids": [],
@@ -579,12 +585,12 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual(result["rules_version"], EXPECTED_V3_VERSION)
         self.assertIn("invalid v3 rules contract", result["rules_warning"])
         self.assertIn("using fallback", result["rules_warning"])
-        self.assertEqual(result["category_count"], 20)
+        self.assertEqual(result["category_count"], 19)
         self.assertEqual(result["category_integrity_check"], "ok")
         self.assertEqual(result["permission_matrix_check"], "ok")
         self.assertEqual(
             [item["category_id"] for item in category_catalog],
-            list(range(1, 21)),
+            list(range(1, 20)),
         )
         self.assertEqual(
             result["priority_rules_context"],
@@ -623,8 +629,8 @@ class RuleCalibrationTest(unittest.TestCase):
         rules = _load_structured_rules()
         categories = rules["categories"]
 
-        self.assertEqual(rules["fixed_category_count"], 20)
-        self.assertEqual([item["category_id"] for item in categories], list(range(1, 21)))
+        self.assertEqual(rules["fixed_category_count"], 19)
+        self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
         self.assertEqual([item["category_name"] for item in categories], EXPECTED_CATEGORY_NAMES)
         self.assertEqual(
             {item["category_id"]: item["allowed_materials"] for item in categories},
@@ -689,11 +695,11 @@ class RuleCalibrationTest(unittest.TestCase):
             compact_rules = f.read()
 
         self.assertTrue(
-            compact_rules.startswith("Live Ocean Low Quality Single-Judge Compact Rules v4\n")
+            compact_rules.startswith("Live Ocean Low Quality Single-Judge Compact Rules v3\n")
         )
         self.assertIn("Boundary contract version: " + EXPECTED_V3_VERSION, compact_rules)
         headings = re.findall(r"(?m)^(\d+) (.+)$", compact_rules)
-        self.assertEqual([int(category_id) for category_id, _ in headings], list(range(1, 21)))
+        self.assertEqual([int(category_id) for category_id, _ in headings], list(range(1, 20)))
         self.assertEqual([name for _, name in headings], EXPECTED_CATEGORY_NAMES)
 
     def test_compact_rules_define_exact_missing_material_precedence(self):
@@ -797,7 +803,7 @@ class RuleCalibrationTest(unittest.TestCase):
                 "raw_json_only": False,
                 "chinese_report_then_final_json": True,
                 "final_json_anchor": "FINAL_JSON:",
-                "final_results_count": 20,
+                "final_results_count": 19,
                 "hit_requires_non_empty_evidence": True,
                 "allowed_decisions": ["hit", "no_hit", "unable_to_judge"],
                 "required_fields_per_category": [
@@ -820,7 +826,7 @@ class RuleCalibrationTest(unittest.TestCase):
             requirements["final_json_anchor"],
             rules["final_report_requirements"]["append_final_json_anchor"],
         )
-        self.assertTrue(rules["final_report_requirements"]["must_cover_all_20_categories"])
+        self.assertTrue(rules["final_report_requirements"]["must_cover_all_19_categories"])
 
     def test_rules_brain_digest_rejects_output_envelope_field_drift(self):
         rules = _load_structured_rules()
@@ -932,7 +938,7 @@ class RuleCalibrationTest(unittest.TestCase):
             "exemptions",
         )
 
-        for category_index in range(20):
+        for category_index in range(19):
             for field in category_fields:
                 altered = copy.deepcopy(canonical)
                 category = altered["categories"][category_index]
@@ -1241,8 +1247,7 @@ class RuleCalibrationTest(unittest.TestCase):
             EXPECTED_CATEGORY_15_HIT_DEFINITION_ZH,
         )
         self.assertNotIn("在实体、类目、用途上明显不一致", by_id[15]["hit_definition_zh"])
-        self.assertIn("IPP/product mismatch alone", by_id[15]["exemptions"][1])
-        self.assertIn("minor variant", _category_text(by_id[20]))
+        self.assertIn("minor variant", _category_text(by_id[15]))
 
     def test_rules_brain_invalid_rules_json_uses_exact_v3_fallback_with_warning(self):
         result = build_rules_brain_output({"rules_json": "{"})
@@ -1257,7 +1262,7 @@ class RuleCalibrationTest(unittest.TestCase):
 
         self.assertEqual(result["rules_version"], EXPECTED_V3_VERSION)
         self.assertEqual(result["rules_warning"], "")
-        self.assertEqual(result["category_count"], 20)
+        self.assertEqual(result["category_count"], 19)
         self.assertEqual(result["category_integrity_check"], "ok")
         self.assertEqual(result["permission_matrix_check"], "ok")
 
@@ -1266,8 +1271,8 @@ class RuleCalibrationTest(unittest.TestCase):
 
         self.assertEqual(FALLBACK_RULES["version"], EXPECTED_V3_VERSION)
         self.assertEqual(FALLBACK_RULES["boundary_contract_version"], EXPECTED_V3_VERSION)
-        self.assertEqual(FALLBACK_RULES["fixed_category_count"], 20)
-        self.assertEqual([item["category_id"] for item in categories], list(range(1, 21)))
+        self.assertEqual(FALLBACK_RULES["fixed_category_count"], 19)
+        self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
         self.assertEqual([item["category_name"] for item in categories], EXPECTED_CATEGORY_NAMES)
         self.assertEqual(
             {item["category_id"]: item["allowed_materials"] for item in categories},
@@ -1320,10 +1325,10 @@ class RuleCalibrationTest(unittest.TestCase):
         with open(RULES_PATH, encoding="utf-8") as f:
             rules = json.load(f)
 
-        expected_allowed = {3, 5, 6, 9, 10, 12, 15, 16, 17, 20}
+        expected_allowed = {3, 5, 6, 9, 10, 12, 15, 16, 17}
         categories = rules["categories"]
 
-        self.assertEqual([item["category_id"] for item in categories], list(range(1, 21)))
+        self.assertEqual([item["category_id"] for item in categories], list(range(1, 20)))
         self.assertEqual(set(rules["product_image_allowed_category_ids"]), expected_allowed)
         self.assertEqual(
             {item["category_id"] for item in categories if item["product_image_allowed"]},
@@ -1339,7 +1344,7 @@ class RuleCalibrationTest(unittest.TestCase):
             rules = json.load(f)
 
         priorities = {item["id"] for item in rules["exclusive_priority_rules"]}
-        self.assertIn("priority_20_over_8_for_product_mismatch", priorities)
+        self.assertIn("priority_15_over_8_for_product_mismatch", priorities)
         self.assertIn("priority_5_over_6_for_no_physical_display", priorities)
 
         by_id = {item["category_id"]: item for item in rules["categories"]}
@@ -1380,10 +1385,10 @@ class RuleCalibrationTest(unittest.TestCase):
 
         for required_text in (
             "single final judge",
-            "exactly 20 low-quality categories",
+            "exactly 19 low-quality categories",
             "all available Ocean segments",
             "comment_interaction field",
-            "Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, 17, and 20",
+            "Product images may only be used for categories 3, 5, 6, 9, 10, 12, 15, 16, and 17",
             "Category 19 is disabled",
             "Apply the supplied boundary contract before making category decisions",
             "Every required fact must be returned as an object with Boolean value, evidence_sources, and evidence_detail",
@@ -1399,7 +1404,7 @@ class RuleCalibrationTest(unittest.TestCase):
             "Category 3 has priority over category 5",
             "Category 3 has priority over category 6",
             "Category 5 has priority over category 6",
-            "Category 20 has priority over category 8",
+            "Category 15 has priority over category 8",
             "Category 1 has priority over category 19",
         ):
             self.assertIn(required_text.lower(), lower_prompt)
@@ -1407,7 +1412,7 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertIn("80%", system_prompt)
         self.assertIn("occlusion", lower_prompt)
         self.assertIn("a still frame alone is not a category 7 low-quality hit", lower_prompt)
-        self.assertIn("v4", lower_prompt)
+        self.assertIn("v3", lower_prompt)
 
     def test_system_prompt_priority_section_has_exact_five_ordered_rules(self):
         system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
@@ -1439,25 +1444,6 @@ class RuleCalibrationTest(unittest.TestCase):
         self.assertEqual(user_precedence, EXPECTED_DECISION_PRECEDENCE_LINES)
         self.assertNotIn("return no_hit or unable_to_judge", system_prompt.lower())
         self.assertNotIn("return no_hit or unable_to_judge", user_prompt.lower())
-
-    def test_prompts_define_exact_empty_product_id_category_3_rule(self):
-        system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
-        user_prompt = _load_prompt(USER_PROMPT_PATH)
-        self.assertIn("Category 3 empty product ID rule\n", system_prompt)
-        self.assertIn("Category 3 empty product ID handling\n", user_prompt)
-        system_lines = _nonblank_section_lines(
-            system_prompt,
-            "Category 3 empty product ID rule\n",
-            "\nCategory 10 evidence contract",
-        )
-        user_lines = _nonblank_section_lines(
-            user_prompt,
-            "Category 3 empty product ID handling\n",
-            "\nCategory 10 evidence contract",
-        )
-
-        self.assertEqual(system_lines, EXPECTED_EMPTY_PRODUCT_ID_CATEGORY_3_LINES)
-        self.assertEqual(user_lines, EXPECTED_EMPTY_PRODUCT_ID_CATEGORY_3_LINES)
 
     def test_prompts_define_exact_category_10_trusted_source_contract(self):
         system_prompt = _load_prompt(SYSTEM_PROMPT_PATH)
@@ -1599,23 +1585,13 @@ class RuleCalibrationTest(unittest.TestCase):
             lower_prompt,
         )
         self.assertIn(
-            "for every category_id from 1 through 20 in order",
+            "for every category_id from 1 through 19 in order",
             lower_prompt,
         )
         self.assertIn(
             "schema placeholder keys and angle-bracket values must not appear in the actual output",
             lower_prompt,
         )
-
-    def test_user_prompt_requires_a_bounded_minified_final_json(self):
-        user_prompt = _load_prompt(USER_PROMPT_PATH)
-        for required_text in (
-            "Keep the entire response concise and under 9000 characters.",
-            "The FINAL_JSON object must be minified on one line with no indentation or unnecessary whitespace.",
-            "For no_hit and unable_to_judge, keep judge_reason to one short Chinese sentence; false facts must use empty evidence_sources and empty evidence_detail.",
-            "For a hit, keep only the minimum concrete evidence required by the rule.",
-        ):
-            self.assertIn(required_text, user_prompt)
 
     def test_user_prompt_json_example_uses_runtime_identity_placeholders(self):
         user_prompt = _load_prompt(USER_PROMPT_PATH)
@@ -1647,7 +1623,7 @@ class RuleCalibrationTest(unittest.TestCase):
         lower_prompt = user_prompt.lower()
 
         for required_text in (
-            "all 33 required fact names",
+            "all 31 required fact names",
             "exactly the keys value, evidence_sources, and evidence_detail",
             "every true fact",
             "exact allowed_source_labels",
@@ -1655,7 +1631,7 @@ class RuleCalibrationTest(unittest.TestCase):
             "source, quote_or_visual_detail, and reason",
             "all three fields must be nonblank",
             "category 9 and category 10 facts must remain separate",
-            "final_results must contain exactly 20 objects",
+            "final_results must contain exactly 19 objects",
             "no text after the json",
         ):
             self.assertIn(required_text, lower_prompt)
@@ -1978,7 +1954,7 @@ class RuleCalibrationTest(unittest.TestCase):
             ((3, 5), "priority_conflict_category_3_and_5"),
             ((3, 6), "priority_conflict_category_3_and_6"),
             ((5, 6), "priority_conflict_category_5_and_6"),
-            ((8, 20), "priority_conflict_category_8_and_20"),
+            ((8, 15), "priority_conflict_category_8_and_15"),
         ]
 
         for pair, expected_code in cases:
@@ -1994,7 +1970,7 @@ class RuleCalibrationTest(unittest.TestCase):
                 self.assertIn(expected_code, errors)
 
     def test_validator_allows_priority_pairs_with_distinct_evidence(self):
-        cases = [(3, 5), (3, 6), (5, 6), (8, 20)]
+        cases = [(3, 5), (3, 6), (5, 6), (8, 15)]
 
         for pair in cases:
             with self.subTest(pair=pair):

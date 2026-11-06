@@ -1,9 +1,3 @@
-## Current release contract — 2026-11-06
-
-Authoritative Aicolate workflow: `7699380966418055168`. The current v4 contract has 20 categories: Category 20 is IPP / 挂品与直播间商品不一致低质问题, and Category 15 requires independent illegal/prohibited-goods evidence. Category 19 remains disabled. Categories 3/4 require reliable live segment material; zero segments and missing capture/statistics never establish a low-quality hit. Category 4 requires ASR evidence of sustained absence of both promotion and interaction. Ordinary costumes, bras/cup-size descriptions and merchandise display are exempt from sexual-content classification without actual explicit sexual conduct. Preserve the empty-product-ID commerce fallback.
-
-Regression fixtures committed here use synthetic materials. The original XLSX, real room IDs and signed media URLs remain in the local EU-LLM_Wiki evidence folder. Older v3 descriptions below are historical where this section supersedes them.
-
 # Live Ocean Low Quality
 
 This repository contains the v3 Aicolate assets for live-room low-quality detection using Ocean and Pearl materials supplied directly by the Start node.

@@ -1,10 +1,10 @@
 import json
 
 
-ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17, 20}
-ALL_CATEGORY_IDS = set(range(1, 21))
+ALLOWED_PRODUCT_IMAGE_CATEGORY_IDS = {3, 5, 6, 9, 10, 12, 15, 16, 17}
+ALL_CATEGORY_IDS = set(range(1, 20))
 ALLOWED_DECISIONS = {"hit", "no_hit", "unable_to_judge"}
-PRIORITY_CONFLICT_PAIRS = ((3, 5), (3, 6), (5, 6), (8, 20))
+PRIORITY_CONFLICT_PAIRS = ((3, 5), (3, 6), (5, 6), (8, 15))
 FINALIZATION_STATUSES = {"pass", "warning", "fail"}
 
 
@@ -90,7 +90,7 @@ def _check_decision_lists(payload, errors):
     unable_ids = set(_parse_id_list(payload.get("unable_to_judge_category_ids")))
     combined = hit_ids | no_hit_ids | unable_ids
     if combined != ALL_CATEGORY_IDS:
-        errors.append("decision_id_lists_do_not_cover_1_to_20")
+        errors.append("decision_id_lists_do_not_cover_1_to_19")
     if hit_ids & no_hit_ids or hit_ids & unable_ids or no_hit_ids & unable_ids:
         errors.append("decision_id_lists_overlap")
     return hit_ids, no_hit_ids, unable_ids
@@ -193,8 +193,8 @@ def _validate_payload(payload, params):
         results = []
 
     category_ids = [item.get("category_id") for item in results if isinstance(item, dict)]
-    if len(results) != 20 or set(category_ids) != ALL_CATEGORY_IDS:
-        errors.append("category_ids_not_exact_1_to_20")
+    if len(results) != 19 or set(category_ids) != ALL_CATEGORY_IDS:
+        errors.append("category_ids_not_exact_1_to_19")
 
     for item in results:
         if not isinstance(item, dict):

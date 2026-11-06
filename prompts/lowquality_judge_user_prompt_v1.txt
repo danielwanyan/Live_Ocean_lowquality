@@ -1,5 +1,3 @@
-Evidence-first v4: IPP is exclusively Category 20 挂品与直播间商品不一致低质问题; Category 15 requires independent illegal goods. Compare live goods with the complete bound catalog; variants/background are exempt. Categories 3/4 require reliable live segments: zero segments/missing data/short duration/summary-only comments cannot hit. Cat4 requires sustained_no_promotion_and_no_interaction_found from live ASR proving BOTH no promotion and no interaction. Cat1 excludes costume/bra/cup-size/lingerie/swimwear/mannequin product display without explicit sexual conduct; set ordinary_product_display_only true. Keep the empty-ID commerce fallback.
-
 ## Room
 
 Room ID:
@@ -56,23 +54,15 @@ Use the text JSON fields to understand which image URLs belong to which segment 
 
 ## Task
 
-Check all 20 live-room low-quality categories independently and in category_id order.
+Check all 19 live-room low-quality categories independently and in category_id order.
 Use all Ocean segments, not a reduced sample.
 Use Comment Interaction only as summary-derived interaction context.
 Use Pearl product titles/images only where the compact rules allow them; never use Pearl material for a forbidden category.
-Apply the compact rules and supplied v4 boundary contract before every decision.
+Apply the compact rules and supplied v3 boundary contract before every decision.
 For every fact name listed in boundary_output_schema_json.required_facts, output one fact object using the exact name and allowed source labels.
-For every category_id from 1 through 20 in order, output one final_results object using the exact category name from the compact rules.
+For every category_id from 1 through 19 in order, output one final_results object using the exact category name from the compact rules.
 
 Category 7 remains an interruption or layer with at least 80% occlusion of the live screen. A still frame alone is not a Category 7 low-quality hit.
-
-Category 3 empty product ID handling
-Inspect product_catalog_json, not product_count, to determine whether product IDs are empty. The empty-ID path applies when every product_id in product_catalog_json is blank or when the catalog has no product rows.
-On the empty-ID path, missing bound-product identity is not evidence of Category 3 and does not by itself make Category 3 unable_to_judge. Judge room-level commerce intent from live Segment frames, Segment ASR, visible text, and Comment Interaction across the whole room.
-If those live materials show clear product explanation, product display or demonstration, price/order guidance, auction/card-opening/fast-selling activity, or other ecommerce selling intent, set sustained_product_promotion_found to true and Category 3 must be no_hit even without a bound product ID.
-If the live core is pure chat, games/events, personal life, or other non-commerce content with no clear product explanation or ecommerce selling intent, set unrelated_content_dominates to true and Category 3 remains eligible for hit.
-Pearl product titles or images alone cannot establish room-level commerce intent on the empty-ID path.
-When any nonblank product_id exists, keep the existing bound-product relevance rules unchanged.
 
 Category 10 evidence contract
 Category 10 explicit_generated_content_evidence_found must come from a live Segment frame, ASR, or visible-text source.
@@ -92,12 +82,8 @@ For no_hit and unable_to_judge, evidence may be empty, but judge_reason must exp
 
 Return the Chinese report first, then FINAL_JSON: followed by valid JSON.
 The JSON below is compact schema notation: it contains one fact object and one category result object only to show field shape.
-Expand them to all 33 required facts and all 20 ordered categories in the actual output.
+Expand them to all 31 required facts and all 19 ordered categories in the actual output.
 Schema placeholder keys and angle-bracket values must not appear in the actual output.
-Keep the entire response concise and under 9000 characters.
-The FINAL_JSON object must be minified on one line with no indentation or unnecessary whitespace.
-For no_hit and unable_to_judge, keep judge_reason to one short Chinese sentence; false facts must use empty evidence_sources and empty evidence_detail.
-For a hit, keep only the minimum concrete evidence required by the rule.
 
 识别到的低质问题：
 1. 识别到【类别名】
@@ -150,8 +136,8 @@ FINAL_JSON:
   "no_hit_category_ids": [],
   "unable_to_judge_category_ids": [],
   "coverage_check": {
-    "expected_category_count": 20,
-    "actual_category_count": 20,
+    "expected_category_count": 19,
+    "actual_category_count": 19,
     "missing_category_ids": [],
     "extra_category_ids": [],
     "hit_no_hit_overlap_category_ids": []
@@ -164,9 +150,9 @@ FINAL_JSON:
 }
 
 Requirements:
-The FINAL_JSON final_results must contain exactly 20 objects ordered by category_id from 1 to 20.
-For every category_id from 1 through 20 in order, copy the exact category name from the compact rules.
-For every fact name listed in boundary_output_schema_json.required_facts, include exactly one fact object; the facts object must include all 33 required fact names.
+The FINAL_JSON final_results must contain exactly 19 objects ordered by category_id from 1 to 19.
+For every category_id from 1 through 19 in order, copy the exact category name from the compact rules.
+For every fact name listed in boundary_output_schema_json.required_facts, include exactly one fact object; the facts object must include all 31 required fact names.
 Every fact object must contain exactly the keys value, evidence_sources, and evidence_detail.
 Every true fact must include at least one exact allowed_source_labels entry and nonblank evidence_detail; false facts may use empty evidence.
 Every hit must have evidence_count greater than 0 and non-empty evidence.
@@ -177,7 +163,7 @@ rules_version, room_id, and boundary_checks.contract_version must copy their exa
 The model must copy segment_count, product_count, and material_quality_warning from runtime values.
 The model must set comment_interaction_available to true when comment_interaction is nonempty and false when it is empty.
 Finalizer deterministically rebuilds material_summary from trusted Normalize inputs.
-hit_category_ids, no_hit_category_ids, and unable_to_judge_category_ids must cover all 20 categories with no overlap.
+hit_category_ids, no_hit_category_ids, and unable_to_judge_category_ids must cover all 19 categories with no overlap.
 Schema placeholder keys and angle-bracket values must not appear in the actual output.
 Do not include markdown code fences.
 Do not add any text after the JSON. There must be no text after the JSON.
