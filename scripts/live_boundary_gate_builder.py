@@ -354,6 +354,8 @@ def build_boundary_gate_output(params):
     }
     output_schema = {
         "contract_version": BOUNDARY_CONTRACT_VERSION,
+        "ipp_live_source_labels": [label for label in allowed_source_labels if label.startswith("Segment #")],
+        "ipp_product_source_labels": [label for label in allowed_source_labels if label.startswith("Pearl product #")],
         "ipp_alignment": {
             "sales_mode": "regular|auction|unclear",
             "sales_mode_evidence": [{"kind": "auction_sign|bidding_rules|active_bidding|auction_settlement", "source": "exact live label", "detail": "specific sign/rules/bids/settlement, never incidental auction mention"}],

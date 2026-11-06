@@ -195,6 +195,14 @@ class IPPAnyMatch(unittest.TestCase):
         v = validate_judge_output(_validator_params_from_finalizer(r))
         self.assertNotEqual(v['validation_status'], 'fail')
 
+    def test_alignment_schema_separates_live_and_product_source_labels(self):
+        schema = json.loads(build_boundary_gate_output(build_params())['boundary_output_schema_json'])
+        self.assertIn('ipp_live_source_labels', schema)
+        self.assertIn('ipp_product_source_labels', schema)
+        self.assertNotIn('Comment Interaction', schema['ipp_live_source_labels'])
+        self.assertTrue(all(s.startswith('Segment #') for s in schema['ipp_live_source_labels']))
+        self.assertTrue(all(s.startswith('Pearl product #') for s in schema['ipp_product_source_labels']))
+
 
 if __name__ == '__main__':
     unittest.main()
